@@ -20,7 +20,8 @@ import { Sheet, SheetContent } from "@/components/ui/sheet"
 import { useSupabaseAuth } from "@/hooks/use-supabase-auth"
 import { useRadioConfig } from "@/hooks/use-radio-config"
 import { useSessionTracking } from "@/hooks/use-session-tracking"
-import { Loader2 } from "lucide-react"
+import { useQuestionCounter } from "@/hooks/use-question-counter"
+import { Loader2, MessageCircle } from "lucide-react"
 import { ChatGPTLandingPage } from "@/components/chatgpt-landing-page"
 import { useAppConfig } from "@/hooks/use-app-config"
 import { supabase } from "@/lib/supabase"
@@ -42,6 +43,7 @@ export default function HomePage() {
   const { user, profile, loading: authLoading, isAdmin, signOut } = useSupabaseAuth()
   const { getConfigValue, loading: configLoading } = useAppConfig()
   const { radioConfig, loading: radioLoading } = useRadioConfig(user)
+  const { questionCount, loading: questionCountLoading } = useQuestionCounter()
   const [showAuthModal, setShowAuthModal] = useState(false)
   const [authMode, setAuthMode] = useState<"login" | "register">("login")
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false) // Declare setIsAuthModalOpen
@@ -241,6 +243,22 @@ export default function HomePage() {
             </div>
 
             <div className="flex items-center gap-2">
+              {/* Contador de Perguntas */}
+              {user && (
+                <div className="flex items-center gap-2 px-3 py-1.5 bg-muted/50 rounded-full border">
+                  <MessageCircle className="h-4 w-4 text-primary" />
+                  <span className="text-sm font-medium">
+                    {questionCountLoading ? "..." : questionCount}
+                  </span>
+                  <span className="text-xs text-muted-foreground hidden sm:inline">
+                    pergunta{questionCount !== 1 ? 's' : ''}
+                  </span>
+                </div>
+              )}
+              
+              {/* Radio Player */}
+              {shouldShowRadioPlayer() && <RadioPlayer inHeader />}
+              
               <ThemeToggle />
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
@@ -295,7 +313,6 @@ export default function HomePage() {
       </div>
 
       <AuthModal isOpen={showAuthModal} onClose={handleCloseAuthModal} mode={authMode} onModeChange={setAuthMode} />
-      {shouldShowRadioPlayer() && <RadioPlayer />}
     </>
   )
 }

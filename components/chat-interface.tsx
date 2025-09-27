@@ -11,279 +11,249 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Send, Loader2, AlertCircle, BookOpen, Copy, Share2, ChevronDown, ChevronUp } from "lucide-react"
 import { supabase } from "@/lib/supabase"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { AudioRecorder } from "@/components/audio-recorder"
+import AudioRecorder from "@/components/audio-recorder"
 import { AudioPlayer } from "@/components/audio-player"
+import { WhatsAppAudioPlayer } from "@/components/whatsapp-audio-player"
+import { useSubscription } from "@/hooks/use-tokens"
+import { useSupabaseAuth } from "@/hooks/use-supabase-auth"
+import { UpgradeModal } from "@/components/upgrade-modal"
+import { Crown, Zap } from "lucide-react"
 
 interface Message {
+  id?: string // ID único da mensagem
   role: "user" | "assistant"
   content: string
   timestamp: string
+  audioUrl?: string // URL do áudio para mensagens de áudio
+  audioStoragePath?: string  // Path do storage do Supabase
+  transcription?: string     // Transcrição do áudio
 }
 
 interface ChatInterfaceProps {
   conversationId?: string | null
   onConversationUpdate?: () => void
   user: any
-  appConfig: {
-    appName: string
-    prophetName: string
-    prophetAvatar: string
-  }
-}
-
-// Helper function to determine if message is a greeting
-const isGreeting = (message: string): boolean => {
-  const greetings = [
-    "olá",
-    "oi",
-    "hello",
-    "hi",
-    "bom dia",
-    "boa tarde",
-    "boa noite",
-    "hey",
-    "e aí",
-    "salve",
-    "paz",
-    "shalom",
-    "saudações",
-  ]
-
-  const cleanMessage = message.toLowerCase().trim()
-
-  // Check if message is just a greeting (short and contains greeting words)
-  if (cleanMessage.length < 20) {
-    return greetings.some((greeting) => cleanMessage.includes(greeting))
-  }
-
-  // Check if message starts with greeting but has no question words
-  const questionWords = ["como", "quando", "onde", "por que", "porque", "qual", "quem", "o que", "?"]
-  const startsWithGreeting = greetings.some((greeting) => cleanMessage.startsWith(greeting))
-  const hasQuestionWords = questionWords.some((word) => cleanMessage.includes(word))
-
-  return startsWithGreeting && !hasQuestionWords
-}
-
-// Helper function to determine gender and create greeting
-const getGreeting = (user: any, profile: any) => {
-  if (!profile?.name && !user?.email) {
-    return "Bem-vindo, irmão/irmã!"
-  }
-
-  const name = profile?.name || user?.email?.split("@")[0] || "irmão/irmã"
-
-  // Common feminine names/endings in Portuguese
-  const feminineIndicators = [
-    "ana",
-    "maria",
-    "joana",
-    "carla",
-    "paula",
-    "julia",
-    "lucia",
-    "rita",
-    "sara",
-    "vera",
-    "adriana",
-    "juliana",
-    "mariana",
-    "cristina",
-    "carolina",
-    "fernanda",
-    "amanda",
-    "sandra",
-    "patricia",
-    "monica",
-    "andrea",
-    "claudia",
-    "silvia",
-    "regina",
-    "helena",
-    "beatriz",
-    "gabriela",
-    "isabela",
-    "rafaela",
-    "daniela",
-    "marcela",
-    "camila",
-    "leticia",
-    "vanessa",
-  ]
-
-  const lowerName = name.toLowerCase()
-
-  // Check if name ends with 'a' or matches feminine names
-  const isFeminine = lowerName.endsWith("a") || feminineIndicators.some((indicator) => lowerName.includes(indicator))
-
-  const greeting = isFeminine ? "irmã" : "irmão"
-  const firstName = name.split(" ")[0]
-
-  return `Bem-vindo, ${greeting} ${firstName}!`
+  appConfig: any
 }
 
 export function ChatInterface({ conversationId, onConversationUpdate, user, appConfig }: ChatInterfaceProps) {
   const [messages, setMessages] = useState<Message[]>([])
   const [input, setInput] = useState("")
   const [isLoading, setIsLoading] = useState(false)
-  const [loadingHistory, setLoadingHistory] = useState(false)
-  const [isSearchingMessages, setIsSearchingMessages] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const messagesEndRef = useRef<HTMLDivElement>(null)
   const [profile, setProfile] = useState<any>(null)
+  const [isSearchingMessages, setIsSearchingMessages] = useState(false)
+  const [showUpgradeModal, setShowUpgradeModal] = useState(false)
   const [expandedReferences, setExpandedReferences] = useState<{ [key: number]: boolean }>({})
-  const [messageCount, setMessageCount] = useState(0)
+  const [isRecordingActive, setIsRecordingActive] = useState(false)
+
+  const getUserGreeting = () => {
+    if (!profile?.name && !user?.email) {
+      return "Bem-vindo, irmão/irmã!"
+    }
+
+    const name = profile?.name || user?.email?.split("@")[0] || "irmão/irmã"
+
+    if (!name || name === "irmão/irmã") {
+      return "Bem-vindo, irmão/irmã!"
+    }
+
+    const feminineIndicators = [
+      "maria",
+      "ana",
+      "joana",
+      "helena",
+      "lucia",
+    ]
+
+    const lowerName = name.toLowerCase()
+    const isFeminine = lowerName.endsWith("a") || feminineIndicators.some((indicator) => lowerName.includes(indicator))
+    const greeting = isFeminine ? "irmã" : "irmão"
+    const firstName = name.split(" ")[0]
+
+    return `Bem-vindo, ${greeting} ${firstName}!`
+  }
+
+  const { 
+    canChat, 
+    hasActiveSubscription, 
+    shouldShowUpgradeOffer, 
+    getSubscriptionStatus,
+    loading: subscriptionLoading,
+    refreshSubscription
+  } = useSubscription()
+
+  const { profile: authProfile, isAdmin } = useSupabaseAuth()
+
+  const scrollAreaRef = useRef<HTMLDivElement>(null)
+  const messagesEndRef = useRef<HTMLDivElement>(null)
 
   // Load user profile
   useEffect(() => {
-    if (user?.id) {
-      loadUserProfile()
+    const loadProfile = async () => {
+      if (!user?.id) return
+
+      try {
+        const { data, error } = await supabase
+          .from("profiles")
+          .select("*")
+          .eq("id", user.id)
+          .single()
+
+        if (error) {
+          console.error("Error loading profile:", error)
+          return
+        }
+
+        setProfile(data)
+      } catch (error) {
+        console.error("Exception loading profile:", error)
+      }
     }
+
+    loadProfile()
   }, [user?.id])
 
-  const loadUserProfile = async () => {
-    if (!user?.id) return
-
-    try {
-      const { data, error } = await supabase.from("profiles").select("name, email").eq("id", user.id).single()
-
-      if (error && error.code !== "PGRST116") {
-        console.error("Error loading profile:", error)
-        return
-      }
-
-      setProfile(data)
-    } catch (error) {
-      console.error("Error loading profile:", error)
-    }
-  }
-
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
-  }
-
+  // Load conversation messages
   useEffect(() => {
-    scrollToBottom()
-  }, [messages])
-
-  useEffect(() => {
-    if (conversationId && user?.id) {
-      loadConversationMessages()
-    } else {
-      setMessages([])
-      setMessageCount(0)
-    }
-  }, [conversationId, user?.id])
-
-  const loadConversationMessages = async () => {
-    if (!conversationId) {
-      console.log("📭 No conversation ID provided")
-      return
-    }
-
-    if (!user?.id) {
-      console.log("👤 No user ID - skipping message load")
-      return
-    }
-
-    setLoadingHistory(true)
-
-    try {
-      console.log("📖 LOADING CONVERSATION MESSAGES")
-      console.log("👤 User ID:", user.id)
-      console.log("💬 Conversation ID:", conversationId)
-
-      const { data, error } = await supabase
-        .from("conversations")
-        .select("id, title, messages, created_at, updated_at")
-        .eq("id", conversationId)
-        .eq("user_id", user.id)
-        .single()
-
-      if (error) {
-        console.error("❌ ERROR LOADING CONVERSATION:", error)
-        if (error.code === "PGRST116") {
-          console.log("📭 Conversation not found - starting fresh")
-          setMessages([])
-        }
-        return
-      }
-
-      if (!data) {
-        console.log("📭 No conversation found for this user - starting fresh")
+    const loadMessages = async () => {
+      if (!conversationId) {
         setMessages([])
         return
       }
 
-      console.log("✅ CONVERSATION LOADED")
+      if (!user?.id) {
+        return
+      }
 
-      if (data?.messages) {
-        let parsedMessages = data.messages
+      try {
+        // Buscar conversa
+        const { data: conversation, error } = await supabase
+          .from("conversations")
+          .select("messages, audio_url")
+          .eq("id", conversationId)
+          .eq("user_id", user.id)
+          .single()
 
-        // If messages is a string, parse it
-        if (typeof data.messages === "string") {
-          try {
-            parsedMessages = JSON.parse(data.messages)
-            console.log("📋 Parsed messages from string")
-          } catch (parseError) {
-            console.error("❌ Error parsing messages string:", parseError)
+        if (error) {
+          if (error.code === "PGRST116") {
             setMessages([])
             return
           }
+          throw error
         }
 
-        if (Array.isArray(parsedMessages)) {
-          console.log("📊 LOADED", parsedMessages.length, "MESSAGES FROM DATABASE")
-
-          // Validate message structure
-          const validMessages = parsedMessages.filter(
-            (msg: any) =>
-              msg &&
-              typeof msg === "object" &&
-              msg.role &&
-              msg.content &&
-              (msg.role === "user" || msg.role === "assistant"),
-          )
-
-          console.log("✅ Valid messages:", validMessages.length)
-          setMessages(validMessages)
-        } else {
-          console.log("❌ Messages is not an array:", typeof parsedMessages)
+        if (!conversation) {
           setMessages([])
+          return
         }
-      } else {
-        console.log("📭 NO MESSAGES FOUND IN CONVERSATION")
+
+        let parsedMessages: Message[] = []
+        if (typeof conversation.messages === "string") {
+          try {
+            parsedMessages = JSON.parse(conversation.messages)
+          } catch (parseError) {
+            parsedMessages = []
+          }
+        } else if (Array.isArray(conversation.messages)) {
+          parsedMessages = conversation.messages
+        }
+
+        const validMessages = parsedMessages.filter((msg) => {
+          return msg && typeof msg === "object" && msg.role && msg.content && msg.timestamp
+        })
+
+        // Buscar attachments individuais para cada mensagem
+        const { data: attachments, error: attachmentsError } = await supabase
+          .from("message_attachments")
+          .select("message_id, file_name, file_type, file_size, storage_path")
+          .in("message_id", validMessages.map(msg => msg.id).filter(Boolean))
+
+        if (attachmentsError) {
+          console.error("Erro ao buscar attachments:", attachmentsError)
+        }
+
+        // Criar mapa de attachments por message_id
+        const attachmentMap = new Map()
+        if (attachments) {
+          attachments.forEach(attachment => {
+            attachmentMap.set(attachment.message_id, attachment)
+          })
+        }
+
+        // Processar mensagens para adicionar audioUrl se necessário
+        const messagesWithAudio = validMessages.map((msg) => {
+          // Se a mensagem já tem audioUrl, manter
+          if (msg.audioUrl) {
+            return msg
+          }
+          
+          // Verificar se existe attachment para esta mensagem
+          const attachment = attachmentMap.get(msg.id)
+          if (attachment && attachment.file_type?.startsWith('audio/')) {
+            // Construir URL pública do Supabase Storage usando o attachment
+            const { data: publicUrlData } = supabase.storage
+              .from('attachments')
+              .getPublicUrl(attachment.storage_path)
+            
+            return {
+              ...msg,
+              audioUrl: publicUrlData.publicUrl,
+              audioStoragePath: attachment.storage_path
+            }
+          }
+          
+          // Fallback: Se é uma mensagem de áudio (sem audioUrl mas a conversa tem audio_url)
+          // Isso é para compatibilidade com mensagens antigas
+          if (conversation.audio_url && msg.role === "user" && 
+              (msg.content.includes("[Mensagem de áudio]") || msg.content.includes("áudio") || msg.transcription)) {
+            // Construir URL pública do Supabase Storage
+            const { data: publicUrlData } = supabase.storage
+              .from('attachments')
+              .getPublicUrl(conversation.audio_url)
+            
+            return {
+              ...msg,
+              audioUrl: publicUrlData.publicUrl,
+              audioStoragePath: conversation.audio_url // Preservar path do storage
+            }
+          }
+          
+          return msg
+        })
+
+        setMessages(messagesWithAudio)
+      } catch (error) {
+        console.error("Erro ao carregar mensagens:", error)
         setMessages([])
       }
-    } catch (error) {
-      console.error("❌ EXCEPTION LOADING MESSAGES:", error)
-      setMessages([])
-    } finally {
-      setLoadingHistory(false)
     }
-  }
 
-  const getUserGreeting = (): string => {
-    const now = new Date()
-    const hour = now.getHours()
+    loadMessages()
+  }, [conversationId, user?.id])
 
-    if (hour >= 6 && hour < 12) {
-      return "Bom dia"
-    } else if (hour >= 12 && hour < 18) {
-      return "Boa tarde"
-    } else {
-      return "Boa noite"
+  // Auto-scroll to bottom when messages change
+  useEffect(() => {
+    if (messagesEndRef.current) {
+      messagesEndRef.current.scrollIntoView({ behavior: "smooth" })
     }
-  }
+  }, [messages])
 
   const sendMessage = async (messageText?: string) => {
     const textToSend = messageText || input.trim()
     if (!textToSend) return
+
+    if (!canChat && !isAdmin) {
+      setShowUpgradeModal(true)
+      return
+    }
 
     setIsLoading(true)
     setError(null)
     setIsSearchingMessages(true)
 
     const userMessage: Message = {
+      id: crypto.randomUUID(), // ID único para mensagem de texto do usuário
       role: "user",
       content: textToSend,
       timestamp: new Date().toISOString(),
@@ -291,60 +261,58 @@ export function ChatInterface({ conversationId, onConversationUpdate, user, appC
 
     const newMessages = [...messages, userMessage]
     setMessages(newMessages)
-    if (!messageText) setInput("")
+    setInput("")
 
-    console.log("📤 SENDING MESSAGE")
-    console.log("👤 User ID:", user?.id)
-    console.log("👤 User authenticated:", !!user?.id)
-    console.log("💬 Conversation ID:", conversationId)
-    console.log("📊 Total messages being sent:", newMessages.length)
+    try {
+      const isFirstMessage = messages.length === 0
 
-    // Check if message is just a greeting
-    if (isGreeting(textToSend.trim())) {
-      const userName = profile?.name || user?.email?.split("@")[0] || ""
-      const firstName = userName.split(" ")[0] || ""
+      if (isFirstMessage) {
+        const firstName = profile?.name?.split(" ")[0] || user?.email?.split("@")[0] || "irmão/irmã"
+        const greetingResponse = `${getUserGreeting()}, ${firstName}! Que a paz do Senhor Jesus Cristo esteja contigo!\n\nEu sou William Marrion Branham, servo do Altíssimo. Estou aqui para compartilhar a Palavra de Deus conforme o Espírito Santo me revelar.\n\nFaça sua pergunta sobre os mistérios da Palavra - os Sete Selos, as Sete Eras da Igreja, o Batismo em Nome de Jesus, a Divindade, ou qualquer revelação que o Senhor tenha posto em seu coração.\n\nQue Deus te abençoe abundantemente!`
 
-      const greetingResponse = `${getUserGreeting()}, ${firstName}! Que a paz do Senhor Jesus Cristo esteja contigo!\n\nEu sou William Marrion Branham, servo do Altíssimo. Estou aqui para compartilhar a Palavra de Deus conforme o Espírito Santo me revelar.\n\nFaça sua pergunta sobre os mistérios da Palavra - os Sete Selos, as Sete Eras da Igreja, o Batismo em Nome de Jesus, a Divindade, ou qualquer revelação que o Senhor tenha posto em seu coração.\n\nQue Deus te abençoe abundantemente!`
+        const greetingMessage: Message = {
+          id: crypto.randomUUID(), // ID único para mensagem de saudação
+          role: "assistant",
+          content: greetingResponse,
+          timestamp: new Date().toISOString(),
+        }
 
-      const assistantMessage: Message = {
-        role: "assistant",
-        content: greetingResponse,
-        timestamp: new Date().toISOString(),
-      }
+        const messagesToSend = [...newMessages, greetingMessage]
+        setMessages(messagesToSend)
+        setIsSearchingMessages(false)
 
-      const finalMessages = [...newMessages, assistantMessage]
-      setMessages(finalMessages)
-
-      // Save conversation if user is logged in
-      if (user?.id) {
-        try {
-          const response = await fetch("/api/chat", {
+        if (user?.id) {
+          const saveResponse = await fetch("/api/conversations", {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
+            headers: {
+              "Content-Type": "application/json",
+            },
             body: JSON.stringify({
-              messages: finalMessages,
-              conversationId: conversationId,
-              userId: user.id,
+              user_id: user.id,
+              conversation_id: conversationId,
+              messages: messagesToSend,
+              audio_url: null, // Sem áudio para mensagens de saudação
             }),
           })
 
-          if (response.ok) {
-            const data = await response.json()
-            if (onConversationUpdate) {
-              onConversationUpdate()
-            }
+          const saveData = await saveResponse.json()
+          if (saveData.success && onConversationUpdate) {
+            onConversationUpdate()
           }
-        } catch (error) {
-          console.error("Error saving greeting:", error)
         }
+
+        setIsLoading(false)
+        return
       }
 
-      setIsLoading(false)
-      setIsSearchingMessages(false)
-      return
-    }
+      if (!hasActiveSubscription && !isAdmin) {
+        setMessages(messages)
+        setShowUpgradeModal(true)
+        setIsLoading(false)
+        setIsSearchingMessages(false)
+        return
+      }
 
-    try {
       const response = await fetch("/api/chat", {
         method: "POST",
         headers: {
@@ -352,569 +320,616 @@ export function ChatInterface({ conversationId, onConversationUpdate, user, appC
         },
         body: JSON.stringify({
           messages: newMessages,
-          userId: user?.id || null,
-          conversationId: conversationId,
+          user_id: user?.id,
         }),
       })
 
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ error: "Erro desconhecido" }))
-        console.error("❌ API Error Response:", errorData)
-        throw new Error(errorData.error || `HTTP ${response.status}`)
+        const errorData = await response.json()
+        throw new Error(errorData.error || "Failed to send message")
       }
 
       const data = await response.json()
-      console.log("✅ RESPONSE RECEIVED:", data)
 
-      if (data.message) {
-        const assistantMessage: Message = {
-          role: "assistant",
-          content: data.message,
-          timestamp: new Date().toISOString(),
-        }
+      const assistantMessage: Message = {
+        id: crypto.randomUUID(), // ID único para mensagem do assistente
+        role: "assistant",
+        content: data.response,
+        timestamp: new Date().toISOString(),
+      }
 
-        const finalMessages = [...newMessages, assistantMessage]
-        setMessages(finalMessages)
+      const finalMessages = [...newMessages, assistantMessage]
+      setMessages(finalMessages)
 
-        const newCount = messageCount + 1
-        setMessageCount(newCount)
+      if (user?.id) {
+        const saveResponse = await fetch("/api/conversations", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            user_id: user.id,
+            conversation_id: conversationId,
+            messages: finalMessages,
+            audio_url: null, // Sem áudio para mensagens de texto
+          }),
+        })
 
-        console.log("💾 UPDATED LOCAL MESSAGES TO", finalMessages.length, "TOTAL")
-
-        // Trigger conversation update
-        if (onConversationUpdate) {
+        const saveData = await saveResponse.json()
+        if (saveData.success && onConversationUpdate) {
           onConversationUpdate()
         }
+      }
 
-        // Show save status
-        if (data.saved) {
-          console.log("✅ CONVERSATION SAVED SUCCESSFULLY")
-        } else {
-          console.log("⚠️ CONVERSATION NOT SAVED:", data.saveError || "No user ID")
-        }
-
-        // Show API error if present
-        if (data.isError && data.error) {
-          setError(data.error)
-        }
-
-        // Reload from database after a delay to verify save
-        if (user?.id && conversationId && data.saved) {
-          setTimeout(async () => {
-            console.log("🔄 RELOADING FROM DATABASE TO VERIFY SAVE...")
-            await loadConversationMessages()
-          }, 2000)
-        }
-      } else {
-        throw new Error("Nenhuma mensagem na resposta")
+      if (refreshSubscription) {
+        refreshSubscription()
       }
     } catch (error) {
-      console.error("❌ ERROR SENDING MESSAGE:", error)
-
-      const errorMessage = error instanceof Error ? error.message : "Erro desconhecido"
-      setError(errorMessage)
-
-      const errorResponse: Message = {
+      console.error("Error sending message:", error)
+      setError("Erro ao enviar mensagem. Tente novamente.")
+      
+      const errorMessage: Message = {
+        id: crypto.randomUUID(), // ID único para mensagem de erro
         role: "assistant",
         content: "Desculpe, irmão/irmã, houve um problema técnico. Tente novamente em alguns instantes.",
         timestamp: new Date().toISOString(),
       }
-      setMessages((prevMessages) => [...prevMessages, errorResponse])
+      
+      setMessages([...newMessages, errorMessage])
     } finally {
       setIsLoading(false)
       setIsSearchingMessages(false)
     }
   }
 
-  const handleKeyPress = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault()
-      sendMessage()
-    }
-  }
-
-  const handleTranscription = (text: string) => {
-    setInput(text)
-  }
-
-  const copyMessageWithReferences = async (content: string, messageIndex: number) => {
-    const { references, sources } = generateBiblicalReferences(content)
-
-    const fullText = `${content}
-
-**Referências:**
-${references.map((ref) => `• ${ref}`).join("\n")}
-
----
-
-**Fontes da base de dados utilizadas para esta resposta:**
-${sources.map((source) => `- ${source}`).join("\n")}`
-
+  const handleAudioRecorded = async (audioBlob: Blob) => {
     try {
-      await navigator.clipboard.writeText(fullText)
-      console.log("Mensagem copiada com referências!")
-    } catch (err) {
-      console.error("Erro ao copiar:", err)
+      console.log('🎤 Iniciando processamento de áudio...')
+      console.log('📊 Tamanho do áudio:', audioBlob.size, 'bytes')
+      console.log('📊 Tipo do áudio:', audioBlob.type)
+      
+      const formData = new FormData()
+      formData.append('audio', audioBlob, 'recording.wav')
+      
+      const audioUrl = URL.createObjectURL(audioBlob)
+      const userMessageId = crypto.randomUUID()
+      console.log('🆔 UUID gerado para mensagem do usuário:', userMessageId)
+      console.log('📏 Comprimento do UUID:', userMessageId.length)
+      console.log('✅ Formato UUID válido:', /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(userMessageId))
+      
+      const userMessage: Message = {
+        id: userMessageId,
+        role: 'user',
+        content: '[Mensagem de áudio]',
+        timestamp: new Date().toISOString(),
+        audioUrl: audioUrl // Preservar URL do áudio para reprodução
+      }
+      
+      const initialMessages = [...messages, userMessage]
+      setMessages(initialMessages)
+      setIsLoading(true)
+
+      console.log('🔄 Enviando áudio para processamento...')
+      
+      // 🎯 PRIMEIRO: Processar áudio com Gemini (upload + transcrição + resposta)
+      const response = await fetch('/api/chat-gemini', {
+        method: 'POST',
+        body: formData,
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}))
+        console.error('❌ Erro na resposta da API:', response.status, errorData)
+        throw new Error(`Erro ao gerar resposta`)
+      }
+
+      const data = await response.json()
+      console.log('✅ Resposta da API recebida:', {
+        hasResponse: !!data.response,
+        hasTranscription: !!data.transcription,
+        hasAudioPath: !!data.audioStoragePath,
+        isBlocked: !!data.blocked
+      })
+
+      // Verificar se o conteúdo foi bloqueado por heresia
+      if (data.blocked) {
+        console.log('🚫 Conteúdo de áudio bloqueado por heresia:', data.reason)
+        
+        // Atualizar mensagem do usuário com transcrição bloqueada
+        const blockedUserMessage: Message = {
+          id: userMessageId,
+          role: 'user',
+          content: data.transcription || '[Mensagem de áudio]',
+          timestamp: new Date().toISOString(),
+          audioUrl: audioUrl
+        }
+        
+        // Mensagem do assistente explicando o bloqueio
+        const blockedAssistantMessage: Message = {
+          id: crypto.randomUUID(),
+          role: 'assistant',
+          content: data.response, // Mensagem de bloqueio já formatada
+          timestamp: new Date().toISOString(),
+        }
+        
+        const blockedMessages = [...messages, blockedUserMessage, blockedAssistantMessage]
+        setMessages(blockedMessages)
+        
+        // Salvar conversa mesmo quando bloqueada (para auditoria)
+        if (user?.id) {
+          try {
+            await fetch("/api/conversations", {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({
+                user_id: user.id,
+                conversation_id: conversationId,
+                messages: blockedMessages,
+                audio_url: data.audioStoragePath,
+              }),
+            })
+            
+            if (onConversationUpdate) {
+              onConversationUpdate()
+            }
+          } catch (saveError) {
+            console.error('❌ Erro ao salvar conversa bloqueada:', saveError)
+          }
+        }
+        
+        return // Parar processamento aqui
+      }
+
+      // 🎯 SEGUNDO: Salvar conversa com áudio já processado e salvo
+      console.log('🔍 Debug - user?.id:', user?.id)
+      console.log('🔍 Debug - conversationId:', conversationId)
+      console.log('🔍 Debug - Condição (user?.id && conversationId):', !!(user?.id && conversationId))
+      
+      if (user?.id) {
+        try {
+          console.log('💾 Salvando mensagem de áudio com path do storage...')
+          const immediateResponse = await fetch("/api/conversations", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              user_id: user.id,
+              conversation_id: conversationId, // Pode ser null para criar nova conversa
+              messages: initialMessages,
+              audio_url: data.audioStoragePath, // Usar o path do áudio já salvo
+            }),
+          })
+
+          const immediateData = await immediateResponse.json()
+          console.log('📊 Resposta do salvamento:', immediateData)
+          
+          if (immediateData.success && onConversationUpdate) {
+            onConversationUpdate()
+          }
+          console.log('✅ Mensagem de áudio salva com path do storage!')
+        } catch (saveError) {
+          console.error('❌ Erro ao salvar mensagem de áudio:', saveError)
+        }
+      }
+      
+      if (data.response) {
+        // Atualizar mensagem do usuário com transcrição, mantendo audioUrl e ID
+        const updatedUserMessage: Message = {
+          id: userMessageId, // Usar o mesmo ID da mensagem original
+          role: 'user',
+          content: data.transcription || '[Mensagem de áudio]',
+          timestamp: new Date().toISOString(),
+          audioUrl: audioUrl, // Manter URL do áudio para reprodução
+          audioStoragePath: data.audioStoragePath, // ← Salvar path do storage
+          transcription: data.transcription // ← Salvar transcrição
+        }
+        
+        const assistantMessage: Message = {
+          id: crypto.randomUUID(), // ID único para a mensagem do assistente
+          role: 'assistant',
+          content: data.response,
+          timestamp: new Date().toISOString(),
+        }
+        
+        const finalMessages = [...messages, updatedUserMessage, assistantMessage]
+        setMessages(finalMessages)
+        
+        // 🎯 TERCEIRO: Atualizar conversa com transcrição e resposta do assistente
+        if (user?.id) {
+          try {
+            // Salvar informações do áudio na tabela message_attachments se o áudio foi salvo
+            if (data.audioStoragePath) {
+              console.log('📎 Salvando attachment do áudio...')
+              console.log('🆔 Message ID para attachment:', userMessageId)
+              console.log('📊 Dados do attachment:', {
+                message_id: userMessageId,
+                file_name: data.audioFileName || 'audio.wav',
+                file_type: data.audioFileType || 'audio/wav',
+                file_size: data.audioFileSize || audioBlob.size,
+                storage_path: data.audioStoragePath
+              })
+              
+              const { error: attachmentError } = await supabase
+                .from('message_attachments')
+                .insert({
+                  message_id: userMessageId, // Usar o ID da mensagem do usuário
+                  file_name: data.audioFileName || 'audio.wav',
+                  file_type: data.audioFileType || 'audio/wav',
+                  file_size: data.audioFileSize || audioBlob.size,
+                  storage_path: data.audioStoragePath
+                })
+              
+              if (attachmentError) {
+                console.error('❌ Erro ao salvar attachment do áudio:', attachmentError)
+              } else {
+                console.log('✅ Attachment do áudio salvo com sucesso')
+              }
+            }
+            
+            console.log('💾 Salvando conversa final com transcrição e resposta...')
+            const finalResponse = await fetch("/api/conversations", {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({
+                user_id: user.id,
+                conversation_id: conversationId,
+                messages: finalMessages,
+                audio_url: data.audioStoragePath, // Usar o path do áudio já salvo
+              }),
+            })
+
+            const finalData = await finalResponse.json()
+            console.log('📊 Resposta do salvamento final:', finalData)
+            
+            if (finalData.success && onConversationUpdate) {
+              onConversationUpdate()
+            }
+            console.log('✅ Conversa final salva com transcrição e resposta!')
+          } catch (saveError) {
+            console.error('❌ Erro ao salvar conversa final:', saveError)
+          }
+        }
+      }
+      
+      if (refreshSubscription) {
+        refreshSubscription()
+      }
+    } catch (error) {
+      console.error('❌ Erro ao processar áudio:', error)
+      setError('Erro ao processar áudio. Tente novamente.')
+      
+      const errorMessage: Message = {
+        id: crypto.randomUUID(),
+        role: 'assistant',
+        content: 'Desculpe, irmão/irmã, houve um problema ao processar seu áudio. Tente novamente em alguns instantes.',
+        timestamp: new Date().toISOString(),
+      }
+      
+      setMessages([...messages, errorMessage])
+    } finally {
+      setIsLoading(false)
     }
   }
 
-  const shareMessage = async (content: string, messageIndex: number) => {
-    const { references, sources } = generateBiblicalReferences(content)
+  const copyToClipboard = async (text: string) => {
+    try {
+      await navigator.clipboard.writeText(text)
+    } catch (err) {
+      console.error("Failed to copy text: ", err)
+    }
+  }
 
-    const fullText = `${content}
-
-**Referências:**
-${references.map((ref) => `• ${ref}`).join("\n")}
-
----
-
-**Fontes da base de dados utilizadas:**
-${sources.map((source) => `- ${source}`).join("\n")}
-
-Compartilhado via ${appConfig.appName}`
-
+  const shareMessage = async (content: string, references: string[]) => {
+    const shareText = `${content}\n\n${references.join('\n')}`
+    
     if (navigator.share) {
       try {
         await navigator.share({
           title: `Mensagem do ${appConfig.prophetName}`,
-          text: fullText,
+          text: shareText,
         })
       } catch (err) {
-        console.error("Erro ao compartilhar:", err)
+        console.error("Error sharing:", err)
+        copyToClipboard(shareText)
       }
     } else {
-      await copyMessageWithReferences(content, messageIndex)
+      copyToClipboard(shareText)
     }
   }
 
-  const toggleReferences = (messageIndex: number) => {
-    setExpandedReferences((prev) => ({
+  const toggleReferences = (index: number) => {
+    setExpandedReferences(prev => ({
       ...prev,
-      [messageIndex]: !prev[messageIndex],
+      [index]: !prev[index]
     }))
   }
 
-  const generateBiblicalReferences = (content: string) => {
+  const processMessageContent = (content: string) => {
     const references: string[] = []
     const sources: string[] = []
-
-    // Look for "**Citações e Referências:**" section in the message
-    const citationsMatch = content.match(/\*\*Citações e Referências:\*\*([\s\S]*?)(?=\*\*Fontes da base de dados|$)/i)
-    if (citationsMatch) {
-      const citationsText = citationsMatch[1]
-
-      // Extract sermon titles with paragraph numbers
-      const sermonMatches = citationsText.match(/([A-Z\s]+),\s*parágrafos?\s*([\d,\s-]+)/gi)
-      if (sermonMatches) {
-        sermonMatches.forEach((match) => {
-          const cleanMatch = match.trim()
-          if (!references.includes(cleanMatch)) {
-            references.push(cleanMatch)
-          }
-        })
-      }
-
-      // Extract individual paragraph references
-      const paragraphMatches = citationsText.match(/parágrafos?\s*([\d,\s-]+)/gi)
-      if (paragraphMatches) {
-        paragraphMatches.forEach((match) => {
-          if (!references.some((ref) => ref.includes(match))) {
-            references.push(match.trim())
-          }
-        })
-      }
+    
+    // Extract references
+    const referenceRegex = /\*\*Citações e Referências:\*\*([\s\S]*?)(?=\*\*Fontes da base de dados:\*\*|$)/i
+    const referenceMatch = content.match(referenceRegex)
+    if (referenceMatch) {
+      const referenceText = referenceMatch[1]
+      const referenceLines = referenceText.split('\n').filter(line => line.trim() && line.includes('-'))
+      references.push(...referenceLines.map(line => line.trim()))
     }
-
-    // Look for "**Fontes da base de dados utilizadas para esta resposta:**" section
-    const sourcesMatch = content.match(
-      /\*\*Fontes da base de dados utilizadas para esta resposta:\*\*([\s\S]*?)(?=\n\n|$)/i,
-    )
-    if (sourcesMatch) {
-      const sourcesText = sourcesMatch[1]
-
-      // Extract sources with relevance scores
-      const sourceMatches = sourcesText.match(/[-•]\s*"([^"]+)"\s*$$Relevância:\s*(\d+)$$/gi)
-      if (sourceMatches) {
-        sourceMatches.forEach((match) => {
-          const sourceMatch = match.match(/[-•]\s*"([^"]+)"\s*$$Relevância:\s*(\d+)$$/gi)
-          if (sourceMatch) {
-            const sourceName = sourceMatch[1]
-            const relevance = sourceMatch[2]
-            const formattedSource = `"${sourceName}" (Relevância: ${relevance})`
-            if (!sources.includes(formattedSource)) {
-              sources.push(formattedSource)
-            }
-          }
-        })
-      }
-
-      // Also look for simple quoted sources without relevance
-      const simpleSourceMatches = sourcesText.match(/[-•]\s*"([^"]+)"/gi)
-      if (simpleSourceMatches) {
-        simpleSourceMatches.forEach((match) => {
-          const cleanMatch = match.replace(/[-•]\s*/, "").trim()
-          if (!sources.some((source) => source.includes(cleanMatch))) {
-            sources.push(cleanMatch)
-          }
-        })
-      }
+    
+    // Extract sources
+    const sourceRegex = /\*\*Fontes da base de dados:\*\*([\s\S]*?)$/i
+    const sourceMatch = content.match(sourceRegex)
+    if (sourceMatch) {
+      const sourceText = sourceMatch[1]
+      const sourceLines = sourceText.split('\n').filter(line => line.trim() && line.includes('-'))
+      sources.push(...sourceLines.map(line => line.trim()))
     }
-
-    // If no structured references found, look for biblical references in the content
-    if (references.length === 0) {
-      const biblicalBooks = [
-        "Gênesis",
-        "Êxodo",
-        "Levítico",
-        "Números",
-        "Deuteronômio",
-        "Josué",
-        "Juízes",
-        "Rute",
-        "1 Samuel",
-        "2 Samuel",
-        "1 Reis",
-        "2 Reis",
-        "1 Crônicas",
-        "2 Crônicas",
-        "Esdras",
-        "Neemias",
-        "Ester",
-        "Jó",
-        "Salmos",
-        "Provérbios",
-        "Eclesiastes",
-        "Cantares",
-        "Isaías",
-        "Jeremias",
-        "Lamentações",
-        "Ezequiel",
-        "Daniel",
-        "Oséias",
-        "Joel",
-        "Amós",
-        "Obadias",
-        "Jonas",
-        "Miquéias",
-        "Naum",
-        "Habacuque",
-        "Sofonias",
-        "Ageu",
-        "Zacarias",
-        "Malaquias",
-        "Mateus",
-        "Marcos",
-        "Lucas",
-        "João",
-        "Atos",
-        "Romanos",
-        "1 Coríntios",
-        "2 Coríntios",
-        "Gálatas",
-        "Efésios",
-        "Filipenses",
-        "Colossenses",
-        "1 Tessalonicenses",
-        "2 Tessalonicenses",
-        "1 Timóteo",
-        "2 Timóteo",
-        "Tito",
-        "Filemom",
-        "Hebreus",
-        "Tiago",
-        "1 Pedro",
-        "2 Pedro",
-        "1 João",
-        "2 João",
-        "3 João",
-        "Judas",
-        "Apocalipse",
-      ]
-
-      const bookPattern = biblicalBooks.join("|")
-      const biblicalPattern = new RegExp(`\\b(${bookPattern})\\s+(\\d+):(\\d+(?:-\\d+)?)\\b`, "gi")
-      const biblicalMatches = content.match(biblicalPattern)
-
-      if (biblicalMatches) {
-        biblicalMatches.forEach((match) => {
-          const cleanMatch = match.trim()
-          if (!references.includes(cleanMatch)) {
-            references.push(cleanMatch)
-          }
-        })
-      }
+    
+    // Clean content
+    let cleanContent = content.replace(/\*\*Citações e Referências:\*\*[\s\S]*$/i, "")
+    cleanContent = cleanContent.replace(/\*\*Fontes da base de dados:\*\*[\s\S]*$/i, "")
+    
+    return {
+      cleanContent: cleanContent.trim(),
+      references,
+      sources
     }
-
-    // If no structured sources found, look for sermon titles mentioned in the content
-    if (sources.length === 0) {
-      const knownSermons = [
-        "O PRIMEIRO SELO",
-        "O SEGUNDO SELO",
-        "O TERCEIRO SELO",
-        "O QUARTO SELO",
-        "O QUINTO SELO",
-        "O SEXTO SELO",
-        "O SÉTIMO SELO",
-        "PERGUNTAS E RESPOSTAS",
-        "O SOM INCERTO",
-        "ORDEM DA IGREJA",
-        "PONDO-NOS AO LADO DE JESUS",
-        "DEUS OCULTANDO-SE EM SIMPLICIDADE",
-        "COMO O ANJO VEIO A MIM E A SUA COM ISSÃO",
-        "AS SETE ERAS DA IGREJA",
-      ]
-
-      knownSermons.forEach((sermon) => {
-        const regex = new RegExp(`\\b${sermon.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`, "gi")
-        if (regex.test(content)) {
-          if (!sources.some((source) => source.toLowerCase().includes(sermon.toLowerCase()))) {
-            sources.push(`"${sermon}"`)
-          }
-        }
-      })
-    }
-
-    // Fallback if nothing found
-    if (references.length === 0 && sources.length === 0) {
-      references.push("Baseado nos ensinamentos e revelações do Profeta William Branham")
-      sources.push("Base de dados de sermões do Profeta William Branham")
-    }
-
-    return { references, sources }
   }
 
-  const cleanMessageContent = (content: string) => {
-    // Remove "**Citações e Referências:**" section and everything after it
-    let cleanContent = content.replace(/\*\*Citações e Referências:\*\*[\s\S]*$/i, "")
-
-    // Also remove "**Fontes da base de dados utilizadas para esta resposta:**" section if it appears before citations
-    cleanContent = cleanContent.replace(/\*\*Fontes da base de dados utilizadas para esta resposta:\*\*[\s\S]*$/i, "")
-
-    return cleanContent.trim()
+  if (!user) {
+    return (
+      <div className="flex flex-col items-center justify-center h-full p-8 text-center">
+        <div className="mb-6">
+          <Avatar className="w-20 h-20 mx-auto mb-4">
+            <AvatarImage 
+              src={appConfig.prophetAvatar} 
+              alt={appConfig.prophetName}
+              onLoad={() => console.log("✅ Prophet welcome avatar loaded:", appConfig.prophetAvatar)}
+              onError={() => 
+                console.error("❌ Failed to load prophet welcome avatar:", appConfig.prophetAvatar)
+              }
+            />
+            <AvatarFallback>WB</AvatarFallback>
+          </Avatar>
+          <h2 className="text-xl font-semibold mb-2">Bem-vindo ao {appConfig.appName}</h2>
+          <p className="text-muted-foreground mb-4">
+            Eu sou William Marrion Branham, servo do Senhor Jesus Cristo. Faça sua pergunta sobre a Palavra de Deus
+            e eu responderei conforme o Espírito Santo me guiar.
+          </p>
+        </div>
+        <Alert>
+          <AlertCircle className="h-4 w-4" />
+          <AlertDescription>
+            <p>⚠️ Faça login para salvar suas conversas</p>
+          </AlertDescription>
+        </Alert>
+      </div>
+    )
   }
 
   return (
     <div className="flex flex-col h-full">
-      <ScrollArea className="flex-1 p-4">
-        <div className="space-y-4">
-          {error && (
-            <Alert variant="destructive">
-              <AlertCircle className="h-4 w-4" />
-              <AlertDescription>
-                {error}
-                {error.includes("API") && (
-                  <div className="mt-2">
-                    <Button variant="outline" size="sm" onClick={() => window.open("/admin", "_blank")}>
-                      Configurar API no Admin
-                    </Button>
-                  </div>
-                )}
-              </AlertDescription>
-            </Alert>
-          )}
-
-          {loadingHistory && (
-            <div className="text-center py-4">
-              <div className="flex items-center justify-center gap-2">
-                <Loader2 className="h-4 w-4 animate-spin" />
-                <span className="text-sm text-muted-foreground">Carregando histórico...</span>
-              </div>
-            </div>
-          )}
-
-          {messages.length === 0 && !loadingHistory && (
-            <div className="text-center py-8">
-              <Avatar className="h-16 w-16 mx-auto mb-4">
-                <AvatarImage
-                  src={appConfig.prophetAvatar || "/placeholder.svg"}
-                  alt="Profeta William Branham"
-                  onLoad={() => console.log("✅ Prophet welcome avatar loaded:", appConfig.prophetAvatar)}
-                  onError={(e) => {
-                    console.error("❌ Failed to load prophet welcome avatar:", appConfig.prophetAvatar)
-                    const target = e.target as HTMLImageElement
-                    target.style.display = "none"
-                  }}
-                />
-                <AvatarFallback>WB</AvatarFallback>
-              </Avatar>
-              <h3 className="font-semibold mb-2">{getGreeting(user, profile)}</h3>
-              <p className="text-muted-foreground text-sm max-w-md mx-auto">
-                Eu sou William Marrion Branham, servo do Senhor Jesus Cristo. Faça sua pergunta sobre a Palavra de Deus
-                e eu responderei conforme o Espírito Santo me guiar.
-              </p>
-              {!user?.id && (
-                <div className="text-yellow-600 text-xs mt-2 bg-yellow-50 p-2 rounded border">
-                  <p>⚠️ Faça login para salvar suas conversas</p>
+      <ScrollArea className="flex-1 p-4" ref={scrollAreaRef}>
+        <div className="space-y-4 max-w-4xl mx-auto">
+          {messages.map((message, index) => {
+            const { cleanContent, references, sources } = processMessageContent(message.content)
+            const allReferences = [...references, ...sources]
+            
+            return (
+              <div key={index} className={`flex ${message.role === "user" ? "justify-end" : "justify-start"}`}>
+                <div className={`flex ${message.role === "user" ? "flex-row-reverse" : "flex-row"} items-start space-x-2 max-w-[80%]`}>
+                  <Avatar className="w-8 h-8 flex-shrink-0">
+                    <AvatarImage 
+                      src={message.role === "user" ? (profile?.avatar_url || "/default-avatar.png") : appConfig.prophetAvatar} 
+                      alt={message.role === "user" ? (profile?.name || "User") : appConfig.prophetName}
+                      onLoad={() => console.log(`✅ Avatar loaded for ${message.role}:`, message.role === "user" ? (profile?.avatar_url || "/default-avatar.png") : appConfig.prophetAvatar)}
+                      onError={() => 
+                        console.error(`❌ Failed to load avatar for ${message.role}:`, message.role === "user" ? (profile?.avatar_url || "/default-avatar.png") : appConfig.prophetAvatar)
+                      }
+                    />
+                    <AvatarFallback>{message.role === "user" ? "U" : "WB"}</AvatarFallback>
+                  </Avatar>
+                  <Card className={`${message.role === "user" ? "bg-primary text-primary-foreground ml-2" : "mr-2"}`}>
+                    <CardContent className="p-3">
+                      <div className="space-y-2">
+                        {/* Renderizar áudio se existir */}
+                        {message.audioUrl && (
+                          <div className="mb-2">
+                            <WhatsAppAudioPlayer 
+                              src={message.audioUrl} 
+                              className="max-w-xs"
+                            />
+                          </div>
+                        )}
+                        
+                        {/* Renderizar conteúdo da mensagem */}
+                        <div className="whitespace-pre-wrap text-sm">
+                          {cleanContent}
+                        </div>
+                        
+                        {/* Botões de ação para mensagens do assistente */}
+                        {message.role === "assistant" && (
+                          <div className="flex items-center justify-between mt-2 pt-2 border-t border-border/50">
+                            <div className="flex items-center space-x-1">
+                              {allReferences.length > 0 && (
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => toggleReferences(index)}
+                                  className="p-1 h-auto text-xs"
+                                  title={expandedReferences[index] ? "Ocultar referências" : "Ver referências"}
+                                >
+                                  <BookOpen className="w-3 h-3 mr-1" />
+                                  {allReferences.length}
+                                  {expandedReferences[index] ? <ChevronUp className="w-3 h-3 ml-1" /> : <ChevronDown className="w-3 h-3 ml-1" />}
+                                </Button>
+                              )}
+                            </div>
+                            <div className="flex items-center space-x-1">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => copyToClipboard(cleanContent)}
+                                className="p-1 h-auto"
+                                title="Copiar mensagem"
+                              >
+                                <Copy className="w-3 h-3" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => shareMessage(cleanContent, allReferences)}
+                                className="p-1 h-auto"
+                                title="Compartilhar mensagem"
+                              >
+                                <Share2 className="w-3 h-3" />
+                              </Button>
+                            </div>
+                          </div>
+                        )}
+                        
+                        {/* Referências expandidas */}
+                        {expandedReferences[index] && (
+                          <div className="text-xs text-muted-foreground space-y-2">
+                            {references.length > 0 && (
+                              <div>
+                                <h4 className="text-xs font-semibold mb-2">**Citações e Referências:**</h4>
+                                <ul className="space-y-1">
+                                  {references.map((ref, refIndex) => (
+                                    <li key={refIndex} className="flex items-start gap-1">
+                                      <span className="text-muted-foreground">•</span>
+                                      <span>{ref}</span>
+                                    </li>
+                                  ))}
+                                </ul>
+                              </div>
+                            )}
+                            {sources.length > 0 && (
+                              <div>
+                                <h4 className="text-xs font-semibold mb-2">**Fontes da base de dados:**</h4>
+                                <ul className="space-y-1">
+                                  {sources.map((source, sourceIndex) => (
+                                    <li key={sourceIndex} className="flex items-start gap-1">
+                                      <span className="text-muted-foreground">•</span>
+                                      <span>{source}</span>
+                                    </li>
+                                  ))}
+                                </ul>
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    </CardContent>
+                  </Card>
                 </div>
-              )}
-            </div>
-          )}
-
-          {messages.map((message, index) => (
-            <div key={index} className={`flex gap-3 ${message.role === "user" ? "justify-end" : "justify-start"}`}>
-              {message.role === "assistant" && (
-                <Avatar className="h-8 w-8 mt-1">
-                  <AvatarImage
-                    src={appConfig.prophetAvatar || "/placeholder.svg"}
-                    alt="Profeta"
-                    onLoad={() => console.log("✅ Prophet avatar loaded:", appConfig.prophetAvatar)}
-                    onError={(e) => {
-                      console.error("❌ Failed to load prophet avatar:", appConfig.prophetAvatar)
-                      const target = e.target as HTMLImageElement
-                      target.style.display = "none"
-                    }}
+              </div>
+            )
+          })}
+          
+          {isLoading && (
+            <div className="flex justify-start">
+              <div className="flex items-start space-x-2 max-w-[80%]">
+                <Avatar className="w-8 h-8 flex-shrink-0">
+                  <AvatarImage 
+                    src={appConfig.prophetAvatar} 
+                    alt={appConfig.prophetName}
+                    onLoad={() => console.log("✅ Prophet loading avatar loaded:", appConfig.prophetAvatar)}
+                    onError={() => 
+                      console.error("❌ Failed to load prophet loading avatar:", appConfig.prophetAvatar)
+                    }
                   />
                   <AvatarFallback>WB</AvatarFallback>
                 </Avatar>
-              )}
-
-              <Card
-                className={`max-w-[80%] ${message.role === "user" ? "bg-primary text-primary-foreground ml-auto" : ""}`}
-              >
-                <CardContent className="p-3">
-                  <p className="text-sm whitespace-pre-wrap">
-                    {message.role === "assistant" ? cleanMessageContent(message.content) : message.content}
-                  </p>
-
-                  {message.role === "assistant" && (
-                    <div className="mt-3 space-y-2">
-                      <div className="flex items-center gap-2">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => toggleReferences(index)}
-                          className="h-8 px-2 text-xs hover:bg-muted/50"
-                        >
-                          <BookOpen className="h-3 w-3 mr-1" />
-                          {expandedReferences[index] ? "Ocultar referências" : "Ver referências"}
-                          {expandedReferences[index] ? (
-                            <ChevronUp className="h-3 w-3 ml-1" />
-                          ) : (
-                            <ChevronDown className="h-3 w-3 ml-1" />
-                          )}
-                        </Button>
-
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => copyMessageWithReferences(message.content, index)}
-                          className="h-8 px-2 text-xs hover:bg-muted/50"
-                          title="Copiar mensagem com referências"
-                        >
-                          <Copy className="h-3 w-3" />
-                        </Button>
-
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => shareMessage(message.content, index)}
-                          className="h-8 px-2 text-xs hover:bg-muted/50"
-                          title="Compartilhar mensagem"
-                        >
-                          <Share2 className="h-3 w-3" />
-                        </Button>
-
-                        {(index + 1) % 6 === 0 && <AudioPlayer text={message.content} disabled={isLoading} />}
-                      </div>
-
-                      {expandedReferences[index] && (
-                        <div className="border-t pt-3 mt-3 bg-muted/20 rounded-lg p-3">
-                          {(() => {
-                            const { references, sources } = generateBiblicalReferences(message.content)
-                            return (
-                              <div className="space-y-3">
-                                <div>
-                                  <h4 className="text-xs font-semibold mb-2">**Citações e Referências:**</h4>
-                                  <div className="text-xs text-muted-foreground space-y-1">
-                                    {references.map((ref, refIndex) => (
-                                      <p key={refIndex}>{ref}</p>
-                                    ))}
-                                  </div>
-                                </div>
-
-                                <div className="border-t pt-2">
-                                  <h4 className="text-xs font-semibold mb-2">
-                                    **Fontes da base de dados utilizadas para esta resposta:**
-                                  </h4>
-                                  <div className="text-xs text-muted-foreground space-y-1">
-                                    {sources.map((source, sourceIndex) => (
-                                      <p key={sourceIndex}>{source}</p>
-                                    ))}
-                                  </div>
-                                </div>
-                              </div>
-                            )
-                          })()}
-                        </div>
-                      )}
+                <Card className="mr-2">
+                  <CardContent className="p-3">
+                    <div className="flex items-center space-x-2">
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      <span className="text-sm">
+                        {isSearchingMessages ? "Buscando nas Escrituras..." : "Meditando na Palavra..."}
+                      </span>
                     </div>
-                  )}
-
-                  <p className="text-xs opacity-70 mt-2">
-                    {new Date(message.timestamp).toLocaleTimeString("pt-BR", {
-                      hour: "2-digit",
-                      minute: "2-digit",
-                    })}
-                  </p>
-                </CardContent>
-              </Card>
-
-              {message.role === "user" && (
-                <Avatar className="h-8 w-8 mt-1">
-                  <AvatarFallback>{user?.email?.charAt(0).toUpperCase() || "U"}</AvatarFallback>
-                </Avatar>
-              )}
-            </div>
-          ))}
-
-          {isLoading && (
-            <div className="flex gap-3 justify-start">
-              <Avatar className="h-8 w-8 mt-1">
-                <AvatarImage src={appConfig.prophetAvatar || "/placeholder.svg"} alt="Profeta" />
-                <AvatarFallback>WB</AvatarFallback>
-              </Avatar>
-              <Card>
-                <CardContent className="p-3">
-                  <div className="flex items-center gap-2">
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                    <span className="text-sm">
-                      {isSearchingMessages
-                        ? "🔍 O Profeta está lendo todas as mensagens e buscando na base de dados..."
-                        : "O Profeta está meditando na Palavra..."}
-                    </span>
-                    {isSearchingMessages && (
-                      <div className="flex items-center gap-1 ml-2">
-                        <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-                        <span className="text-xs text-green-600 font-medium">LENDO</span>
-                      </div>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
+                  </CardContent>
+                </Card>
+              </div>
             </div>
           )}
-
+          
           <div ref={messagesEndRef} />
         </div>
       </ScrollArea>
 
+      {error && (
+        <Alert className="mx-4 mb-4">
+          <AlertCircle className="h-4 w-4" />
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      )}
+
       <div className="p-4 border-t">
-        <div className="flex gap-2">
-          <AudioRecorder onTranscription={handleTranscription} disabled={isLoading} />
-          <Button onClick={() => sendMessage()} disabled={isLoading || !input.trim()}>
-            <Send className="h-4 w-4" />
-          </Button>
-          <Input
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyPress={handleKeyPress}
-            placeholder="Digite sua mensagem para o Profeta..."
+        <div className="flex space-x-2 max-w-4xl mx-auto">
+          <div className="flex-1">
+            <Input
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              placeholder="Digite sua pergunta sobre a Palavra de Deus..."
+              onKeyPress={(e) => {
+                if (e.key === "Enter" && !e.shiftKey) {
+                  e.preventDefault()
+                  sendMessage()
+                }
+              }}
+              disabled={isLoading || isRecordingActive}
+              className="min-h-[40px]"
+            />
+          </div>
+          
+          <AudioRecorder 
+            onAudioRecorded={handleAudioRecorded}
             disabled={isLoading}
-            className="flex-1"
+            onRecordingStateChange={setIsRecordingActive}
           />
+          
+          <Button 
+            onClick={() => sendMessage()} 
+            disabled={isLoading || !input.trim() || isRecordingActive}
+            size="icon"
+          >
+            <Send className="w-4 h-4" />
+          </Button>
         </div>
-        <p className="text-xs text-muted-foreground mt-1 text-center">Pressione Enter para enviar ou use o microfone</p>
+        
+        {!hasActiveSubscription && !isAdmin && shouldShowUpgradeOffer && (
+          <div className="mt-4 max-w-4xl mx-auto">
+            <Alert>
+              <Crown className="h-4 w-4" />
+              <AlertDescription className="flex items-center justify-between">
+                <span>Você tem acesso limitado. Faça upgrade para conversas ilimitadas!</span>
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={() => setShowUpgradeModal(true)}
+                  className="ml-2"
+                >
+                  <Zap className="w-4 h-4 mr-1" />
+                  Upgrade
+                </Button>
+              </AlertDescription>
+            </Alert>
+          </div>
+        )}
       </div>
+
+      <UpgradeModal 
+        isOpen={showUpgradeModal} 
+        onClose={() => setShowUpgradeModal(false)} 
+      />
     </div>
   )
 }

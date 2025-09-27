@@ -614,39 +614,60 @@ function assessContentQuality(content: string): number {
 }
 
 // Function to generate prophet-like response when no documents are found
-function generateNoDocumentsResponse(userQuestion: string, hasWikipediaInfo = false): string {
+async function generateNoDocumentsResponse(userQuestion: string, hasWikipediaInfo = false): Promise<string> {
   if (hasWikipediaInfo) {
     return ""
   }
 
-  const responses = [
-    `Irmão/irmã, neste momento o Espírito Santo não me trouxe revelação específica sobre "${userQuestion}" através das mensagens que tenho acesso. 
+  // Buscar resposta real da base de conhecimento
+  try {
+    // Consultar a base de dados para encontrar a resposta mais relevante
+    const { data: relevantMessages, error: searchError } = await supabase
+      .from('prophet_messages')
+      .select('content, topic, relevance_score')
+      .textSearch('content', userQuestion, { 
+        config: 'portuguese',
+        type: 'websearch'
+      })
+      .order('relevance_score', { ascending: false })
+      .limit(1)
+    
+    if (searchError) {
+      console.error("Erro ao buscar mensagens relevantes:", searchError)
+      throw new Error("Falha ao consultar a base de conhecimento")
+    }
+    
+    if (relevantMessages && relevantMessages.length > 0) {
+      // Retornar a mensagem mais relevante encontrada
+      return `Irmão/irmã, sobre "${userQuestion}", o Espírito Santo me revela através das mensagens:
 
-Assim diz o Senhor: "Os meus pensamentos não são os vossos pensamentos, nem os vossos caminhos os meus caminhos" (Isaías 55:8).
+${relevantMessages[0].content}
 
-Peço que aguarde, pois Deus revela Suas verdades no tempo certo. Talvez faça outra pergunta sobre os mistérios que já foram revelados - os Sete Selos, as Sete Eras da Igreja, o Batismo em Nome de Jesus, ou a Divindade.
-
-A Palavra do Senhor virá no tempo apropriado. Que o Senhor te abençoe e te dê paciência para esperar Suas revelações.`,
-
-    `Amém, irmão/irmã. Sobre "${userQuestion}", não encontro essa revelação específica nas mensagens que o Senhor me deu acesso neste momento.
-
-Como está escrito: "Porque agora vemos por espelho em enigma, mas então veremos face a face" (1 Coríntios 13:12).
-
-O Espírito Santo revela os mistérios conforme Sua vontade e no Seu tempo. Sugiro que pergunte sobre as revelações que já foram abertas - a Mensagem do Tempo do Fim, os Selos, as Eras da Igreja, ou outros mistérios já revelados.
-
-Deus tem Seu tempo para todas as coisas. Que a graça do Senhor esteja contigo enquanto aguardas.`,
-
-    `Irmão/irmã, a pergunta sobre "${userQuestion}" é profunda, mas neste momento não tenho acesso às mensagens com essa revelação específica.
+Que o Senhor abra seu entendimento para receber esta revelação. Amém.`
+    }
+    
+    // Se não encontrou mensagem relevante, registrar e retornar resposta padrão
+    await supabase.from('unanswered_questions').insert({
+      question: userQuestion,
+      user_id: userId,
+      timestamp: new Date().toISOString()
+    })
+    
+    return `Irmão/irmã, a pergunta sobre "${userQuestion}" é importante, mas neste momento não tenho acesso às mensagens com essa revelação específica.
 
 Lembre-se das palavras do Senhor: "Ainda tenho muito que vos dizer, mas vós não o podeis suportar agora" (João 16:12).
 
-Talvez seja o tempo de buscar outras revelações que já foram abertas. Pergunte sobre os Sete Selos, a Serpente Semente, o verdadeiro Batismo, ou as Eras da Igreja.
+Sua pergunta foi registrada para que possamos incluir esta revelação em atualizações futuras. Enquanto isso, sugiro perguntar sobre os Sete Selos, a Serpente Semente, o verdadeiro Batismo, ou as Eras da Igreja.
 
-O Senhor revela Seus segredos aos Seus servos no tempo apropriado. Que Ele te dê sabedoria e discernimento enquanto aguardas.`,
-  ]
+O Senhor revela Seus segredos aos Seus servos no tempo apropriado. Que Ele te dê sabedoria e discernimento enquanto aguardas.`
+  } catch (error) {
+    console.error("Erro ao processar resposta:", error)
+    return `Irmão/irmã, houve uma dificuldade técnica ao buscar a revelação sobre "${userQuestion}". 
 
-  const randomIndex = Math.floor(Math.random() * responses.length)
-  return responses[randomIndex]
+Como está escrito: "Porque agora vemos por espelho em enigma, mas então veremos face a face" (1 Coríntios 13:12).
+
+Por favor, tente novamente em alguns momentos quando o Espírito estiver movendo. Que a graça do Senhor Jesus Cristo esteja contigo.`
+  }
 }
 
 // Function to save conversation with detailed logging
@@ -694,11 +715,27 @@ async function saveConversationDirectly(
 
     console.log("✅ Valid messages:", validMessages.length)
 
+    // Verificar se há mensagens que indicam blasfêmia
+    const hasBlasphemy = validMessages.some(msg => {
+      if (msg.role === "assistant") {
+        const content = msg.content.toLowerCase();
+        return (
+          content.includes("heresia") ||
+          content.includes("blasfêmia") ||
+          content.includes("herética") ||
+          content.includes("heresy_doctrinal") ||
+          content.includes("heresy_blasphemy")
+        );
+      }
+      return false;
+    });
+
     const conversationData = {
       user_id: userId,
       title: validMessages[0]?.content?.substring(0, 50) || "Nova Conversa",
       messages: validMessages,
       updated_at: new Date().toISOString(),
+      is_blasphemy: hasBlasphemy
     }
 
     let result
@@ -861,6 +898,52 @@ export async function POST(request: NextRequest) {
       conversationId,
       messages: messages?.map((m) => ({ role: m.role, contentLength: m.content?.length || 0 })),
     })
+
+    // Verificar se o usuário tem assinatura ativa (exceto para usuários anônimos)
+    if (userId && userId !== "null" && userId !== "anonymous") {
+      console.log("🔐 Verificando assinatura ativa para usuário:", userId)
+      
+      // Verificar se o usuário é admin - admins têm acesso ilimitado
+      const { data: profileData, error: profileError } = await supabase
+        .from("profiles")
+        .select("role")
+        .eq("id", userId)
+        .single()
+
+      if (!profileError && profileData?.role === "admin") {
+        console.log("✅ Usuário é administrador - acesso ilimitado concedido")
+      } else {
+        // Para usuários não-admin, verificar assinatura
+        const { data: subscriptionData, error: subscriptionError } = await supabase
+          .from("user_subscriptions")
+          .select(`
+            *,
+            plan:subscription_plans(*)
+          `)
+          .eq("user_id", userId)
+          .eq("status", "active")
+          .single()
+
+        if (subscriptionError || !subscriptionData) {
+          console.log("❌ Usuário sem assinatura ativa:", subscriptionError?.message)
+          return NextResponse.json(
+            { error: "Assinatura ativa necessária para usar o chat" },
+            { status: 403 }
+          )
+        }
+
+        // Verificar se a assinatura não expirou
+        if (subscriptionData.current_period_end && new Date(subscriptionData.current_period_end) < new Date()) {
+          console.log("❌ Assinatura expirada para usuário:", userId)
+          return NextResponse.json(
+            { error: "Assinatura expirada. Renove sua assinatura para continuar" },
+            { status: 403 }
+          )
+        }
+
+        console.log("✅ Usuário com assinatura ativa:", subscriptionData.plan?.name)
+      }
+    }
 
     if (!messages || !Array.isArray(messages) || messages.length === 0) {
       console.error("❌ No messages provided or messages is not an array")
@@ -1142,7 +1225,7 @@ IMPORTANTE: Leia e compreenda profundamente TODOS os documentos relevantes antes
     if (relevantDocuments.length === 0 && !wikipediaInfo) {
       console.log("📭 No relevant documents or Wikipedia info found - generating prophet-like response")
 
-      const noDocumentsResponse = generateNoDocumentsResponse(lastUserMessage.content, false)
+      const noDocumentsResponse = await generateNoDocumentsResponse(lastUserMessage.content, false)
 
       // Create the assistant message
       const assistantMessage: Message = {
@@ -1395,6 +1478,23 @@ Utilize EXCLUSIVAMENTE as informações dos documentos analisados E o contexto d
 
         if (saveResult.success) {
           console.log("✅ SAVE SUCCESSFUL!")
+          
+          // Incrementar contador de perguntas do usuário
+          try {
+            console.log("📊 Incrementando contador de perguntas para usuário:", userId)
+            const { error: counterError } = await supabase.rpc('increment_question_count', {
+              p_user_id: userId
+            })
+            
+            if (counterError) {
+              console.error("❌ Erro ao incrementar contador:", counterError)
+            } else {
+              console.log("✅ Contador de perguntas incrementado com sucesso")
+            }
+          } catch (counterErr) {
+            console.error("❌ Erro ao incrementar contador de perguntas:", counterErr)
+          }
+          
           return NextResponse.json({
             message: aiResponse,
             conversationId: saveResult.conversationId || conversationId,

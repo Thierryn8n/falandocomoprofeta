@@ -27,8 +27,11 @@ import {
   ExternalLink,
   ChevronLeft,
   ChevronRight,
+  Globe,
+  CreditCard,
 } from "lucide-react"
 import { useSupabaseAuth } from "@/hooks/use-supabase-auth"
+import { usePaymentSystemConfig } from "@/hooks/use-payment-system-config"
 
 interface AdminSidebarProps {
   activeTab: string
@@ -76,6 +79,34 @@ const menuItems = [
     label: "Heresias",
     description: "Detectar heresias",
     icon: AlertTriangle,
+    category: "main",
+  },
+  {
+    id: "heresy-logs",
+    label: "Logs de Heresias",
+    description: "Histórico de detecções de heresias",
+    icon: AlertTriangle,
+    category: "main",
+  },
+  {
+    id: "abacate-pay-unified",
+    label: "Abacate Pay",
+    description: "Sistema completo de pagamentos",
+    icon: CreditCard,
+    category: "main",
+  },
+  {
+    id: "mercado-pago-unified",
+    label: "Mercado Pago",
+    description: "Sistema completo Mercado Pago",
+    icon: CreditCard,
+    category: "main",
+  },
+  {
+    id: "payment-systems",
+    label: "Sistemas de Pagamento",
+    description: "Gerenciar Abacate Pay e Mercado Pago",
+    icon: CreditCard,
     category: "main",
   },
   {
@@ -156,6 +187,13 @@ const menuItems = [
     category: "config",
   },
   {
+    id: "geolocation",
+    label: "Geolocalização",
+    description: "Localização dos usuários",
+    icon: BarChart3,
+    category: "main",
+  },
+  {
     id: "analytics",
     label: "Analytics",
     description: "Métricas e análises",
@@ -173,18 +211,36 @@ const menuItems = [
 
 export function AdminSidebar({ activeTab, onTabChange, appConfig, isOpen, onToggle }: AdminSidebarProps) {
   const { profile } = useSupabaseAuth()
+  const { isAbacatePayActive, isMercadoPagoActive } = usePaymentSystemConfig()
 
-  const mainMenuItems = menuItems.filter((item) => item.category === "main")
-  const configMenuItems = menuItems.filter((item) => item.category === "config")
+  // Filtrar itens do menu baseado no sistema de pagamento ativo
+  const filteredMenuItems = menuItems.filter(item => {
+    // Se for um item de sistema de pagamento específico, mostrar apenas o ativo
+    if (item.id === "abacate-pay-unified") {
+      return isAbacatePayActive()
+    }
+    if (item.id === "mercado-pago-unified") {
+      return isMercadoPagoActive()
+    }
+    // Outros itens são sempre mostrados
+    return true
+  })
+
+  const mainMenuItems = filteredMenuItems.filter(item => item.category === "main")
+  const configMenuItems = filteredMenuItems.filter(item => item.category === "config")
 
   const handleMainSiteClick = () => {
     window.open("/", "_blank")
   }
 
+  const handleUpgradePageClick = () => {
+    window.open("/upgrade", "_blank")
+  }
+
   return (
     <div
       className={`${
-        isOpen ? "w-80" : "w-16"
+        isOpen ? "w-64 sm:w-72 md:w-80" : "w-14 sm:w-16"
       } transition-all duration-300 bg-background border-r border-border flex flex-col h-full relative`}
     >
       {/* Toggle Button */}
@@ -192,20 +248,20 @@ export function AdminSidebar({ activeTab, onTabChange, appConfig, isOpen, onTogg
         variant="ghost"
         size="icon"
         onClick={onToggle}
-        className="absolute -right-3 top-6 z-10 h-6 w-6 rounded-full border bg-background shadow-md hover:bg-muted"
+        className="absolute -right-3 top-6 z-10 h-5 w-5 sm:h-6 sm:w-6 rounded-full border bg-background shadow-md hover:bg-muted"
       >
-        {isOpen ? <ChevronLeft className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
+        {isOpen ? <ChevronLeft className="h-2 w-2 sm:h-3 sm:w-3" /> : <ChevronRight className="h-2 w-2 sm:h-3 sm:w-3" />}
       </Button>
 
       {/* Header */}
-      <div className="p-4 border-b border-border">
-        <div className="flex items-center gap-3">
+      <div className="p-2 sm:p-3 md:p-4 border-b border-border">
+        <div className="flex items-center gap-2 sm:gap-3">
           <div className="relative">
-            <Crown className="h-8 w-8" style={{ color: "#ff8100" }} />
+            <Crown className="h-6 w-6 sm:h-7 sm:w-7 md:h-8 md:w-8" style={{ color: "#ff8100" }} />
           </div>
           {isOpen && (
             <div className="flex-1 min-w-0">
-              <h1 className="text-lg font-bold truncate" style={{ color: "#ff8100" }}>
+              <h1 className="text-base sm:text-lg font-bold truncate" style={{ color: "#ff8100" }}>
                 Painel Admin
               </h1>
               <p className="text-xs text-muted-foreground truncate">{appConfig.appName}</p>
@@ -216,27 +272,35 @@ export function AdminSidebar({ activeTab, onTabChange, appConfig, isOpen, onTogg
 
       {/* Ver Site Principal Button */}
       {isOpen && (
-        <div className="p-4">
+        <div className="p-2 sm:p-3 md:p-4 space-y-2">
           <Button
             onClick={handleMainSiteClick}
-            className="w-full justify-start gap-2 text-white hover:opacity-90"
+            className="w-full justify-start gap-2 text-white hover:opacity-90 text-xs sm:text-sm"
             style={{ backgroundColor: "#ff8100" }}
           >
-            <ExternalLink className="h-4 w-4" />
+            <ExternalLink className="h-3 w-3 sm:h-4 sm:w-4" />
             Ver Site Principal
+          </Button>
+          <Button
+            onClick={handleUpgradePageClick}
+            className="w-full justify-start gap-2 text-white hover:opacity-90 text-xs sm:text-sm"
+            style={{ backgroundColor: "#9333ea" }}
+          >
+            <Crown className="h-3 w-3 sm:h-4 sm:w-4" />
+            Ver Página Upgrade
           </Button>
         </div>
       )}
 
       {/* Menu Content */}
       <ScrollArea className="flex-1">
-        <div className="p-4 space-y-6">
+        <div className="p-2 sm:p-3 md:p-4 space-y-4 sm:space-y-6">
           {/* Menu Principal */}
           <div>
             {isOpen && (
-              <div className="flex items-center gap-2 mb-3">
-                <div className="w-2 h-2 rounded-full" style={{ backgroundColor: "#ff8100" }}></div>
-                <span className="text-xs font-semibold uppercase tracking-wider" style={{ color: "#ff8100" }}>
+              <div className="flex items-center gap-2 mb-2 sm:mb-3">
+                <div className="w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full" style={{ backgroundColor: "#ff8100" }}></div>
+                <span className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider" style={{ color: "#ff8100" }}>
                   Menu Principal
                 </span>
               </div>
@@ -249,18 +313,18 @@ export function AdminSidebar({ activeTab, onTabChange, appConfig, isOpen, onTogg
                   <Button
                     key={item.id}
                     variant={isActive ? "secondary" : "ghost"}
-                    className={`w-full justify-start gap-3 h-auto p-3 ${
+                    className={`w-full justify-start gap-2 sm:gap-3 h-auto p-2 sm:p-3 ${
                       isActive ? "bg-muted border-l-2" : "hover:bg-muted/50"
                     }`}
                     style={isActive ? { borderLeftColor: "#ff8100" } : {}}
                     onClick={() => onTabChange(item.id)}
                     title={!isOpen ? item.label : undefined}
                   >
-                    <Icon className="h-5 w-5 flex-shrink-0" style={isActive ? { color: "#ff8100" } : {}} />
+                    <Icon className="h-4 w-4 sm:h-5 sm:w-5 flex-shrink-0" style={isActive ? { color: "#ff8100" } : {}} />
                     {isOpen && (
                       <div className="flex-1 text-left min-w-0">
-                        <div className="font-medium truncate">{item.label}</div>
-                        <div className="text-xs text-muted-foreground truncate">{item.description}</div>
+                        <div className="text-xs sm:text-sm font-medium truncate">{item.label}</div>
+                        <div className="text-[10px] sm:text-xs text-muted-foreground truncate">{item.description}</div>
                       </div>
                     )}
                   </Button>
@@ -274,9 +338,9 @@ export function AdminSidebar({ activeTab, onTabChange, appConfig, isOpen, onTogg
           {/* Configurações */}
           <div>
             {isOpen && (
-              <div className="flex items-center gap-2 mb-3">
-                <Settings className="w-3 h-3" style={{ color: "#ff8100" }} />
-                <span className="text-xs font-semibold uppercase tracking-wider" style={{ color: "#ff8100" }}>
+              <div className="flex items-center gap-2 mb-2 sm:mb-3">
+                <Settings className="w-2 h-2 sm:w-3 sm:h-3" style={{ color: "#ff8100" }} />
+                <span className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider" style={{ color: "#ff8100" }}>
                   Configurações
                 </span>
               </div>
@@ -289,18 +353,18 @@ export function AdminSidebar({ activeTab, onTabChange, appConfig, isOpen, onTogg
                   <Button
                     key={item.id}
                     variant={isActive ? "secondary" : "ghost"}
-                    className={`w-full justify-start gap-3 h-auto p-3 ${
+                    className={`w-full justify-start gap-2 sm:gap-3 h-auto p-2 sm:p-3 ${
                       isActive ? "bg-muted border-l-2" : "hover:bg-muted/50"
                     }`}
                     style={isActive ? { borderLeftColor: "#ff8100" } : {}}
                     onClick={() => onTabChange(item.id)}
                     title={!isOpen ? item.label : undefined}
                   >
-                    <Icon className="h-5 w-5 flex-shrink-0" style={isActive ? { color: "#ff8100" } : {}} />
+                    <Icon className="h-4 w-4 sm:h-5 sm:w-5 flex-shrink-0" style={isActive ? { color: "#ff8100" } : {}} />
                     {isOpen && (
                       <div className="flex-1 text-left min-w-0">
-                        <div className="font-medium truncate">{item.label}</div>
-                        <div className="text-xs text-muted-foreground truncate">{item.description}</div>
+                        <div className="text-xs sm:text-sm font-medium truncate">{item.label}</div>
+                        <div className="text-[10px] sm:text-xs text-muted-foreground truncate">{item.description}</div>
                       </div>
                     )}
                   </Button>
@@ -313,28 +377,28 @@ export function AdminSidebar({ activeTab, onTabChange, appConfig, isOpen, onTogg
 
       {/* Footer - User Info */}
       {isOpen && (
-        <div className="p-4 border-t border-border">
-          <div className="flex items-center gap-3">
-            <Avatar className="h-10 w-10">
+        <div className="p-2 sm:p-3 md:p-4 border-t border-border">
+          <div className="flex items-center gap-2 sm:gap-3">
+            <Avatar className="h-8 w-8 sm:h-9 sm:w-9 md:h-10 md:w-10">
               <AvatarImage src={profile?.avatar_url || "/placeholder.svg"} />
               <AvatarFallback style={{ backgroundColor: "#ff8100", color: "white" }}>
                 {profile?.name?.charAt(0) || profile?.email?.charAt(0) || "A"}
               </AvatarFallback>
             </Avatar>
             <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2">
-                <p className="text-sm font-medium truncate">
+              <div className="flex items-center gap-1 sm:gap-2">
+                <p className="text-xs sm:text-sm font-medium truncate">
                   {profile?.name || profile?.email?.split("@")[0] || "Admin"}
                 </p>
-                <Badge variant="secondary" className="text-xs" style={{ backgroundColor: "#ff8100", color: "white" }}>
+                <Badge variant="secondary" className="text-[10px] sm:text-xs" style={{ backgroundColor: "#ff8100", color: "white" }}>
                   Admin
                 </Badge>
               </div>
-              <p className="text-xs text-muted-foreground truncate">{profile?.email}</p>
+              <p className="text-[10px] sm:text-xs text-muted-foreground truncate">{profile?.email}</p>
             </div>
           </div>
-          <div className="mt-3 pt-3 border-t border-border">
-            <p className="text-xs text-center" style={{ color: "#ff8100" }}>
+          <div className="mt-2 sm:mt-3 pt-2 sm:pt-3 border-t border-border">
+            <p className="text-[10px] sm:text-xs text-center" style={{ color: "#ff8100" }}>
               Painel Administrativo
             </p>
           </div>

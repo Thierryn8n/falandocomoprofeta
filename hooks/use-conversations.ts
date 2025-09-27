@@ -8,8 +8,9 @@ export function useConversations() {
   const { user } = useSupabaseAuth()
   const [conversations, setConversations] = useState<Conversation[]>([])
   const [loading, setLoading] = useState(true)
+  const [lastFetch, setLastFetch] = useState<number>(0)
 
-  const loadConversations = useCallback(async () => {
+  const loadConversations = useCallback(async (forceRefresh = false) => {
     if (!user) {
       setConversations([])
       setLoading(false)
@@ -17,6 +18,13 @@ export function useConversations() {
     }
 
     try {
+      // Cache for 2 minutes to reduce data usage
+      const now = Date.now()
+      if (!forceRefresh && conversations.length > 0 && (now - lastFetch) < 120000) {
+        setLoading(false)
+        return
+      }
+
       const { data, error } = await supabase
         .from("conversations")
         .select(`
@@ -28,13 +36,14 @@ export function useConversations() {
 
       if (!error) {
         setConversations(data || [])
+        setLastFetch(now)
       }
     } catch (error) {
       console.error("Error loading conversations:", error)
     } finally {
       setLoading(false)
     }
-  }, [user])
+  }, [user, conversations.length, lastFetch])
 
   useEffect(() => {
     loadConversations()

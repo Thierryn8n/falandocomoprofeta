@@ -70,20 +70,20 @@ const testimonials = [
   {
     name: "Maria Silva",
     role: "Membro da Igreja",
-    content: "Incrível poder conversar com o Profeta e esclarecer dúvidas sobre a Palavra!",
-    avatar: "/placeholder.svg?height=40&width=40&text=MS",
+    content: "Essa ferramenta tem sido uma bênção na minha vida. Posso estudar a Mensagem e receber respostas claras baseadas nos ensinamentos do Profeta.",
+    avatar: "https://i.pravatar.cc/150?u=maria_silva",
   },
   {
     name: "João Santos",
     role: "Pastor",
-    content: "Uma ferramenta maravilhosa para estudar os ensinamentos do Irmão Branham.",
-    avatar: "/placeholder.svg?height=40&width=40&text=JS",
+    content: "Como pastor, uso essa ferramenta para aprofundar meu entendimento das Escrituras através das revelações dadas ao Profeta Branham.",
+    avatar: "https://i.pravatar.cc/150?u=joao_santos",
   },
   {
     name: "Ana Costa",
-    role: "Estudante da Palavra",
-    content: "Finalmente posso entender melhor os mistérios dos Sete Selos!",
-    avatar: "/placeholder.svg?height=40&width=40&text=AC",
+    role: "Estudante da Bíblia",
+    content: "Finalmente posso acessar os ensinamentos do Profeta de forma interativa e fácil. Isso revolucionou meus estudos bíblicos.",
+    avatar: "https://i.pravatar.cc/150?u=ana_costa",
   },
 ]
 
@@ -113,7 +113,13 @@ export function ChatGPTLandingPage({ onLogin, appConfig }: ChatGPTLandingPagePro
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <Avatar className="h-10 w-10">
-                <AvatarImage src={appConfig.prophetAvatar || "/placeholder.svg"} alt={appConfig.prophetName} />
+                {appConfig.prophetAvatar ? (
+                <AvatarImage src={appConfig.prophetAvatar} alt={appConfig.prophetName} />
+              ) : (
+                <AvatarFallback className="bg-primary/20">
+                  {appConfig.prophetName?.charAt(0) || "P"}
+                </AvatarFallback>
+              )}
                 <AvatarFallback>
                   <Crown className="h-5 w-5" />
                 </AvatarFallback>
@@ -144,7 +150,7 @@ export function ChatGPTLandingPage({ onLogin, appConfig }: ChatGPTLandingPagePro
               <Sparkles className="h-3 w-3 mr-1" />
               Powered by AI
             </Badge>
-            <h1 className="text-4xl md:text-6xl font-bold mb-6 bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text text-transparent">
+            <h1 className="text-3xl md:text-4xl font-bold mb-6 bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text text-transparent">
               Converse com o
               <br />
               <span className="text-primary">Profeta William Branham</span>
@@ -161,7 +167,13 @@ export function ChatGPTLandingPage({ onLogin, appConfig }: ChatGPTLandingPagePro
               <CardContent className="p-6">
                 <div className="flex items-center gap-3 mb-4">
                   <Avatar className="h-8 w-8">
-                    <AvatarImage src={appConfig.prophetAvatar || "/placeholder.svg"} alt={appConfig.prophetName} />
+                    {appConfig.prophetAvatar ? (
+                <AvatarImage src={appConfig.prophetAvatar} alt={appConfig.prophetName} />
+              ) : (
+                <AvatarFallback className="bg-primary/20">
+                  {appConfig.prophetName?.charAt(0) || "P"}
+                </AvatarFallback>
+              )}
                     <AvatarFallback>WB</AvatarFallback>
                   </Avatar>
                   <div className="text-left">
@@ -300,7 +312,13 @@ export function ChatGPTLandingPage({ onLogin, appConfig }: ChatGPTLandingPagePro
                   <p className="text-muted-foreground mb-4">"{testimonial.content}"</p>
                   <div className="flex items-center gap-3">
                     <Avatar className="h-10 w-10">
-                      <AvatarImage src={testimonial.avatar || "/placeholder.svg"} alt={testimonial.name} />
+                      {testimonial.avatar ? (
+                  <AvatarImage src={testimonial.avatar} alt={testimonial.name} />
+                ) : (
+                  <AvatarFallback className="bg-primary/20">
+                    {testimonial.name.charAt(0)}
+                  </AvatarFallback>
+                )}
                       <AvatarFallback>{testimonial.name.charAt(0)}</AvatarFallback>
                     </Avatar>
                     <div>
@@ -348,7 +366,13 @@ export function ChatGPTLandingPage({ onLogin, appConfig }: ChatGPTLandingPagePro
           <div className="flex flex-col md:flex-row items-center justify-between">
             <div className="flex items-center gap-3 mb-4 md:mb-0">
               <Avatar className="h-8 w-8">
-                <AvatarImage src={appConfig.prophetAvatar || "/placeholder.svg"} alt={appConfig.prophetName} />
+                {appConfig.prophetAvatar ? (
+                <AvatarImage src={appConfig.prophetAvatar} alt={appConfig.prophetName} />
+              ) : (
+                <AvatarFallback className="bg-primary/20">
+                  {appConfig.prophetName?.charAt(0) || "P"}
+                </AvatarFallback>
+              )}
                 <AvatarFallback>WB</AvatarFallback>
               </Avatar>
               <div>

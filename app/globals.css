@@ -93,3 +93,43 @@
     opacity: 0.5;
   }
 }
+
+/* Animações para visualização de áudio */
+.wave-bar {
+  animation: waveAnimation 1s ease-in-out infinite;
+}
+
+@keyframes waveAnimation {
+  0%, 100% {
+    transform: scaleY(0.3);
+  }
+  50% {
+    transform: scaleY(1);
+  }
+}
+
+.audio-recording {
+  animation: recordingGlow 2s ease-in-out infinite;
+}
+
+@keyframes recordingGlow {
+  0%, 100% {
+    box-shadow: 0 0 5px rgba(239, 68, 68, 0.5);
+  }
+  50% {
+    box-shadow: 0 0 20px rgba(239, 68, 68, 0.8);
+  }
+}
+
+.audio-playing {
+  animation: playingPulse 1s ease-in-out infinite;
+}
+
+@keyframes playingPulse {
+  0%, 100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.05);
+  }
+}

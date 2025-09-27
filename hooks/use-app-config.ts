@@ -17,9 +17,16 @@ export function useAppConfig() {
   const [configs, setConfigs] = useState<AppConfig[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [lastFetch, setLastFetch] = useState<number>(0)
 
-  const fetchConfigs = useCallback(async () => {
+  const fetchConfigs = useCallback(async (forceRefresh = false) => {
     try {
+      // Cache for 5 minutes to reduce data usage
+      const now = Date.now()
+      if (!forceRefresh && configs.length > 0 && (now - lastFetch) < 300000) {
+        return
+      }
+
       setLoading(true)
       setError(null)
 
@@ -28,6 +35,7 @@ export function useAppConfig() {
       if (error) throw error
 
       setConfigs(data || [])
+      setLastFetch(now)
     } catch (err) {
       console.error("Error fetching app configs:", err)
       setError(err instanceof Error ? err.message : "Erro desconhecido")
@@ -35,7 +43,7 @@ export function useAppConfig() {
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [configs.length, lastFetch])
 
   const getConfigValue = useCallback(
     (key: string, defaultValue: any = null) => {

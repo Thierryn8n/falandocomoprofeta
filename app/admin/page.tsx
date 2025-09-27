@@ -6,13 +6,20 @@ import { DashboardOverview } from "@/components/admin/dashboard-overview"
 import { UserManager } from "@/components/admin/user-manager"
 import { ContentManager } from "@/components/admin/content-manager"
 import { HeresyManagement } from "@/components/admin/heresy-management"
+import { HeresyLogs } from "@/components/admin/heresy-logs"
+import { APIKeysConfig } from "@/components/admin/api-keys-config"
 import { AISettings } from "@/components/admin/ai-settings"
+import { ConversationsManager } from "@/components/admin/conversations-manager"
+import { GeolocationChart } from "@/components/admin/geolocation-chart"
 import { RadioConfig } from "@/components/admin/config/radio-config"
 import { AppIdentityConfig } from "@/components/admin/config/app-identity-config"
 import { ProphetProfileConfig } from "@/components/admin/config/prophet-profile-config"
 import { ChatBehaviorConfig } from "@/components/admin/config/chat-behavior-config"
 import { InterfaceThemeConfig } from "@/components/admin/config/interface-theme-config"
 import { SecurityConfig } from "@/components/admin/config/security-config"
+import { AbacatePayUnified } from "@/components/admin/abacate-pay-unified"
+import MercadoPagoUnified from "@/components/admin/mercado-pago-unified"
+import PaymentSystemSelector from "@/components/admin/payment-system-selector"
 import { DatabaseConfig } from "@/components/admin/config/database-config"
 import { EmailNotificationsConfig } from "@/components/admin/config/email-notifications-config"
 import { PerformanceConfig } from "@/components/admin/config/performance-config"
@@ -138,11 +145,21 @@ export default function AdminPage() {
       case "users":
         return <UserManager />
       case "conversations":
-        return <div className="p-6">Gerenciamento de Conversas (Em desenvolvimento)</div>
+        return <ConversationsManager />
+      case "geolocation":
+        return <GeolocationChart />
       case "content":
         return <ContentManager />
       case "heresy":
         return <HeresyManagement />
+      case "heresy-logs":
+        return <HeresyLogs />
+      case "abacate-pay-unified":
+        return <AbacatePayUnified />
+      case "mercado-pago-unified":
+        return <MercadoPagoUnified />
+      case "payment-systems":
+        return <PaymentSystemSelector />
       case "ai-settings":
         return <AISettings />
       case "radio":

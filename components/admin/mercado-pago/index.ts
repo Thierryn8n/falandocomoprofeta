@@ -1,0 +1,6 @@
+export { DashboardSection } from './dashboard-section'
+export { ConfigSection } from './config-section'
+export { ProductsSection } from './products-section'
+export { TransactionsSection } from './transactions-section'
+export { AnalyticsSection } from './analytics-section'
+export { PixTestSection } from './pix-test-section'

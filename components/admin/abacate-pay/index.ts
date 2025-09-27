@@ -1,0 +1,8 @@
+export { DashboardSection } from './dashboard-section'
+export { ConfigSection } from './config-section'
+export { PixSection } from './pix-section'
+export { BillingSection } from './billing-section'
+export { TransactionsSection } from './transactions-section'
+export { AnalyticsSection } from './analytics-section'
+export { ExternalPlanDialog } from './external-plan-dialog'
+export { ExternalLinksSection } from './external-links-section'

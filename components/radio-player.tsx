@@ -12,9 +12,10 @@ import { cn } from "@/lib/utils"
 
 interface RadioPlayerProps {
   className?: string
+  inHeader?: boolean
 }
 
-export function RadioPlayer({ className }: RadioPlayerProps) {
+export function RadioPlayer({ className, inHeader = false }: RadioPlayerProps) {
   const { user } = useSupabaseAuth()
   const { radioConfig, loading, savePlayingState } = useRadioConfig(user)
   const [isPlaying, setIsPlaying] = useState(false)
@@ -167,6 +168,11 @@ export function RadioPlayer({ className }: RadioPlayerProps) {
   }
 
   const getPositionClasses = () => {
+    // Se estiver no header, não usar posicionamento fixo
+    if (inHeader) {
+      return "relative"
+    }
+    
     const baseClasses = "fixed z-50 transition-all duration-300 shadow-lg"
 
     switch (radioConfig.position) {
@@ -201,8 +207,8 @@ export function RadioPlayer({ className }: RadioPlayerProps) {
   }
 
   return (
-    <Card className={cn(getPositionClasses(), className, isMinimized ? "w-16 h-16" : "w-64")}>
-      <CardContent className="p-3">
+    <Card className={cn(getPositionClasses(), className, inHeader ? "w-auto h-auto" : (isMinimized ? "w-16 h-16" : "w-64"))}>
+      <CardContent className={inHeader ? "p-2" : "p-3"}>
         {isMinimized ? (
           <div className="flex items-center justify-center h-full">
             <Button
@@ -214,6 +220,48 @@ export function RadioPlayer({ className }: RadioPlayerProps) {
             >
               <Radio className={cn("h-4 w-4", isPlaying && "animate-pulse text-green-500")} />
             </Button>
+          </div>
+        ) : inHeader ? (
+          // Versão compacta para o header
+          <div className="flex items-center gap-2">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handlePlay}
+              disabled={isLoading}
+              className="h-8 w-8 p-0"
+              title={isPlaying ? "Pausar rádio" : "Reproduzir rádio"}
+            >
+              {isLoading ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : isPlaying ? (
+                <Pause className="h-4 w-4" />
+              ) : (
+                <Play className="h-4 w-4" />
+              )}
+            </Button>
+            <div className="flex items-center gap-1">
+              <Radio className={cn("h-3 w-3", isPlaying && "animate-pulse text-green-500")} />
+              <span className="text-xs font-medium hidden sm:inline">{radioConfig.radioName}</span>
+            </div>
+            <div className="flex items-center gap-1">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleMute}
+                className="h-6 w-6 p-0"
+                title={isMuted ? "Ativar som" : "Silenciar"}
+              >
+                {isMuted ? <VolumeX className="h-3 w-3" /> : <Volume2 className="h-3 w-3" />}
+              </Button>
+              <Slider
+                value={[isMuted ? 0 : volume * 100]}
+                onValueChange={handleVolumeChange}
+                max={100}
+                step={1}
+                className="w-16 hidden md:flex"
+              />
+            </div>
           </div>
         ) : (
           <div className="space-y-3">

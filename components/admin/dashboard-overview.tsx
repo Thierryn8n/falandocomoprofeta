@@ -93,19 +93,51 @@ export function DashboardOverview() {
       // Heresy reports
       const { data: heresyData } = await supabase.from("heresy_logs").select("*", { count: "exact" })
 
+      // Calcular tempo médio de resposta real
+      let avgResponseTime = 0;
+      if (messagesData && messagesData.length > 0) {
+        const responseTimes = messagesData
+          .filter(msg => msg.response_time)
+          .map(msg => msg.response_time);
+        
+        if (responseTimes.length > 0) {
+          avgResponseTime = responseTimes.reduce((sum, time) => sum + time, 0) / responseTimes.length;
+        }
+      }
+      
+      // Calcular uso de armazenamento real
+      const { data: storageData } = await supabase
+        .rpc('get_storage_usage')
+        .single();
+      
+      const storageUsed = storageData?.usage_percentage || 0;
+      
+      // Calcular taxa de erro real
+      const { data: errorData } = await supabase
+        .from("error_logs")
+        .select("*", { count: "exact" })
+        .gte('created_at', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString());
+      
+      const totalRequests = messagesData?.length || 1; // Evitar divisão por zero
+      const errorRate = ((errorData?.length || 0) / totalRequests) * 100;
+      
+      // Verificar saúde do sistema
+      const systemHealth = errorRate > 5 ? "degraded" : errorRate > 10 ? "critical" : "healthy";
+      
       setMetrics({
-        onlineUsers: onlineData?.length || 0,
-        totalVisits: visitsData?.length || 0,
+        onlineUsers: metrics.onlineUsers,
+        totalVisits: metrics.todayVisits,
+        totalVisitsAllTime: metrics.totalVisits,
         totalMessages: messagesData?.length || 0,
         totalUsers: usersData?.length || 0,
-        avgResponseTime: Math.random() * 500 + 200, // Simulated
-        systemUptime: 99.9,
-        storageUsed: Math.random() * 80 + 10, // Simulated percentage
-        errorRate: Math.random() * 2, // Simulated percentage
+        avgResponseTime,
+        systemUptime: 99.9, // Ainda fixo, mas poderia ser calculado com base em logs reais
+        storageUsed,
+        errorRate,
         activeConversations: activeConvData?.length || 0,
         documentsCount: docsData?.length || 0,
         heresyReports: heresyData?.length || 0,
-        systemHealth: "healthy",
+        systemHealth,
       })
 
       setLastUpdated(new Date())
@@ -178,11 +210,11 @@ export function DashboardOverview() {
 
     loadData()
 
-    // Auto-refresh every 5 seconds
+    // Auto-refresh every 30 seconds (reduced from 5s to save data)
     const interval = setInterval(() => {
       fetchMetrics()
       fetchRecentActivity()
-    }, 5000)
+    }, 30000)
 
     return () => clearInterval(interval)
   }, [])
@@ -259,7 +291,7 @@ export function DashboardOverview() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-green-600">{metrics.onlineUsers}</div>
-            <p className="text-xs text-muted-foreground">Ativos nos últimos 30 minutos</p>
+            <p className="text-xs text-muted-foreground">Ativos nos últimos 30 minutos (exceto admin)</p>
           </CardContent>
         </Card>
 

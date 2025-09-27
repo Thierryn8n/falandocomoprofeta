@@ -22,7 +22,7 @@ interface AdminLayoutProps {
 
 export function AdminLayout({ children, activeTab, onTabChange, appConfig }: AdminLayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false) // For mobile
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false) // For desktop
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(true) // For desktop - starts collapsed
 
   const handleConfigUpdate = (config: any) => {
     console.log("Config update handled in layout:", config)

@@ -80,21 +80,48 @@ async function testGemini(apiKey: string, model: string) {
 }
 
 async function testPsyche(apiKey: string, model: string) {
-  // Implementação placeholder para Psyche AI
-  // Como não temos uma API real, vamos simular
-  if (apiKey && apiKey.startsWith("psyche_")) {
-    return NextResponse.json({ success: true, message: "Psyche AI conectado com sucesso" })
-  } else {
-    return NextResponse.json({ success: false, error: "Chave de API inválida para Psyche AI" })
+  try {
+    // Fazendo uma chamada real para a API do Psyche
+    const response = await fetch(`https://api.psyche.ai/v1/models/${model}/test`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${apiKey}`
+      },
+      body: JSON.stringify({
+        prompt: "Teste de conexão com a API"
+      })
+    })
+    
+    if (response.ok) {
+      return NextResponse.json({ success: true, message: "Psyche AI conectado com sucesso" })
+    } else {
+      const errorData = await response.json()
+      return NextResponse.json({ success: false, error: errorData.error?.message || "Erro na conexão com Psyche AI" })
+    }
+  } catch (error) {
+    return NextResponse.json({ success: false, error: "Erro de conexão com Psyche AI" })
   }
 }
 
 async function testTTS(apiKey: string) {
-  // Implementação placeholder para TTS
-  // Como não temos uma API real configurada, vamos simular
-  if (apiKey && apiKey.length > 10) {
-    return NextResponse.json({ success: true, message: "TTS conectado com sucesso" })
-  } else {
-    return NextResponse.json({ success: false, error: "Chave de API inválida para TTS" })
+  try {
+    // Fazendo uma chamada real para a API do ElevenLabs
+    const response = await fetch("https://api.elevenlabs.io/v1/voices", {
+      method: "GET",
+      headers: {
+        "Accept": "application/json",
+        "xi-api-key": apiKey
+      }
+    })
+    
+    if (response.ok) {
+      return NextResponse.json({ success: true, message: "TTS conectado com sucesso" })
+    } else {
+      const errorData = await response.json()
+      return NextResponse.json({ success: false, error: errorData.detail?.message || "Chave de API inválida para TTS" })
+    }
+  } catch (error) {
+    return NextResponse.json({ success: false, error: "Erro de conexão com serviço TTS" })
   }
 }

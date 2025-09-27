@@ -26,8 +26,8 @@ export function AppIdentityConfig() {
   const [formData, setFormData] = useState({
     appName: currentConfig.appName || "Falando com o Profeta",
     appDescription: currentConfig.appDescription || "Converse com o Profeta William Branham através de IA",
-    logo: currentConfig.logo || "/placeholder.svg?height=32&width=32&text=Logo",
-    favicon: currentConfig.favicon || "/placeholder.svg?height=16&width=16&text=F",
+    logo: currentConfig.logo || "https://i.pravatar.cc/150?u=app_logo",
+    favicon: currentConfig.favicon || "https://i.pravatar.cc/150?u=app_favicon",
   })
 
   const uploadFile = async (file: File, type: "logo" | "favicon") => {
@@ -193,9 +193,13 @@ export function AppIdentityConfig() {
             <div className="flex items-center gap-4">
               <div className="flex-shrink-0">
                 <img
-                  src={formData.logo || "/placeholder.svg"}
-                  alt="Logo atual"
-                  className="h-12 w-12 object-contain border rounded"
+                  className="h-12 w-12 rounded-md object-cover border-2 border-primary/20"
+                  src={formData.logo || "https://i.pravatar.cc/150?u=app_logo"}
+                  alt="Logo do Aplicativo"
+                  onError={(e) => {
+                    const target = e.target as HTMLImageElement
+                    target.src = "https://i.pravatar.cc/150?u=app_logo_fallback"
+                  }}
                 />
               </div>
 
@@ -243,9 +247,13 @@ export function AppIdentityConfig() {
             <div className="flex items-center gap-4">
               <div className="flex-shrink-0">
                 <img
-                  src={formData.favicon || "/placeholder.svg"}
-                  alt="Favicon atual"
-                  className="h-8 w-8 object-contain border rounded"
+                  className="h-8 w-8 rounded-md object-cover border-2 border-primary/20"
+                  src={formData.favicon || "https://i.pravatar.cc/150?u=app_favicon"}
+                  alt="Favicon do Aplicativo"
+                  onError={(e) => {
+                    const target = e.target as HTMLImageElement
+                    target.src = "https://i.pravatar.cc/150?u=app_favicon_fallback"
+                  }}
                 />
               </div>
 

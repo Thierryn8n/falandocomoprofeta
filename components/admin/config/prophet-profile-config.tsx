@@ -19,7 +19,7 @@ interface ProphetProfileConfigProps {
 
 export function ProphetProfileConfig({ appConfig, onConfigUpdate }: ProphetProfileConfigProps) {
   const [prophetName, setProphetName] = useState(appConfig?.prophetName || "Profeta William Branham")
-  const [prophetAvatar, setProphetAvatar] = useState(appConfig?.prophetAvatar || "/placeholder.svg")
+  const [prophetAvatar, setProphetAvatar] = useState(appConfig?.prophetAvatar || "")
   const [prophetBio, setProphetBio] = useState(
     appConfig?.prophetBio ||
       "William Marrion Branham foi um ministro cristão americano e líder de avivamento que iniciou o movimento de cura pela fé pós-Segunda Guerra Mundial.",
@@ -35,7 +35,7 @@ export function ProphetProfileConfig({ appConfig, onConfigUpdate }: ProphetProfi
 
   useEffect(() => {
     setProphetName(appConfig?.prophetName || "Profeta William Branham")
-    setProphetAvatar(appConfig?.prophetAvatar || "/placeholder.svg")
+    setProphetAvatar(appConfig?.prophetAvatar || "")
     setProphetBio(
       appConfig?.prophetBio ||
         "William Marrion Branham foi um ministro cristão americano e líder de avivamento que iniciou o movimento de cura pela fé pós-Segunda Guerra Mundial.",
@@ -97,7 +97,7 @@ export function ProphetProfileConfig({ appConfig, onConfigUpdate }: ProphetProfi
   }
 
   const handleRemoveAvatar = async () => {
-    if (prophetAvatar === "/placeholder.svg") return
+    if (prophetAvatar === "") return
 
     setIsUploading(true)
     try {
@@ -111,8 +111,8 @@ export function ProphetProfileConfig({ appConfig, onConfigUpdate }: ProphetProfi
         throw deleteError
       }
 
-      setProphetAvatar("/placeholder.svg")
-      onConfigUpdate({ prophetAvatar: "/placeholder.svg" }) // Update parent state
+      setProphetAvatar("")
+    onConfigUpdate({ prophetAvatar: "" }) // Update parent state
       toast({
         title: "Sucesso",
         description: "Avatar do profeta removido com sucesso!",
@@ -189,12 +189,12 @@ export function ProphetProfileConfig({ appConfig, onConfigUpdate }: ProphetProfi
               <div className="w-24 h-24 border-2 border-dashed border-border rounded-full flex items-center justify-center overflow-hidden bg-muted">
                 {prophetAvatar ? (
                   <img
-                    src={prophetAvatar || "/placeholder.svg"}
+                    src={prophetAvatar || "https://i.pravatar.cc/150?u=prophet_avatar"}
                     alt="Avatar do Profeta"
                     className="w-full h-full object-cover"
                     onError={(e) => {
                       const target = e.target as HTMLImageElement
-                      target.src = "/placeholder.svg?height=96&width=96&text=Avatar"
+                      target.src = "https://i.pravatar.cc/150?u=prophet_fallback"
                     }}
                   />
                 ) : (
@@ -215,7 +215,7 @@ export function ProphetProfileConfig({ appConfig, onConfigUpdate }: ProphetProfi
                   {isUploading && <Loader2 className="h-4 w-4 animate-spin" />}
                 </div>
                 {isUploading && <p className="text-sm text-blue-600">Carregando...</p>}
-                {prophetAvatar !== "/placeholder.svg" && !isUploading && (
+                {prophetAvatar !== "" && !isUploading && (
                   <Button variant="outline" size="sm" onClick={handleRemoveAvatar} className="gap-2 bg-transparent">
                     <XCircle className="h-4 w-4" /> Remover Avatar
                   </Button>

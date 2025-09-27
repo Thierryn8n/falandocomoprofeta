@@ -97,8 +97,8 @@ export function useSessionTracking() {
   const startHeartbeat = useCallback(() => {
     if (heartbeatInterval) return
 
-    // Update session every 5 seconds
-    heartbeatInterval = setInterval(updateSession, 5000)
+    // Update session every 60 seconds (reduced from 5s to save data)
+    heartbeatInterval = setInterval(updateSession, 60000)
   }, [updateSession])
 
   useEffect(() => {

@@ -414,12 +414,18 @@ export function ChatSidebar({
         <div className="p-4 border-t border-border/40 bg-card/20">
           <div className="text-center space-y-1">
             <div className="flex items-center justify-center gap-2 mb-2">
-              {appConfig.prophetAvatar && (
+              {appConfig.prophetAvatar ? (
                 <img
-                  src={appConfig.prophetAvatar || "/placeholder.svg"}
+                  src={appConfig.prophetAvatar}
                   alt={appConfig.prophetName}
                   className="h-6 w-6 rounded-full"
                 />
+              ) : (
+                <div className="h-6 w-6 rounded-full bg-primary/20 flex items-center justify-center">
+                  <span className="text-xs text-primary font-bold">
+                    {appConfig.prophetName?.charAt(0) || "P"}
+                  </span>
+                </div>
               )}
               <p className="text-xs text-muted-foreground">Baseado nas mensagens de</p>
             </div>
