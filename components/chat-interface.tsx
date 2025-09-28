@@ -1064,7 +1064,18 @@ export function ChatInterface({ conversationId, onConversationUpdate, user, appC
                             <Button
                               variant="ghost"
                               size="sm"
-                              onClick={() => shareMessage(cleanContent, allReferences, message.role === "assistant" ? undefined : cleanContent)}
+                              onClick={() => {
+                                // Para mensagens do assistente, encontrar a pergunta anterior do usuário
+                                let userQuestion = undefined
+                                if (message.role === "assistant" && index > 0) {
+                                  const previousMessage = messages[index - 1]
+                                  if (previousMessage.role === "user") {
+                                    const { cleanContent: userCleanContent } = processMessageContent(previousMessage.content)
+                                    userQuestion = userCleanContent
+                                  }
+                                }
+                                shareMessage(cleanContent, allReferences, userQuestion)
+                              }}
                               className="h-7 w-7 sm:h-8 sm:w-8 p-0"
                               title="Compartilhar no WhatsApp"
                             >
