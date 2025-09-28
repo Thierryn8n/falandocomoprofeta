@@ -30,6 +30,13 @@ const nextConfig = {
     domains: ['localhost'],
     unoptimized: true,
   },
+  // Disable webpack cache for production builds
+  webpack: (config, { dev, isServer }) => {
+    if (!dev) {
+      config.cache = false;
+    }
+    return config;
+  },
 }
 
 module.exports = withPWA(nextConfig)

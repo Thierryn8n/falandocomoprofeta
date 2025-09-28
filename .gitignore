@@ -9,6 +9,10 @@ node_modules/
 # Next.js
 /.next/
 /out/
+.next/cache/
+.next/server/
+.next/static/chunks/
+cache/
 
 # Production
 /build

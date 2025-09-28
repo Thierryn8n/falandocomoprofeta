@@ -1,0 +1,44 @@
+# Cloudflare Pages ignore file
+# Exclude large cache files and unnecessary build artifacts
+
+# Next.js cache and build artifacts
+.next/cache/
+.next/server/
+.next/static/chunks/
+cache/
+*.pack
+
+# Webpack cache
+cache/webpack/
+
+# Node modules (already handled by build process)
+node_modules/
+
+# Development files
+.env*.local
+.env
+
+# IDE files
+.vscode/
+.idea/
+
+# Logs
+*.log
+logs/
+
+# Temporary files
+tmp/
+temp/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Git files
+.git/
+.gitignore
+
+# Large binary files
+*.zip
+*.tar.gz
+*.rar
