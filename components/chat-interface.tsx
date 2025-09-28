@@ -672,7 +672,7 @@ export function ChatInterface({ conversationId, onConversationUpdate, user, appC
       
       // Título
       if (userQuestion) {
-        const questionLines = wrapText(`❓ Pergunta: ${userQuestion}`, width - padding * 2)
+        const questionLines = wrapText(`🤔 Pergunta: ${userQuestion}`, width - padding * 2)
         totalHeight += titleHeight + questionLines.length * lineHeight + 20
       }
       
@@ -711,7 +711,7 @@ export function ChatInterface({ conversationId, onConversationUpdate, user, appC
       if (userQuestion) {
         ctx.fillStyle = '#2563eb'
         ctx.font = 'bold 18px Arial, sans-serif'
-        ctx.fillText('❓ Pergunta:', padding, currentY + 20)
+        ctx.fillText('🤔 Pergunta:', padding, currentY + 20)
         currentY += titleHeight
         
         ctx.fillStyle = '#374151'
@@ -790,16 +790,10 @@ export function ChatInterface({ conversationId, onConversationUpdate, user, appC
         }
       }
       
-      // Fallback: criar link de download e tentar abrir WhatsApp
-      const url = URL.createObjectURL(blob)
-      const link = document.createElement('a')
-      link.href = url
-      link.download = `mensagem-${prophetName.replace(/\s+/g, '-').toLowerCase()}.png`
-      
-      // Criar mensagem de texto simples para WhatsApp como fallback
+      // Fallback: criar mensagem de texto simples para WhatsApp
       let shareText = ""
       if (userQuestion) {
-        shareText += `❓ Pergunta: ${userQuestion}\n\n`
+        shareText += `🤔 Pergunta: ${userQuestion}\n\n`
       }
       shareText += `👤 ${prophetName} ➡️\n\n${content}\n\n`
       if (references.length > 0) {
@@ -809,16 +803,9 @@ export function ChatInterface({ conversationId, onConversationUpdate, user, appC
         })
         shareText += `\n`
       }
-      shareText += `📱 Compartilhado via ${appConfig.appName || "Falando com o Profeta"}\n\n`
-      shareText += `🖼️ Imagem da conversa foi baixada automaticamente!`
+      shareText += `📱 Compartilhado via ${appConfig.appName || "Falando com o Profeta"}`
       
-      // Baixar a imagem automaticamente
-      document.body.appendChild(link)
-      link.click()
-      document.body.removeChild(link)
-      URL.revokeObjectURL(url)
-      
-      // Abrir WhatsApp com texto explicativo
+      // Abrir WhatsApp com texto (sem baixar imagem)
       const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(shareText)}`
       window.open(whatsappUrl, '_blank')
       
@@ -830,7 +817,7 @@ export function ChatInterface({ conversationId, onConversationUpdate, user, appC
       let shareText = ""
       
       if (userQuestion) {
-        shareText += `❓ *Pergunta:*\n${userQuestion}\n\n`
+        shareText += `🤔 *Pergunta:*\n${userQuestion}\n\n`
       }
       
       shareText += `👤 *${prophetName}* ➡️\n\n`
