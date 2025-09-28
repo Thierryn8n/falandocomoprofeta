@@ -320,7 +320,8 @@ export function ChatInterface({ conversationId, onConversationUpdate, user, appC
         },
         body: JSON.stringify({
           messages: newMessages,
-          user_id: user?.id,
+          conversationId: conversationId,
+          userId: user?.id || "anonymous",
         }),
       })
 
@@ -334,7 +335,7 @@ export function ChatInterface({ conversationId, onConversationUpdate, user, appC
       const assistantMessage: Message = {
         id: crypto.randomUUID(), // ID único para mensagem do assistente
         role: "assistant",
-        content: data.response,
+        content: data.message,
         timestamp: new Date().toISOString(),
       }
 
@@ -624,21 +625,229 @@ export function ChatInterface({ conversationId, onConversationUpdate, user, appC
     }
   }
 
-  const shareMessage = async (content: string, references: string[]) => {
-    const shareText = `${content}\n\n${references.join('\n')}`
-    
-    if (navigator.share) {
-      try {
-        await navigator.share({
-          title: `Mensagem do ${appConfig.prophetName}`,
-          text: shareText,
-        })
-      } catch (err) {
-        console.error("Error sharing:", err)
-        copyToClipboard(shareText)
+  const shareMessage = async (content: string, references: string[], userQuestion?: string) => {
+    try {
+      // Formatação específica para WhatsApp
+      const prophetName = appConfig.prophetName || "Profeta William Branham"
+      const prophetAvatar = appConfig.prophetAvatar || ""
+      
+      // Criar canvas para gerar a imagem
+      const canvas = document.createElement('canvas')
+      const ctx = canvas.getContext('2d')
+      if (!ctx) return
+      
+      // Configurações da imagem
+      const width = 800
+      const padding = 40
+      const lineHeight = 24
+      const titleHeight = 40
+      let currentY = padding
+      
+      // Configurar fonte
+      ctx.font = '16px Arial, sans-serif'
+      
+      // Função para quebrar texto em linhas
+      const wrapText = (text: string, maxWidth: number) => {
+        const words = text.split(' ')
+        const lines = []
+        let currentLine = words[0]
+        
+        for (let i = 1; i < words.length; i++) {
+          const word = words[i]
+          const testLine = currentLine + ' ' + word
+          const metrics = ctx.measureText(testLine)
+          if (metrics.width > maxWidth && currentLine !== '') {
+            lines.push(currentLine)
+            currentLine = word
+          } else {
+            currentLine = testLine
+          }
+        }
+        lines.push(currentLine)
+        return lines
       }
-    } else {
-      copyToClipboard(shareText)
+      
+      // Calcular altura necessária
+      let totalHeight = padding * 2
+      
+      // Título
+      if (userQuestion) {
+        const questionLines = wrapText(`❓ Pergunta: ${userQuestion}`, width - padding * 2)
+        totalHeight += titleHeight + questionLines.length * lineHeight + 20
+      }
+      
+      // Nome do profeta
+      totalHeight += titleHeight + 20
+      
+      // Conteúdo da resposta
+      const contentLines = wrapText(content, width - padding * 2)
+      totalHeight += contentLines.length * lineHeight + 20
+      
+      // Referências
+      if (references.length > 0) {
+        totalHeight += titleHeight + 10
+        references.forEach((ref, index) => {
+          const refLines = wrapText(`${index + 1}. ${ref}`, width - padding * 2)
+          totalHeight += refLines.length * lineHeight
+        })
+        totalHeight += 20
+      }
+      
+      // Assinatura
+      totalHeight += lineHeight + 20
+      
+      // Configurar canvas
+      canvas.width = width
+      canvas.height = totalHeight
+      
+      // Fundo branco
+      ctx.fillStyle = '#ffffff'
+      ctx.fillRect(0, 0, width, totalHeight)
+      
+      // Resetar Y
+      currentY = padding
+      
+      // Desenhar pergunta se fornecida
+      if (userQuestion) {
+        ctx.fillStyle = '#2563eb'
+        ctx.font = 'bold 18px Arial, sans-serif'
+        ctx.fillText('❓ Pergunta:', padding, currentY + 20)
+        currentY += titleHeight
+        
+        ctx.fillStyle = '#374151'
+        ctx.font = '16px Arial, sans-serif'
+        const questionLines = wrapText(userQuestion, width - padding * 2)
+        questionLines.forEach(line => {
+          ctx.fillText(line, padding, currentY)
+          currentY += lineHeight
+        })
+        currentY += 20
+      }
+      
+      // Desenhar nome do profeta
+      ctx.fillStyle = '#059669'
+      ctx.font = 'bold 18px Arial, sans-serif'
+      ctx.fillText(`👤 ${prophetName} ➡️`, padding, currentY + 20)
+      currentY += titleHeight + 20
+      
+      // Desenhar conteúdo da resposta
+      ctx.fillStyle = '#111827'
+      ctx.font = '16px Arial, sans-serif'
+      const responseLines = wrapText(content, width - padding * 2)
+      responseLines.forEach(line => {
+        ctx.fillText(line, padding, currentY)
+        currentY += lineHeight
+      })
+      currentY += 20
+      
+      // Desenhar referências se existirem
+      if (references.length > 0) {
+        ctx.fillStyle = '#7c3aed'
+        ctx.font = 'bold 18px Arial, sans-serif'
+        ctx.fillText('📚 Referências e Fontes:', padding, currentY + 20)
+        currentY += titleHeight + 10
+        
+        ctx.fillStyle = '#4b5563'
+        ctx.font = '14px Arial, sans-serif'
+        references.forEach((ref, index) => {
+          const refLines = wrapText(`${index + 1}. ${ref}`, width - padding * 2)
+          refLines.forEach(line => {
+            ctx.fillText(line, padding, currentY)
+            currentY += lineHeight
+          })
+        })
+        currentY += 20
+      }
+      
+      // Desenhar assinatura
+      ctx.fillStyle = '#6b7280'
+      ctx.font = 'italic 14px Arial, sans-serif'
+      ctx.fillText(`📱 Compartilhado via ${appConfig.appName || "Falando com o Profeta"}`, padding, currentY)
+      
+      // Converter canvas para blob
+      const blob = await new Promise<Blob>((resolve) => {
+        canvas.toBlob((blob) => {
+          resolve(blob!)
+        }, 'image/png', 0.9)
+      })
+      
+      // Criar arquivo para compartilhamento
+      const file = new File([blob], `mensagem-${prophetName.replace(/\s+/g, '-').toLowerCase()}.png`, {
+        type: 'image/png'
+      })
+      
+      // Tentar compartilhar usando Web Share API
+      if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
+        try {
+          await navigator.share({
+            title: `Mensagem do ${prophetName}`,
+            text: userQuestion ? `Pergunta: ${userQuestion}` : `Mensagem do ${prophetName}`,
+            files: [file]
+          })
+          return
+        } catch (err) {
+          console.error("Error sharing with Web Share API:", err)
+        }
+      }
+      
+      // Fallback: criar link de download e tentar abrir WhatsApp
+      const url = URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = url
+      link.download = `mensagem-${prophetName.replace(/\s+/g, '-').toLowerCase()}.png`
+      
+      // Criar mensagem de texto simples para WhatsApp como fallback
+      let shareText = ""
+      if (userQuestion) {
+        shareText += `❓ Pergunta: ${userQuestion}\n\n`
+      }
+      shareText += `👤 ${prophetName} ➡️\n\n${content}\n\n`
+      if (references.length > 0) {
+        shareText += `📚 Referências:\n`
+        references.forEach((ref, index) => {
+          shareText += `${index + 1}. ${ref}\n`
+        })
+        shareText += `\n`
+      }
+      shareText += `📱 Compartilhado via ${appConfig.appName || "Falando com o Profeta"}\n\n`
+      shareText += `🖼️ Imagem da conversa foi baixada automaticamente!`
+      
+      // Baixar a imagem automaticamente
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+      URL.revokeObjectURL(url)
+      
+      // Abrir WhatsApp com texto explicativo
+      const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(shareText)}`
+      window.open(whatsappUrl, '_blank')
+      
+    } catch (error) {
+      console.error("Erro ao gerar imagem:", error)
+      
+      // Fallback completo: compartilhamento de texto original
+      const prophetName = appConfig.prophetName || "Profeta William Branham"
+      let shareText = ""
+      
+      if (userQuestion) {
+        shareText += `❓ *Pergunta:*\n${userQuestion}\n\n`
+      }
+      
+      shareText += `👤 *${prophetName}* ➡️\n\n`
+      shareText += `${content}\n\n`
+      
+      if (references.length > 0) {
+        shareText += `📚 *Referências e Fontes:*\n`
+        references.forEach((ref, index) => {
+          shareText += `${index + 1}. ${ref}\n`
+        })
+        shareText += `\n`
+      }
+      
+      shareText += `📱 _Compartilhado via ${appConfig.appName || "Falando com o Profeta"}_`
+      
+      const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(shareText)}`
+      window.open(whatsappUrl, '_blank')
     }
   }
 
@@ -650,35 +859,130 @@ export function ChatInterface({ conversationId, onConversationUpdate, user, appC
   }
 
   const processMessageContent = (content: string) => {
+    // Safety check - ensure content is a valid string
+    if (!content || typeof content !== 'string') {
+      return {
+        cleanContent: '',
+        references: [],
+        sources: []
+      }
+    }
+    
     const references: string[] = []
     const sources: string[] = []
     
-    // Extract references
-    const referenceRegex = /\*\*Citações e Referências:\*\*([\s\S]*?)(?=\*\*Fontes da base de dados:\*\*|$)/i
-    const referenceMatch = content.match(referenceRegex)
-    if (referenceMatch) {
-      const referenceText = referenceMatch[1]
-      const referenceLines = referenceText.split('\n').filter(line => line.trim() && line.includes('-'))
-      references.push(...referenceLines.map(line => line.trim()))
+    // Extract references with improved regex patterns - support multiple formats
+    const referencePatterns = [
+      /\*\*(Citações e )?Referências:\*\*([\s\S]*?)(?=\*\*Fontes da base de dados.*?:\*\*|$)/i,
+      /\*\*Referências utilizadas:\*\*([\s\S]*?)(?=\*\*Fontes da base de dados.*?:\*\*|$)/i,
+      /\*\*Referências:\*\*([\s\S]*?)(?=\*\*Fontes da base de dados.*?:\*\*|$)/i
+    ]
+    
+    for (const pattern of referencePatterns) {
+      const referenceMatch = content.match(pattern)
+      if (referenceMatch && referenceMatch.length > 2 && referenceMatch[2]) {
+        const referenceText = referenceMatch[2]
+        // Improved filtering to capture more reference formats
+        const referenceLines = referenceText
+          .split('\n')
+          .filter(line => {
+            const trimmed = line.trim()
+            return trimmed && (
+              trimmed.includes('-') || 
+              trimmed.includes('•') || 
+              trimmed.includes('*') ||
+              /^\d+\./.test(trimmed) || // numbered references
+              /^[a-zA-Z][\.\)]/.test(trimmed) || // lettered references
+              trimmed.includes(',') // document titles with paragraphs
+            )
+          })
+          .map(line => line.trim().replace(/^[-•*]\s*/, '').replace(/^\d+\.\s*/, '').replace(/^[a-zA-Z][\.\)]\s*/, ''))
+        
+        references.push(...referenceLines)
+        break // Stop after finding the first match
+      }
     }
     
-    // Extract sources
-    const sourceRegex = /\*\*Fontes da base de dados:\*\*([\s\S]*?)$/i
-    const sourceMatch = content.match(sourceRegex)
-    if (sourceMatch) {
-      const sourceText = sourceMatch[1]
-      const sourceLines = sourceText.split('\n').filter(line => line.trim() && line.includes('-'))
-      sources.push(...sourceLines.map(line => line.trim()))
+    // Extract sources with improved regex patterns and relevance scores
+    const sourcePatterns = [
+      /\*\*Fontes da base de dados.*?:\*\*([\s\S]*?)$/i,
+      /\*\*Fontes utilizadas.*?:\*\*([\s\S]*?)$/i,
+      /\*\*Fontes da base de dados utilizadas.*?:\*\*([\s\S]*?)$/i
+    ]
+    
+    for (const pattern of sourcePatterns) {
+      const sourceMatch = content.match(pattern)
+      if (sourceMatch && sourceMatch.length > 1 && sourceMatch[1]) {
+        const sourceText = sourceMatch[1]
+        // Improved filtering to capture sources with relevance scores
+        const sourceLines = sourceText
+          .split('\n')
+          .filter(line => {
+            const trimmed = line.trim()
+            return trimmed && (
+              trimmed.includes('-') || 
+              trimmed.includes('•') || 
+              trimmed.includes('*') ||
+              /^\d+\./.test(trimmed) || // numbered sources
+              /^[a-zA-Z][\.\)]/.test(trimmed) || // lettered sources
+              trimmed.includes('(Relevância:') || // sources with relevance scores
+              trimmed.includes('Relevância:') || // alternative format
+              trimmed.includes('"') // quoted document titles
+            )
+          })
+          .map(line => line.trim().replace(/^[-•*]\s*/, '').replace(/^\d+\.\s*/, '').replace(/^[a-zA-Z][\.\)]\s*/, ''))
+          .sort((a, b) => {
+            // Sort by relevance score if available
+            const relevanceMatchA = a.match(/\(Relevância:\s*(\d+)\)/) || a.match(/Relevância:\s*(\d+)/)
+            const relevanceMatchB = b.match(/\(Relevância:\s*(\d+)\)/) || b.match(/Relevância:\s*(\d+)/)
+            const relevanceA = relevanceMatchA ? relevanceMatchA[1] : null
+            const relevanceB = relevanceMatchB ? relevanceMatchB[1] : null
+            
+            if (relevanceA && relevanceB) {
+              return parseInt(relevanceB) - parseInt(relevanceA) // Descending order by relevance
+            }
+            
+            // If no relevance score, sort by length (longer content first)
+            return b.length - a.length
+          })
+        
+        sources.push(...sourceLines)
+        break // Stop after finding the first match
+      }
     }
     
-    // Clean content
-    let cleanContent = content.replace(/\*\*Citações e Referências:\*\*[\s\S]*$/i, "")
-    cleanContent = cleanContent.replace(/\*\*Fontes da base de dados:\*\*[\s\S]*$/i, "")
+    // Clean content - remove reference sections with flexible regex patterns
+    let cleanContent = content
+    
+    // Remove all possible reference section formats
+    const cleanPatterns = [
+      /\*\*(Citações e )?Referências:\*\*[\s\S]*$/i,
+      /\*\*Referências utilizadas:\*\*[\s\S]*$/i,
+      /\*\*Referências:\*\*[\s\S]*$/i,
+      /\*\*Fontes da base de dados.*?:\*\*[\s\S]*$/i,
+      /\*\*Fontes utilizadas.*?:\*\*[\s\S]*$/i,
+      /\*\*Fontes da base de dados utilizadas.*?:\*\*[\s\S]*$/i
+    ]
+    
+    for (const pattern of cleanPatterns) {
+      cleanContent = cleanContent.replace(pattern, "")
+    }
+    
+    // Clean up any trailing separators and whitespace
+    cleanContent = cleanContent.replace(/\n\s*---\s*$/, '').trim()
+    
+    // Sort references by relevance (longer references first, then alphabetically)
+    const sortedReferences = references.sort((a, b) => {
+      if (a.length !== b.length) {
+        return b.length - a.length // Longer references first
+      }
+      return a.localeCompare(b) // Alphabetical order for same length
+    })
     
     return {
       cleanContent: cleanContent.trim(),
-      references,
-      sources
+      references: sortedReferences,
+      sources: sources // Already sorted by relevance score
     }
   }
 
@@ -723,8 +1027,8 @@ export function ChatInterface({ conversationId, onConversationUpdate, user, appC
             
             return (
               <div key={index} className={`flex ${message.role === "user" ? "justify-end" : "justify-start"}`}>
-                <div className={`flex ${message.role === "user" ? "flex-row-reverse" : "flex-row"} items-start space-x-2 max-w-[80%]`}>
-                  <Avatar className="w-8 h-8 flex-shrink-0">
+                <div className={`flex ${message.role === "user" ? "flex-row-reverse" : "flex-row"} items-start space-x-2 max-w-[85%] sm:max-w-[80%] md:max-w-[75%]`}>
+                  <Avatar className="w-7 h-7 sm:w-8 sm:h-8 flex-shrink-0">
                     <AvatarImage 
                       src={message.role === "user" ? (profile?.avatar_url || "/default-avatar.png") : appConfig.prophetAvatar} 
                       alt={message.role === "user" ? (profile?.name || "User") : appConfig.prophetName}
@@ -733,96 +1037,131 @@ export function ChatInterface({ conversationId, onConversationUpdate, user, appC
                         console.error(`❌ Failed to load avatar for ${message.role}:`, message.role === "user" ? (profile?.avatar_url || "/default-avatar.png") : appConfig.prophetAvatar)
                       }
                     />
-                    <AvatarFallback>{message.role === "user" ? "U" : "WB"}</AvatarFallback>
+                    <AvatarFallback className="text-xs">{message.role === "user" ? "U" : "WB"}</AvatarFallback>
                   </Avatar>
                   <Card className={`${message.role === "user" ? "bg-primary text-primary-foreground ml-2" : "mr-2"}`}>
-                    <CardContent className="p-3">
+                    <CardContent className="p-2 sm:p-3">
                       <div className="space-y-2">
                         {/* Renderizar áudio se existir */}
                         {message.audioUrl && (
                           <div className="mb-2">
                             <WhatsAppAudioPlayer 
                               src={message.audioUrl} 
-                              className="max-w-xs"
+                              className="max-w-[250px] sm:max-w-xs"
                             />
                           </div>
                         )}
                         
-                        {/* Renderizar conteúdo da mensagem */}
-                        <div className="whitespace-pre-wrap text-sm">
-                          {cleanContent}
-                        </div>
-                        
-                        {/* Botões de ação para mensagens do assistente */}
-                        {message.role === "assistant" && (
-                          <div className="flex items-center justify-between mt-2 pt-2 border-t border-border/50">
-                            <div className="flex items-center space-x-1">
-                              {allReferences.length > 0 && (
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() => toggleReferences(index)}
-                                  className="p-1 h-auto text-xs"
-                                  title={expandedReferences[index] ? "Ocultar referências" : "Ver referências"}
-                                >
-                                  <BookOpen className="w-3 h-3 mr-1" />
-                                  {allReferences.length}
-                                  {expandedReferences[index] ? <ChevronUp className="w-3 h-3 ml-1" /> : <ChevronDown className="w-3 h-3 ml-1" />}
-                                </Button>
-                              )}
-                            </div>
-                            <div className="flex items-center space-x-1">
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => copyToClipboard(cleanContent)}
-                                className="p-1 h-auto"
-                                title="Copiar mensagem"
-                              >
-                                <Copy className="w-3 h-3" />
-                              </Button>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => shareMessage(cleanContent, allReferences)}
-                                className="p-1 h-auto"
-                                title="Compartilhar mensagem"
-                              >
-                                <Share2 className="w-3 h-3" />
-                              </Button>
-                            </div>
+                        {/* Mostrar transcrição se for mensagem de áudio */}
+                        {message.transcription && (
+                          <div className="mb-2 p-2 bg-muted/50 rounded text-xs sm:text-sm italic border-l-2 border-primary/30">
+                            <span className="font-medium">Transcrição:</span> {message.transcription}
                           </div>
                         )}
                         
-                        {/* Referências expandidas */}
-                        {expandedReferences[index] && (
-                          <div className="text-xs text-muted-foreground space-y-2">
-                            {references.length > 0 && (
-                              <div>
-                                <h4 className="text-xs font-semibold mb-2">**Citações e Referências:**</h4>
-                                <ul className="space-y-1">
-                                  {references.map((ref, refIndex) => (
-                                    <li key={refIndex} className="flex items-start gap-1">
-                                      <span className="text-muted-foreground">•</span>
-                                      <span>{ref}</span>
-                                    </li>
-                                  ))}
-                                </ul>
-                              </div>
+                        <p className="text-sm sm:text-base whitespace-pre-wrap leading-relaxed">{cleanContent}</p>
+                        
+                        {/* Botões de ação */}
+                        <div className="flex items-center justify-between mt-2 pt-2 border-t border-border/20">
+                          <div className="flex items-center space-x-1 sm:space-x-2">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => copyToClipboard(cleanContent)}
+                              className="h-7 w-7 sm:h-8 sm:w-8 p-0"
+                              title="Copiar mensagem"
+                            >
+                              <Copy className="h-3 w-3 sm:h-4 sm:w-4" />
+                            </Button>
+                            
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => shareMessage(cleanContent, allReferences, message.role === "assistant" ? undefined : cleanContent)}
+                              className="h-7 w-7 sm:h-8 sm:w-8 p-0"
+                              title="Compartilhar no WhatsApp"
+                            >
+                              <Share2 className="h-3 w-3 sm:h-4 sm:w-4" />
+                            </Button>
+                            
+                            {allReferences.length > 0 && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => setExpandedReferences(prev => ({
+                                  ...prev,
+                                  [index]: !prev[index]
+                                }))}
+                                className="h-7 px-2 sm:h-8 sm:px-3 text-xs sm:text-sm"
+                                title={expandedReferences[index] ? "Ocultar referências" : "Ver referências"}
+                              >
+                                <BookOpen className="h-3 w-3 sm:h-4 sm:w-4 mr-1" />
+                                {allReferences.length}
+                                {expandedReferences[index] ? (
+                                  <ChevronUp className="h-3 w-3 sm:h-4 sm:w-4 ml-1" />
+                                ) : (
+                                  <ChevronDown className="h-3 w-3 sm:h-4 sm:w-4 ml-1" />
+                                )}
+                              </Button>
                             )}
-                            {sources.length > 0 && (
-                              <div>
-                                <h4 className="text-xs font-semibold mb-2">**Fontes da base de dados:**</h4>
-                                <ul className="space-y-1">
-                                  {sources.map((source, sourceIndex) => (
-                                    <li key={sourceIndex} className="flex items-start gap-1">
-                                      <span className="text-muted-foreground">•</span>
-                                      <span>{source}</span>
-                                    </li>
-                                  ))}
-                                </ul>
-                              </div>
-                            )}
+                          </div>
+                          
+                          <span className="text-xs text-muted-foreground">
+                            {new Date(message.timestamp).toLocaleTimeString([], { 
+                              hour: '2-digit', 
+                              minute: '2-digit' 
+                            })}
+                          </span>
+                        </div>
+                        
+                        {/* Seção de referências expandida */}
+                        {expandedReferences[index] && allReferences.length > 0 && (
+                          <div className="mt-3 p-2 sm:p-3 bg-muted/30 rounded-lg border">
+                            <div className="text-xs space-y-3">
+                              {references.length > 0 && (
+                                <div>
+                                  <h4 className="text-xs font-semibold mb-2 text-foreground flex items-center gap-1">
+                                    <BookOpen className="w-3 h-3" />
+                                    Citações e Referências ({references.length})
+                                  </h4>
+                                  <div className="space-y-1">
+                                    {references.map((ref, refIndex) => (
+                                      <div key={refIndex} className="flex items-start gap-2 p-2 bg-background/50 rounded border-l-2 border-primary/20">
+                                        <span className="text-primary font-medium text-xs mt-0.5 flex-shrink-0">
+                                          {refIndex + 1}.
+                                        </span>
+                                        <span className="text-xs leading-relaxed break-words">{ref}</span>
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+                              {sources.length > 0 && (
+                                <div>
+                                  <h4 className="text-xs font-semibold mb-2 text-foreground flex items-center gap-1">
+                                    <BookOpen className="w-3 h-3" />
+                                    Fontes da Base de Dados ({sources.length})
+                                  </h4>
+                                  <div className="space-y-1">
+                                    {sources.map((source, sourceIndex) => (
+                                      <div key={sourceIndex} className="flex items-start gap-2 p-2 bg-background/50 rounded border-l-2 border-secondary/20">
+                                        <span className="text-secondary font-medium text-xs mt-0.5 flex-shrink-0">
+                                          {sourceIndex + 1}.
+                                        </span>
+                                        <span className="text-xs leading-relaxed break-words">{source}</span>
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+                              {references.length === 0 && sources.length === 0 && (
+                                <div className="text-center py-4">
+                                  <p className="text-xs text-muted-foreground">
+                                    Nenhuma referência encontrada nesta mensagem.
+                                  </p>
+                                </div>
+                              )}
+                            </div>
                           </div>
                         )}
                       </div>
@@ -835,8 +1174,8 @@ export function ChatInterface({ conversationId, onConversationUpdate, user, appC
           
           {isLoading && (
             <div className="flex justify-start">
-              <div className="flex items-start space-x-2 max-w-[80%]">
-                <Avatar className="w-8 h-8 flex-shrink-0">
+              <div className="flex items-start space-x-2 max-w-[85%] sm:max-w-[80%] md:max-w-[75%]">
+                <Avatar className="w-7 h-7 sm:w-8 sm:h-8 flex-shrink-0">
                   <AvatarImage 
                     src={appConfig.prophetAvatar} 
                     alt={appConfig.prophetName}
@@ -845,15 +1184,13 @@ export function ChatInterface({ conversationId, onConversationUpdate, user, appC
                       console.error("❌ Failed to load prophet loading avatar:", appConfig.prophetAvatar)
                     }
                   />
-                  <AvatarFallback>WB</AvatarFallback>
+                  <AvatarFallback className="text-xs">WB</AvatarFallback>
                 </Avatar>
                 <Card className="mr-2">
-                  <CardContent className="p-3">
+                  <CardContent className="p-2 sm:p-3">
                     <div className="flex items-center space-x-2">
                       <Loader2 className="w-4 h-4 animate-spin" />
-                      <span className="text-sm">
-                        {isSearchingMessages ? "Buscando nas Escrituras..." : "Meditando na Palavra..."}
-                      </span>
+                      <span className="text-sm">O profeta está meditando na Palavra...</span>
                     </div>
                   </CardContent>
                 </Card>
@@ -866,13 +1203,13 @@ export function ChatInterface({ conversationId, onConversationUpdate, user, appC
       </ScrollArea>
 
       {error && (
-        <Alert className="mx-4 mb-4">
+        <Alert className="mx-2 sm:mx-4 mb-2">
           <AlertCircle className="h-4 w-4" />
           <AlertDescription>{error}</AlertDescription>
         </Alert>
       )}
 
-      <div className="p-4 border-t">
+      <div className="p-2 sm:p-4 border-t">
         <div className="flex space-x-2 max-w-4xl mx-auto">
           <div className="flex-1">
             <Input
@@ -886,7 +1223,7 @@ export function ChatInterface({ conversationId, onConversationUpdate, user, appC
                 }
               }}
               disabled={isLoading || isRecordingActive}
-              className="min-h-[40px]"
+              className="min-h-[40px] sm:min-h-[44px] text-sm sm:text-base"
             />
           </div>
           
@@ -900,22 +1237,23 @@ export function ChatInterface({ conversationId, onConversationUpdate, user, appC
             onClick={() => sendMessage()} 
             disabled={isLoading || !input.trim() || isRecordingActive}
             size="icon"
+            className="h-[40px] w-[40px] sm:h-[44px] sm:w-[44px]"
           >
             <Send className="w-4 h-4" />
           </Button>
         </div>
         
         {!hasActiveSubscription && !isAdmin && shouldShowUpgradeOffer && (
-          <div className="mt-4 max-w-4xl mx-auto">
+          <div className="mt-3 sm:mt-4 max-w-4xl mx-auto">
             <Alert>
               <Crown className="h-4 w-4" />
-              <AlertDescription className="flex items-center justify-between">
-                <span>Você tem acesso limitado. Faça upgrade para conversas ilimitadas!</span>
+              <AlertDescription className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                <span className="text-sm">Você tem acesso limitado. Faça upgrade para conversas ilimitadas!</span>
                 <Button 
                   variant="outline" 
                   size="sm" 
                   onClick={() => setShowUpgradeModal(true)}
-                  className="ml-2"
+                  className="self-start sm:self-auto sm:ml-2"
                 >
                   <Zap className="w-4 h-4 mr-1" />
                   Upgrade

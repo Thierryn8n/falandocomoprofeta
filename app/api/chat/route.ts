@@ -889,7 +889,30 @@ export async function POST(request: NextRequest) {
   console.log("🔧 Vercel Environment:", process.env.VERCEL_ENV)
 
   try {
-    const body: ChatRequest = await request.json()
+    // Verificar se há conteúdo no body antes de tentar fazer parse
+    const text = await request.text()
+    console.log("📄 Raw request text:", text.substring(0, 200) + (text.length > 200 ? "..." : ""))
+    
+    if (!text || text.trim() === '') {
+      console.log("❌ Request body está vazio")
+      return NextResponse.json(
+        { error: "Request body is empty" },
+        { status: 400 }
+      )
+    }
+
+    let body: ChatRequest
+    try {
+      body = JSON.parse(text)
+    } catch (parseError) {
+      console.log("💥 JSON Parse Error:", parseError)
+      console.log("📄 Problematic text:", text)
+      return NextResponse.json(
+        { error: "Invalid JSON in request body" },
+        { status: 400 }
+      )
+    }
+
     const { messages, conversationId, userId } = body
 
     console.log("📝 Request body:", {
@@ -1328,6 +1351,15 @@ IMPORTANTE: Leia e compreenda profundamente TODOS os documentos relevantes antes
 6. NÃO cite fontes no meio da resposta - mantenha o fluxo natural da conversa
 7. DEPOIS: Adicione uma seção separada no final com as referências específicas
 
+FORMATO OBRIGATÓRIO PARA REFERÊNCIAS:
+**Referências:**
+- [Título do Documento], parágrafos [números específicos]
+- [Título do Documento], parágrafos [números específicos]
+
+**Fontes da base de dados utilizadas para esta resposta:**
+- "[TÍTULO COMPLETO DO DOCUMENTO]" (Relevância: [pontuação])
+- "[TÍTULO COMPLETO DO DOCUMENTO]" (Relevância: [pontuação])
+
 Utilize EXCLUSIVAMENTE as informações dos documentos analisados E o contexto da conversa atual. SEMPRE cite o TÍTULO COMPLETO do documento e o NÚMERO ESPECÍFICO DO PARÁGRAFO, mas APENAS na seção de referências no final. NUNCA use apenas "Documento 1" ou "Documento 2".`
 
     try {
@@ -1344,7 +1376,18 @@ ESTRUTURA OBRIGATÓRIA:
 4. NÃO cite fontes no meio da resposta - mantenha o fluxo natural da conversa
 5. DEPOIS: Adicione uma seção separada no final com as referências específicas
 
-Utilize EXCLUSIVAMENTE as informações dos documentos analisados E o contexto da conversa atual. SEMPRE cite o TÍTULO COMPLETO do documento e o NÚMERO ESPECÍFICO DO PARÁGRAFO, mas APENAS na seção de referências no final. NUNCA use apenas "Documento 1" ou "Documento 2".`
+FORMATO OBRIGATÓRIO PARA REFERÊNCIAS (exatamente como mostrado):
+**Referências:**
+- [Título do Documento], parágrafos [números específicos]
+- [Título do Documento], parágrafos [números específicos]
+
+**Fontes da base de dados utilizadas para esta resposta:**
+- "[TÍTULO COMPLETO DO DOCUMENTO]" (Relevância: [pontuação numérica])
+- "[TÍTULO COMPLETO DO DOCUMENTO]" (Relevância: [pontuação numérica])
+
+IMPORTANTE: Analise quais mensagens/documentos tiveram mais relevância para sua resposta e liste-os em ordem decrescente de relevância. Use EXATAMENTE a pontuação de relevância fornecida nos documentos acima.
+
+Utilize EXCLUSIVAMENTE as informações dos documentos analisados E o contexto da conversa atual. SEMPRE cite o TÍTULO COMPLETO do documento e o NÚMERO ESPECÍFICO DO PARÁGRAFO, mas APENAS na seção de referências no final.`
 
       // Call Gemini API with the CORRECT MODEL: gemini-2.0-flash
       const response = await fetch(

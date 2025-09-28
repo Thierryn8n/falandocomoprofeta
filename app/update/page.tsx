@@ -105,11 +105,13 @@ export default function UpdatePage() {
   }
 
   const copyToClipboard = (text: string) => {
-    navigator.clipboard.writeText(text)
-    toast({
-      title: "Link copiado!",
-      description: "O link foi copiado para a área de transferência.",
-    })
+    if (typeof window !== 'undefined' && navigator.clipboard) {
+      navigator.clipboard.writeText(text)
+      toast({
+        title: "Link copiado!",
+        description: "O link foi copiado para a área de transferência.",
+      })
+    }
   }
 
   const handleExternalPlanClick = (externalLink: string) => {
