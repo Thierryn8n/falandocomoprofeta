@@ -646,6 +646,131 @@ export function ChatInterface({ conversationId, onConversationUpdate, user, appC
       // Configurar fonte
       ctx.font = '16px Arial, sans-serif'
       
+      // Função para desenhar ícones
+      const drawIcon = async (type: 'question' | 'prophet' | 'book' | 'share', x: number, y: number, size: number = 20) => {
+        ctx.save()
+        
+        switch (type) {
+          case 'question':
+            // Desenhar ícone de pergunta com fundo colorido
+            ctx.fillStyle = '#3b82f6'
+            ctx.beginPath()
+            ctx.arc(x + size/2, y + size/2, size/2, 0, 2 * Math.PI)
+            ctx.fill()
+            ctx.fillStyle = '#ffffff'
+            ctx.font = `bold ${size-6}px Arial`
+            ctx.textAlign = 'center'
+            ctx.fillText('?', x + size/2, y + size/2 + 4)
+            break
+          case 'prophet':
+            // Desenhar avatar redondo do profeta com borda
+            if (prophetAvatar) {
+              try {
+                const img = new Image()
+                img.crossOrigin = 'anonymous'
+                await new Promise<void>((resolve, reject) => {
+                  img.onload = () => {
+                    ctx.save()
+                    // Desenhar borda
+                    ctx.strokeStyle = '#10b981'
+                    ctx.lineWidth = 3
+                    ctx.beginPath()
+                    ctx.arc(x + size/2, y + size/2, size/2 - 1, 0, 2 * Math.PI)
+                    ctx.stroke()
+                    // Desenhar imagem
+                    ctx.beginPath()
+                    ctx.arc(x + size/2, y + size/2, size/2 - 2, 0, 2 * Math.PI)
+                    ctx.clip()
+                    ctx.drawImage(img, x + 2, y + 2, size - 4, size - 4)
+                    ctx.restore()
+                    resolve()
+                  }
+                  img.onerror = () => {
+                    // Fallback: desenhar ícone de pessoa com fundo
+                    ctx.fillStyle = '#10b981'
+                    ctx.beginPath()
+                    ctx.arc(x + size/2, y + size/2, size/2, 0, 2 * Math.PI)
+                    ctx.fill()
+                    ctx.fillStyle = '#ffffff'
+                    ctx.beginPath()
+                    ctx.arc(x + size/2, y + size/3, size/6, 0, 2 * Math.PI)
+                    ctx.fill()
+                    ctx.beginPath()
+                    ctx.arc(x + size/2, y + size*0.75, size/3, 0, Math.PI, true)
+                    ctx.fill()
+                    resolve()
+                  }
+                  img.src = prophetAvatar
+                })
+              } catch (error) {
+                // Fallback: desenhar ícone de pessoa com fundo
+                ctx.fillStyle = '#10b981'
+                ctx.beginPath()
+                ctx.arc(x + size/2, y + size/2, size/2, 0, 2 * Math.PI)
+                ctx.fill()
+                ctx.fillStyle = '#ffffff'
+                ctx.beginPath()
+                ctx.arc(x + size/2, y + size/3, size/6, 0, 2 * Math.PI)
+                ctx.fill()
+                ctx.beginPath()
+                ctx.arc(x + size/2, y + size*0.75, size/3, 0, Math.PI, true)
+                ctx.fill()
+              }
+            } else {
+              // Ícone de pessoa padrão com fundo
+              ctx.fillStyle = '#10b981'
+              ctx.beginPath()
+              ctx.arc(x + size/2, y + size/2, size/2, 0, 2 * Math.PI)
+              ctx.fill()
+              ctx.fillStyle = '#ffffff'
+              ctx.beginPath()
+              ctx.arc(x + size/2, y + size/3, size/6, 0, 2 * Math.PI)
+              ctx.fill()
+              ctx.beginPath()
+              ctx.arc(x + size/2, y + size*0.75, size/3, 0, Math.PI, true)
+              ctx.fill()
+            }
+            break
+          case 'book':
+            // Desenhar ícone de livro com fundo colorido
+            ctx.fillStyle = '#8b5cf6'
+            ctx.beginPath()
+            ctx.arc(x + size/2, y + size/2, size/2, 0, 2 * Math.PI)
+            ctx.fill()
+            ctx.fillStyle = '#ffffff'
+            ctx.fillRect(x + size/4, y + size/3, size/2, size/3)
+            ctx.strokeStyle = '#ffffff'
+            ctx.lineWidth = 1
+            ctx.strokeRect(x + size/4, y + size/3, size/2, size/3)
+            ctx.beginPath()
+            ctx.moveTo(x + size/4 + 2, y + size/3 + 4)
+            ctx.lineTo(x + size*3/4 - 2, y + size/3 + 4)
+            ctx.moveTo(x + size/4 + 2, y + size/3 + 8)
+            ctx.lineTo(x + size*3/4 - 2, y + size/3 + 8)
+            ctx.stroke()
+            break
+          case 'share':
+            // Desenhar ícone de compartilhar com fundo colorido
+            ctx.fillStyle = '#6b7280'
+            ctx.beginPath()
+            ctx.arc(x + size/2, y + size/2, size/2, 0, 2 * Math.PI)
+            ctx.fill()
+            ctx.fillStyle = '#ffffff'
+            ctx.beginPath()
+            ctx.moveTo(x + size/2, y + size/4)
+            ctx.lineTo(x + size*3/4, y + size/2)
+            ctx.lineTo(x + size/2 + 1, y + size/2)
+            ctx.lineTo(x + size/2 + 1, y + size*3/4)
+            ctx.lineTo(x + size/2 - 1, y + size*3/4)
+            ctx.lineTo(x + size/2 - 1, y + size/2)
+            ctx.lineTo(x + size/4, y + size/2)
+            ctx.closePath()
+            ctx.fill()
+            break
+        }
+        ctx.restore()
+      }
+      
       // Função para quebrar texto em linhas
       const wrapText = (text: string, maxWidth: number) => {
         const words = text.split(' ')
@@ -672,7 +797,7 @@ export function ChatInterface({ conversationId, onConversationUpdate, user, appC
       
       // Título
       if (userQuestion) {
-        const questionLines = wrapText(`🤔 Pergunta: ${userQuestion}`, width - padding * 2)
+        const questionLines = wrapText(`Pergunta: ${userQuestion}`, width - padding * 2 - 30)
         totalHeight += titleHeight + questionLines.length * lineHeight + 20
       }
       
@@ -687,7 +812,7 @@ export function ChatInterface({ conversationId, onConversationUpdate, user, appC
       if (references.length > 0) {
         totalHeight += titleHeight + 10
         references.forEach((ref, index) => {
-          const refLines = wrapText(`${index + 1}. ${ref}`, width - padding * 2)
+          const refLines = wrapText(`${index + 1}. ${ref}`, width - padding * 2 - 30)
           totalHeight += refLines.length * lineHeight
         })
         totalHeight += 20
@@ -700,34 +825,50 @@ export function ChatInterface({ conversationId, onConversationUpdate, user, appC
       canvas.width = width
       canvas.height = totalHeight
       
-      // Fundo branco
-      ctx.fillStyle = '#ffffff'
+      // Fundo com gradiente sutil
+      const gradient = ctx.createLinearGradient(0, 0, 0, totalHeight)
+      gradient.addColorStop(0, '#ffffff')
+      gradient.addColorStop(1, '#f8fafc')
+      ctx.fillStyle = gradient
       ctx.fillRect(0, 0, width, totalHeight)
+      
+      // Adicionar sombra sutil nas bordas
+      ctx.shadowColor = 'rgba(0, 0, 0, 0.1)'
+      ctx.shadowBlur = 10
+      ctx.shadowOffsetX = 0
+      ctx.shadowOffsetY = 2
       
       // Resetar Y
       currentY = padding
       
       // Desenhar pergunta se fornecida
       if (userQuestion) {
+        // Desenhar ícone de pergunta
+        await drawIcon('question', padding, currentY, 24)
+        
         ctx.fillStyle = '#2563eb'
         ctx.font = 'bold 18px Arial, sans-serif'
-        ctx.fillText('🤔 Pergunta:', padding, currentY + 20)
+        ctx.textAlign = 'left'
+        ctx.fillText('Pergunta:', padding + 30, currentY + 20)
         currentY += titleHeight
         
         ctx.fillStyle = '#374151'
         ctx.font = '16px Arial, sans-serif'
-        const questionLines = wrapText(userQuestion, width - padding * 2)
+        const questionLines = wrapText(userQuestion, width - padding * 2 - 30)
         questionLines.forEach(line => {
-          ctx.fillText(line, padding, currentY)
+          ctx.fillText(line, padding + 30, currentY)
           currentY += lineHeight
         })
         currentY += 20
       }
       
-      // Desenhar nome do profeta
+      // Desenhar avatar do profeta e nome
+      await drawIcon('prophet', padding, currentY, 24)
+      
       ctx.fillStyle = '#059669'
       ctx.font = 'bold 18px Arial, sans-serif'
-      ctx.fillText(`👤 ${prophetName} ➡️`, padding, currentY + 20)
+      ctx.textAlign = 'left'
+      ctx.fillText(`${prophetName}`, padding + 30, currentY + 20)
       currentY += titleHeight + 20
       
       // Desenhar conteúdo da resposta
@@ -742,17 +883,21 @@ export function ChatInterface({ conversationId, onConversationUpdate, user, appC
       
       // Desenhar referências se existirem
       if (references.length > 0) {
+        // Desenhar ícone de livro
+        await drawIcon('book', padding, currentY, 24)
+        
         ctx.fillStyle = '#7c3aed'
         ctx.font = 'bold 18px Arial, sans-serif'
-        ctx.fillText('📚 Referências e Fontes:', padding, currentY + 20)
+        ctx.textAlign = 'left'
+        ctx.fillText('Referências e Fontes:', padding + 30, currentY + 20)
         currentY += titleHeight + 10
         
         ctx.fillStyle = '#4b5563'
         ctx.font = '14px Arial, sans-serif'
         references.forEach((ref, index) => {
-          const refLines = wrapText(`${index + 1}. ${ref}`, width - padding * 2)
+          const refLines = wrapText(`${index + 1}. ${ref}`, width - padding * 2 - 30)
           refLines.forEach(line => {
-            ctx.fillText(line, padding, currentY)
+            ctx.fillText(line, padding + 30, currentY)
             currentY += lineHeight
           })
         })
@@ -760,9 +905,10 @@ export function ChatInterface({ conversationId, onConversationUpdate, user, appC
       }
       
       // Desenhar assinatura
+      await drawIcon('share', padding, currentY, 16)
       ctx.fillStyle = '#6b7280'
       ctx.font = 'italic 14px Arial, sans-serif'
-      ctx.fillText(`📱 Compartilhado via ${appConfig.appName || "Falando com o Profeta"}`, padding, currentY)
+      ctx.fillText(`Compartilhado via ${appConfig.appName || "Falando com o Profeta"}`, padding + 20, currentY + 12)
       
       // Converter canvas para blob
       const blob = await new Promise<Blob>((resolve) => {
