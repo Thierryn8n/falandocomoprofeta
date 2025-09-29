@@ -163,7 +163,100 @@ export async function POST(req: NextRequest) {
       
       console.log("✅ Transcrição aprovada na filtragem de heresia");
 
-      // Agora, gerar resposta como Profeta Branham
+      // Buscar referências bíblicas relevantes (igual à API principal)
+      console.log("📖 Buscando referências bíblicas da King James...")
+      let bibleReferences: any[] = []
+      try {
+        const bibleResponse = await fetch(`${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/api/bible-references`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ text: transcribedText })
+        })
+        
+        if (bibleResponse.ok) {
+          const bibleData = await bibleResponse.json()
+          bibleReferences = bibleData.verses || []
+          console.log(`📖 Encontradas ${bibleReferences.length} referências bíblicas`)
+        }
+      } catch (bibleError) {
+        console.error("❌ Erro ao buscar referências bíblicas:", bibleError)
+      }
+
+      // Buscar documentos relevantes na base de dados (igual à API principal)
+      console.log("🔍 Buscando documentos relevantes na base de dados...")
+      const { data: relevantDocuments, error: searchError } = await supabase
+        .from('prophet_messages')
+        .select('*')
+        .textSearch('content', transcribedText, { 
+          config: 'portuguese',
+          type: 'websearch'
+        })
+        .order('relevance_score', { ascending: false })
+        .limit(5)
+
+      if (searchError) {
+        console.error("Erro ao buscar documentos:", searchError)
+      }
+
+      const documentsFound = relevantDocuments || []
+      console.log(`📚 Encontrados ${documentsFound.length} documentos relevantes`)
+
+      // Construir contexto dos documentos (igual à API principal)
+      let contextInfo = ""
+      let sourcesUsedInfo = ""
+
+      if (documentsFound.length > 0) {
+        contextInfo += "\n\n=== DOCUMENTOS RELEVANTES DA BASE DE DADOS ===\n"
+        contextInfo += `Total de documentos analisados: ${documentsFound.length}\n`
+        contextInfo += "Pergunta do usuário: " + transcribedText + "\n\n"
+        sourcesUsedInfo += "\n\n---\n**Fontes da base de dados utilizadas para esta resposta:**\n"
+
+        documentsFound.forEach((doc, index) => {
+          const documentTitle = doc.title || `Documento ${index + 1}`
+          contextInfo += `--- DOCUMENTO: "${documentTitle}" ---\n`
+          contextInfo += `Tipo: ${doc.type}\n`
+          contextInfo += `Pontuação de Relevância: ${doc.relevance_score}\n`
+          if (doc.file_url) {
+            contextInfo += `URL do Arquivo: ${doc.file_url}\n`
+          }
+          contextInfo += `Data de Criação: ${new Date(doc.created_at).toLocaleDateString("pt-BR")}\n`
+          contextInfo += `\nCONTEÚDO COMPLETO:\n${doc.content}\n\n`
+          contextInfo += `--- FIM DO DOCUMENTO: "${documentTitle}" ---\n\n`
+
+          sourcesUsedInfo += `- "${documentTitle}" (Relevância: ${doc.relevance_score})`
+          if (doc.file_url) {
+            sourcesUsedInfo += ` - ${doc.file_url}`
+          }
+          sourcesUsedInfo += "\n"
+        })
+
+        contextInfo += "=== FIM DOS DOCUMENTOS DA BASE DE DADOS ===\n"
+      }
+
+      // Prompt melhorado com contexto dos documentos
+      const enhancedPrompt = `${SYSTEM_PROMPT}
+
+${contextInfo}
+
+INSTRUÇÕES FINAIS PARA RESPOSTA:
+1. LEIA E COMPREENDA profundamente TODO o contexto dos documentos fornecidos acima
+2. Identifique TODAS as informações relevantes para responder à pergunta: "${transcribedText}"
+3. PRIMEIRO: Responda de forma natural, coerente e contextual como o Profeta William Branham
+4. Use todo o conhecimento dos documentos para criar uma resposta fluida e espiritual
+5. DEPOIS: No final da resposta, adicione as citações e referências específicas
+
+FORMATO OBRIGATÓRIO PARA REFERÊNCIAS (exatamente como mostrado):
+**Referências:**
+- [Título do Documento], parágrafos [números específicos]
+
+**Fontes da base de dados utilizadas para esta resposta:**
+- "[TÍTULO COMPLETO DO DOCUMENTO]" (Relevância: [pontuação numérica])
+
+PERGUNTA DO USUÁRIO: ${transcribedText}`
+
+      // Agora, gerar resposta como Profeta Branham com contexto
       const chatResponse = await fetch(
         `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`,
         {
@@ -175,16 +268,12 @@ export async function POST(req: NextRequest) {
             contents: [
               {
                 role: "user",
-                parts: [{ text: SYSTEM_PROMPT }],
-              },
-              {
-                role: "user",
-                parts: [{ text: transcribedText }],
+                parts: [{ text: enhancedPrompt }],
               },
             ],
             generationConfig: {
-              temperature: 0.7,
-              maxOutputTokens: 1000,
+              temperature: 0.2,
+              maxOutputTokens: 2000,
             },
           }),
         }
@@ -196,7 +285,45 @@ export async function POST(req: NextRequest) {
       }
 
       const chatData = await chatResponse.json()
-      const generatedText = chatData.candidates?.[0]?.content?.parts?.[0]?.text || "Erro ao gerar resposta"
+      let generatedText = chatData.candidates?.[0]?.content?.parts?.[0]?.text || "Erro ao gerar resposta"
+
+      // SEMPRE adicionar referências se houver documentos relevantes (igual à API principal)
+      if (documentsFound.length > 0) {
+        const hasReferences = generatedText.includes("**Referências:**") || generatedText.includes("**Fontes da base de dados")
+        
+        if (!hasReferences) {
+          console.log("🔧 Adicionando referências programaticamente à resposta de áudio...")
+          
+          // Construir seção de referências baseada nos documentos
+          let referencesSection = "\n\n**Referências:**\n"
+          documentsFound.forEach((doc, index) => {
+            const title = doc.title || `Documento ${index + 1}`
+            referencesSection += `- ${title}\n`
+          })
+          
+          // Adicionar seção de fontes
+          generatedText += referencesSection + sourcesUsedInfo
+          
+          // Adicionar referências bíblicas se existirem
+          if (bibleReferences.length > 0) {
+            generatedText += "\n\n**Referências Bíblicas (King James 1611):**\n"
+            bibleReferences.forEach((verse, index) => {
+              generatedText += `${index + 1}. ${verse.reference} - "${verse.text}"\n`
+            })
+          }
+        } else if (!generatedText.includes("Fontes da base de dados")) {
+          // Se tem referências mas não tem fontes, adicionar apenas as fontes
+          generatedText += sourcesUsedInfo
+          
+          // Adicionar referências bíblicas se existirem
+          if (bibleReferences.length > 0) {
+            generatedText += "\n\n**Referências Bíblicas (King James 1611):**\n"
+            bibleReferences.forEach((verse, index) => {
+              generatedText += `${index + 1}. ${verse.reference} - "${verse.text}"\n`
+            })
+          }
+        }
+      }
 
       // Retornar resposta incluindo informações do áudio salvo
       return NextResponse.json({ 

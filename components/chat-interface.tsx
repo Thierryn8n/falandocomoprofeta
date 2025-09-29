@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Card, CardContent } from "@/components/ui/card"
-import { Send, Loader2, AlertCircle, BookOpen, Copy, Share2, ChevronDown, ChevronUp } from "lucide-react"
+import { Send, Loader2, AlertCircle, BookOpen, Copy, Share2, ChevronDown, ChevronUp, Book } from "lucide-react"
 import { supabase } from "@/lib/supabase"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import AudioRecorder from "@/components/audio-recorder"
@@ -45,34 +45,142 @@ export function ChatInterface({ conversationId, onConversationUpdate, user, appC
   const [isSearchingMessages, setIsSearchingMessages] = useState(false)
   const [showUpgradeModal, setShowUpgradeModal] = useState(false)
   const [expandedReferences, setExpandedReferences] = useState<{ [key: number]: boolean }>({})
+  const [expandedVerses, setExpandedVerses] = useState<{ [key: string]: boolean }>({})
+  const [verseTexts, setVerseTexts] = useState<{ [key: string]: string }>({})
   const [isRecordingActive, setIsRecordingActive] = useState(false)
 
-  const getUserGreeting = () => {
-    if (!profile?.name && !user?.email) {
-      return "Bem-vindo, irmão/irmã!"
-    }
+  // Base de dados local de versículos bíblicos em português
+  const localBibleDatabase = [
+    { book: "João", chapter: 1, verse: 1, text: "No princípio era o Verbo, e o Verbo estava com Deus, e o Verbo era Deus.", reference: "João 1:1" },
+    { book: "João", chapter: 1, verse: 14, text: "E o Verbo se fez carne e habitou entre nós, e vimos a sua glória, como a glória do Unigênito do Pai, cheio de graça e de verdade.", reference: "João 1:14" },
+    { book: "João", chapter: 3, verse: 16, text: "Porque Deus amou o mundo de tal maneira que deu o seu Filho unigênito, para que todo aquele que nele crê não pereça, mas tenha a vida eterna.", reference: "João 3:16" },
+    { book: "João", chapter: 13, verse: 34, text: "Um novo mandamento vos dou: Que vos ameis uns aos outros; como eu vos amei a vós, que também vós uns aos outros vos ameis.", reference: "João 13:34" },
+    { book: "João", chapter: 14, verse: 6, text: "Disse-lhe Jesus: Eu sou o caminho, e a verdade, e a vida. Ninguém vem ao Pai senão por mim.", reference: "João 14:6" },
+    { book: "Atos", chapter: 2, verse: 38, text: "Então Pedro lhes disse: Arrependei-vos, e cada um de vós seja batizado em nome de Jesus Cristo para perdão dos pecados, e recebereis o dom do Espírito Santo.", reference: "Atos 2:38" },
+    { book: "Atos", chapter: 4, verse: 12, text: "E em nenhum outro há salvação, porque também debaixo do céu nenhum outro nome há, dado entre os homens, pelo qual devamos ser salvos.", reference: "Atos 4:12" },
+    { book: "Romanos", chapter: 3, verse: 23, text: "Porque todos pecaram e destituídos estão da glória de Deus.", reference: "Romanos 3:23" },
+    { book: "Romanos", chapter: 6, verse: 23, text: "Porque o salário do pecado é a morte, mas o dom gratuito de Deus é a vida eterna, por Cristo Jesus, nosso Senhor.", reference: "Romanos 6:23" },
+    { book: "Romanos", chapter: 10, verse: 9, text: "A saber: Se com a tua boca confessares ao Senhor Jesus e em teu coração creres que Deus o ressuscitou dos mortos, serás salvo.", reference: "Romanos 10:9" },
+    { book: "Efésios", chapter: 2, verse: 8, text: "Porque pela graça sois salvos, por meio da fé; e isso não vem de vós; é dom de Deus.", reference: "Efésios 2:8" },
+    { book: "Efésios", chapter: 2, verse: 9, text: "Não vem das obras, para que ninguém se glorie.", reference: "Efésios 2:9" },
+    { book: "Efésios", chapter: 4, verse: 5, text: "Um só Senhor, uma só fé, um só batismo.", reference: "Efésios 4:5" },
+    { book: "Hebreus", chapter: 13, verse: 8, text: "Jesus Cristo é o mesmo ontem, hoje e eternamente.", reference: "Hebreus 13:8" },
+    { book: "Hebreus", chapter: 4, verse: 15, text: "Porque não temos um sumo sacerdote que não possa compadecer-se das nossas fraquezas; porém um que, como nós, em tudo foi tentado, mas sem pecado.", reference: "Hebreus 4:15" },
+    { book: "Mateus", chapter: 28, verse: 19, text: "Portanto, ide, ensinai todas as nações, batizando-as em nome do Pai, e do Filho, e do Espírito Santo.", reference: "Mateus 28:19" },
+    { book: "Mateus", chapter: 1, verse: 21, text: "E ela dará à luz um filho, e lhe porás o nome de Jesus, porque ele salvará o seu povo dos seus pecados.", reference: "Mateus 1:21" },
+    { book: "Marcos", chapter: 16, verse: 16, text: "Quem crer e for batizado será salvo; mas quem não crer será condenado.", reference: "Marcos 16:16" },
+    { book: "Lucas", chapter: 24, verse: 47, text: "E em seu nome se pregasse o arrependimento e a remissão dos pecados, em todas as nações, começando por Jerusalém.", reference: "Lucas 24:47" },
+    { book: "1 João", chapter: 5, verse: 7, text: "Porque três são os que testificam no céu: o Pai, a Palavra e o Espírito Santo; e estes três são um.", reference: "1 João 5:7" },
+    { book: "1 João", chapter: 1, verse: 9, text: "Se confessarmos os nossos pecados, ele é fiel e justo para nos perdoar os pecados e nos purificar de toda injustiça.", reference: "1 João 1:9" },
+    { book: "Colossenses", chapter: 2, verse: 9, text: "Porque nele habita corporalmente toda a plenitude da divindade.", reference: "Colossenses 2:9" },
+    { book: "Filipenses", chapter: 2, verse: 10, text: "Para que ao nome de Jesus se dobre todo joelho dos que estão nos céus, e na terra, e debaixo da terra.", reference: "Filipenses 2:10" },
+    { book: "Filipenses", chapter: 2, verse: 11, text: "E toda língua confesse que Jesus Cristo é o Senhor, para glória de Deus Pai.", reference: "Filipenses 2:11" },
+    { book: "Apocalipse", chapter: 1, verse: 8, text: "Eu sou o Alfa e o Ômega, o princípio e o fim, diz o Senhor, que é, e que era, e que há de vir, o Todo-poderoso.", reference: "Apocalipse 1:8" },
+    { book: "Apocalipse", chapter: 3, verse: 20, text: "Eis que estou à porta e bato; se alguém ouvir a minha voz e abrir a porta, entrarei em sua casa e com ele cearei, e ele, comigo.", reference: "Apocalipse 3:20" },
+    { book: "Apocalipse", chapter: 22, verse: 13, text: "Eu sou o Alfa e o Ômega, o Primeiro e o Último, o Princípio e o Fim.", reference: "Apocalipse 22:13" },
+    { book: "Gênesis", chapter: 1, verse: 1, text: "No princípio, criou Deus os céus e a terra.", reference: "Gênesis 1:1" },
+    { book: "Gênesis", chapter: 1, verse: 3, text: "E disse Deus: Haja luz. E houve luz.", reference: "Gênesis 1:3" },
+    { book: "Gênesis", chapter: 3, verse: 15, text: "E porei inimizade entre ti e a mulher e entre a tua semente e a sua semente; esta te ferirá a cabeça, e tu lhe ferirás o calcanhar.", reference: "Gênesis 3:15" },
+    { book: "1 Coríntios", chapter: 15, verse: 3, text: "Porque primeiramente vos entreguei o que também recebi: que Cristo morreu por nossos pecados, segundo as Escrituras.", reference: "1 Coríntios 15:3" },
+    { book: "1 Coríntios", chapter: 15, verse: 4, text: "E que foi sepultado, e que ressuscitou ao terceiro dia, segundo as Escrituras.", reference: "1 Coríntios 15:4" }
+  ]
 
-    const name = profile?.name || user?.email?.split("@")[0] || "irmão/irmã"
-
-    if (!name || name === "irmão/irmã") {
-      return "Bem-vindo, irmão/irmã!"
-    }
-
-    const feminineIndicators = [
-      "maria",
-      "ana",
-      "joana",
-      "helena",
-      "lucia",
+  // Função para buscar versículo diretamente na base local
+  const findBibleVerseDirectly = (text: string) => {
+    const cleanText = text.replace(/[()]/g, '').trim().toLowerCase()
+    console.log('🔍 Buscando na base local:', cleanText)
+    
+    // Padrões para diferentes formatos
+    const patterns = [
+      /(\w+)\s+(\d+):(\d+)(?:-(\d+))?/i,
+      /(\d+)\s+(\w+)\s+(\d+):(\d+)(?:-(\d+))?/i
     ]
-
-    const lowerName = name.toLowerCase()
-    const isFeminine = lowerName.endsWith("a") || feminineIndicators.some((indicator) => lowerName.includes(indicator))
-    const greeting = isFeminine ? "irmã" : "irmão"
-    const firstName = name.split(" ")[0]
-
-    return `Bem-vindo, ${greeting} ${firstName}!`
+    
+    for (const pattern of patterns) {
+      const match = cleanText.match(pattern)
+      if (match) {
+        let bookName, chapter, verse
+        
+        if (match.length === 6 && match[1].match(/^\d+$/)) {
+          // Formato: 1 João 5:7
+          bookName = `${match[1]} ${match[2]}`
+          chapter = parseInt(match[3])
+          verse = parseInt(match[4])
+        } else {
+          // Formato: João 3:16
+          bookName = match[1]
+          chapter = parseInt(match[2])
+          verse = parseInt(match[3])
+        }
+        
+        console.log('📖 Procurando:', { bookName, chapter, verse })
+        
+        // Buscar na base local
+        const found = localBibleDatabase.find(v => {
+          const bookMatches = v.book.toLowerCase() === bookName.toLowerCase() ||
+                             v.reference.toLowerCase().includes(bookName.toLowerCase())
+          return bookMatches && v.chapter === chapter && v.verse === verse
+        })
+        
+        if (found) {
+          console.log('✅ Encontrado na base local:', found)
+          return found
+        }
+      }
+    }
+    
+    console.log('❌ Não encontrado na base local')
+    return null
   }
+
+  const [processedMessages, setProcessedMessages] = useState<{ [key: number]: any }>({})
+
+  // Função para processar mensagens de forma assíncrona
+  const processMessage = async (message: any, index: number) => {
+    if (processedMessages[index]) {
+      return processedMessages[index]
+    }
+    
+    const result = await processMessageContent(message.content, index)
+    setProcessedMessages(prev => ({ ...prev, [index]: result }))
+    return result
+  }
+
+  // Processar mensagens quando elas mudarem
+  useEffect(() => {
+    messages.forEach(async (message, index) => {
+      if (!processedMessages[index]) {
+        await processMessage(message, index)
+      }
+    })
+  }, [messages])
+
+   const getUserGreeting = () => {
+     if (!profile?.name && !user?.email) {
+       return "Bem-vindo, irmão/irmã!"
+     }
+
+     const name = profile?.name || user?.email?.split("@")[0] || "irmão/irmã"
+
+     if (!name || name === "irmão/irmã") {
+       return "Bem-vindo, irmão/irmã!"
+     }
+
+     const feminineIndicators = [
+       "maria",
+       "ana",
+       "joana",
+       "helena",
+       "lucia",
+     ]
+
+     const lowerName = name.toLowerCase()
+     const isFeminine = lowerName.endsWith("a") || feminineIndicators.some((indicator) => lowerName.includes(indicator))
+     const greeting = isFeminine ? "irmã" : "irmão"
+     const firstName = name.split(" ")[0]
+
+     return `Bem-vindo, ${greeting} ${firstName}!`
+   }
 
   const { 
     canChat, 
@@ -991,24 +1099,27 @@ export function ChatInterface({ conversationId, onConversationUpdate, user, appC
     }))
   }
 
-  const processMessageContent = (content: string) => {
+  const processMessageContent = async (content: string, messageIndex: number = 0) => {
     // Safety check - ensure content is a valid string
     if (!content || typeof content !== 'string') {
       return {
         cleanContent: '',
         references: [],
-        sources: []
+        sources: [],
+        bibleReferences: [],
+        processedContent: ''
       }
     }
     
     const references: string[] = []
     const sources: string[] = []
+    const bibleReferences: string[] = []
     
     // Extract references with improved regex patterns - support multiple formats
     const referencePatterns = [
-      /\*\*(Citações e )?Referências:\*\*([\s\S]*?)(?=\*\*Fontes da base de dados.*?:\*\*|$)/i,
-      /\*\*Referências utilizadas:\*\*([\s\S]*?)(?=\*\*Fontes da base de dados.*?:\*\*|$)/i,
-      /\*\*Referências:\*\*([\s\S]*?)(?=\*\*Fontes da base de dados.*?:\*\*|$)/i
+      /\*\*(Citações e )?Referências:\*\*([\s\S]*?)(?=---|\*\*Fontes da base de dados.*?:\*\*|$)/i,
+      /\*\*Referências utilizadas:\*\*([\s\S]*?)(?=---|\*\*Fontes da base de dados.*?:\*\*|$)/i,
+      /\*\*Referências:\*\*([\s\S]*?)(?=---|\*\*Fontes da base de dados.*?:\*\*|$)/i
     ]
     
     for (const pattern of referencePatterns) {
@@ -1026,7 +1137,9 @@ export function ChatInterface({ conversationId, onConversationUpdate, user, appC
               trimmed.includes('*') ||
               /^\d+\./.test(trimmed) || // numbered references
               /^[a-zA-Z][\.\)]/.test(trimmed) || // lettered references
-              trimmed.includes(',') // document titles with paragraphs
+              trimmed.includes(',') || // document titles with paragraphs
+              trimmed.includes('parágrafos') || // specific to prophet messages
+              trimmed.length > 10 // catch longer reference lines
             )
           })
           .map(line => line.trim().replace(/^[-•*]\s*/, '').replace(/^\d+\.\s*/, '').replace(/^[a-zA-Z][\.\)]\s*/, ''))
@@ -1038,6 +1151,7 @@ export function ChatInterface({ conversationId, onConversationUpdate, user, appC
     
     // Extract sources with improved regex patterns and relevance scores
     const sourcePatterns = [
+      /\*\*Fontes da base de dados utilizadas para esta resposta:\*\*([\s\S]*?)$/i,
       /\*\*Fontes da base de dados.*?:\*\*([\s\S]*?)$/i,
       /\*\*Fontes utilizadas.*?:\*\*([\s\S]*?)$/i,
       /\*\*Fontes da base de dados utilizadas.*?:\*\*([\s\S]*?)$/i
@@ -1084,17 +1198,34 @@ export function ChatInterface({ conversationId, onConversationUpdate, user, appC
       }
     }
     
+    // Extract Bible references (King James 1611)
+    const biblePattern = /\*\*Referências Bíblicas \(King James 1611\):\*\*([\s\S]*?)$/i
+    const bibleMatch = content.match(biblePattern)
+    if (bibleMatch && bibleMatch[1]) {
+      const bibleText = bibleMatch[1]
+      const bibleLines = bibleText
+        .split('\n')
+        .filter(line => {
+          const trimmed = line.trim()
+          return trimmed && /^\d+\./.test(trimmed) // numbered bible references
+        })
+        .map(line => line.trim().replace(/^\d+\.\s*/, ''))
+      
+      bibleReferences.push(...bibleLines)
+    }
+    
     // Clean content - remove reference sections with flexible regex patterns
     let cleanContent = content
     
-    // Remove all possible reference section formats
+    // Remove all possible reference section formats (including Bible references)
     const cleanPatterns = [
       /\*\*(Citações e )?Referências:\*\*[\s\S]*$/i,
       /\*\*Referências utilizadas:\*\*[\s\S]*$/i,
       /\*\*Referências:\*\*[\s\S]*$/i,
       /\*\*Fontes da base de dados.*?:\*\*[\s\S]*$/i,
       /\*\*Fontes utilizadas.*?:\*\*[\s\S]*$/i,
-      /\*\*Fontes da base de dados utilizadas.*?:\*\*[\s\S]*$/i
+      /\*\*Fontes da base de dados utilizadas.*?:\*\*[\s\S]*$/i,
+      /\*\*Referências Bíblicas \(King James 1611\):\*\*[\s\S]*$/i
     ]
     
     for (const pattern of cleanPatterns) {
@@ -1112,10 +1243,118 @@ export function ChatInterface({ conversationId, onConversationUpdate, user, appC
       return a.localeCompare(b) // Alphabetical order for same length
     })
     
+    // Process inline Bible verses in content
+    let processedContent = cleanContent
+    
+    // Padrões mais abrangentes para capturar diferentes formatos de versículos
+    const versePatterns = [
+      // Formato: 2:17-18: "texto"
+      /(\d+:\d+(?:-\d+)?:\s*"[^"]+?")/g,
+      // Formato: Em 1 Timóteo 2:12, está escrito: "texto"
+      /(Em\s+\d+\s+\w+\s+\d+:\d+(?:-\d+)?,\s*está\s+escrito:\s*"[^"]+?")/gi,
+      // Formato: 1 Timóteo 2:12: "texto"
+      /(\d+\s+\w+\s+\d+:\d+(?:-\d+)?:\s*"[^"]+?")/g,
+      // Formato: Atos 2:17-18: "texto"
+      /(\w+\s+\d+:\d+(?:-\d+)?:\s*"[^"]+?")/g,
+      // Formato: como vemos em Atos 2:17-18: "texto"
+      /(como\s+vemos\s+em\s+\w+\s+\d+:\d+(?:-\d+)?:\s*"[^"]+?")/gi,
+      // Formato genérico: "texto" (livro capítulo:versículo)
+      /("[^"]+?"\s*\([^)]*\d+:\d+(?:-\d+)?[^)]*\))/g,
+      // Formato: A Bíblia nos ensina sobre... Em 1 Timóteo 2:12, está escrito: "texto"
+      /(A\s+Bíblia\s+nos\s+ensina[^"]*Em\s+\d+\s+\w+\s+\d+:\d+(?:-\d+)?,\s*está\s+escrito:\s*"[^"]+?")/gi,
+      // Formato: Paulo, inspirado pelo Espírito, nos dá essa instrução
+      /(Paulo,\s+inspirado\s+pelo\s+Espírito,\s+nos\s+dá\s+essa\s+instrução[^"]*"[^"]+?")/gi,
+      // Formato: como está escrito em... "texto"
+      /(como\s+está\s+escrito\s+em[^"]*"[^"]+?")/gi,
+      // Formato: A Palavra diz em... "texto"
+      /(A\s+Palavra\s+diz\s+em[^"]*"[^"]+?")/gi,
+      // Formato: nas Escrituras lemos... "texto"
+      /(nas\s+Escrituras\s+lemos[^"]*"[^"]+?")/gi,
+      // Formato: o Senhor disse... "texto"
+      /(o\s+Senhor\s+disse[^"]*"[^"]+?")/gi,
+      // Formato: As Escrituras, em 1 Timóteo 2:12, nos dizem: "texto"
+      /(As\s+Escrituras,\s+em\s+\d+\s+\w+\s+\d+:\d+(?:-\d+)?,\s+nos\s+dizem:\s*"[^"]+?")/gi,
+      // Formato: E em 1 Coríntios 14:34-35, a Palavra nos adverte: "texto"
+      /(E\s+em\s+\d+\s+\w+\s+\d+:\d+(?:-\d+)?,\s+a\s+Palavra\s+nos\s+adverte:\s*"[^"]+?")/gi,
+      // Formato: Como já conversamos antes, a Bíblia nos apresenta uma ordem divina
+      /(Como\s+já\s+conversamos\s+antes,\s+a\s+Bíblia\s+nos\s+apresenta[^"]*"[^"]+?")/gi,
+      // Formato: onde o homem é o cabeça e a mulher deve estar em submissão
+      /(onde\s+o\s+homem\s+é\s+o\s+cabeça\s+e\s+a\s+mulher\s+deve\s+estar\s+em\s+submissão[^"]*"[^"]+?")/gi,
+      // Formato: mas estejam sujeitas, como também ordena a lei
+      /(mas\s+estejam\s+sujeitas,\s+como\s+também\s+ordena\s+a\s+lei[^"]*"[^"]+?")/gi,
+      // Formato: E, se querem aprender alguma coisa, interroguem em casa
+      /(E,\s+se\s+querem\s+aprender\s+alguma\s+coisa,\s+interroguem\s+em\s+casa[^"]*"[^"]+?")/gi,
+      // Formato: porque é vergonhoso que as mulheres falem na igreja
+      /(porque\s+é\s+vergonhoso\s+que\s+as\s+mulheres\s+falem\s+na\s+igreja[^"]*"[^"]+?")/gi,
+      // NOVO: Formato apenas referência: (Efésios 2:8-9), Atos 2:38, etc.
+      /(\([^)]*\w+\s+\d+:\d+(?:-\d+)?[^)]*\))/g,
+      /(\w+\s+\d+:\d+(?:-\d+)?(?=[\s.,;!?]|$))/g
+    ]
+    
+    let verseCounter = 0
+    const versesToFetch: { id: string, text: string }[] = []
+    
+    versePatterns.forEach(pattern => {
+      processedContent = processedContent.replace(pattern, (match) => {
+        // Usar um ID baseado no índice da mensagem e contador para ser consistente
+         const verseId = `verse_${messageIndex}_${verseCounter++}`
+         
+         // Se não tem texto (aspas), adicionar à lista para buscar
+         if (!match.includes('"')) {
+           versesToFetch.push({ id: verseId, text: match })
+         }
+         
+        return `{{VERSE:${verseId}:${match}}}`
+      })
+    })
+    
+    // Buscar todos os versículos que não têm texto automaticamente
+    if (versesToFetch.length > 0) {
+      try {
+        const fetchPromises = versesToFetch.map(async ({ id, text }) => {
+          const response = await fetch('/api/bible-references', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ text })
+          })
+          
+          if (response.ok) {
+            const data = await response.json()
+            if (data.verses && data.verses.length > 0) {
+              const foundVerse = data.verses[0]
+              const fullVerseText = `${foundVerse.reference} - "${foundVerse.text}"`
+              return { id, fullText: fullVerseText }
+            }
+          }
+          return null
+        })
+        
+        const results = await Promise.all(fetchPromises)
+        
+        // Atualizar o estado com os versículos encontrados
+        const newVerseTexts: { [key: string]: string } = {}
+        results.forEach(result => {
+          if (result) {
+            newVerseTexts[result.id] = result.fullText
+          }
+        })
+        
+        if (Object.keys(newVerseTexts).length > 0) {
+          setVerseTexts(prev => ({ ...prev, ...newVerseTexts }))
+        }
+      } catch (error) {
+        console.error('Erro ao buscar versículos automaticamente:', error)
+      }
+    }
+    
     return {
       cleanContent: cleanContent.trim(),
+      processedContent: processedContent.trim(),
       references: sortedReferences,
-      sources: sources // Already sorted by relevance score
+      sources: sources, // Already sorted by relevance score
+      bibleReferences: bibleReferences
     }
   }
 
@@ -1155,7 +1394,14 @@ export function ChatInterface({ conversationId, onConversationUpdate, user, appC
       <ScrollArea className="flex-1 p-4" ref={scrollAreaRef}>
         <div className="space-y-4 max-w-4xl mx-auto">
           {messages.map((message, index) => {
-            const { cleanContent, references, sources } = processMessageContent(message.content)
+            const messageData = processedMessages[index] || {
+              cleanContent: message.content,
+              references: [],
+              sources: [],
+              bibleReferences: [],
+              processedContent: message.content
+            }
+            const { cleanContent, references, sources, bibleReferences, processedContent } = messageData
             const allReferences = [...references, ...sources]
             
             return (
@@ -1192,7 +1438,135 @@ export function ChatInterface({ conversationId, onConversationUpdate, user, appC
                           </div>
                         )}
                         
-                        <p className="text-sm sm:text-base whitespace-pre-wrap leading-relaxed">{cleanContent}</p>
+                        {/* Renderizar conteúdo com versículos inline */}
+                        <div className="text-sm sm:text-base whitespace-pre-wrap leading-relaxed">
+                          {processedContent.split(/(\{\{VERSE:[^}]+\}\})/).map((part, partIndex) => {
+                            if (part.startsWith('{{VERSE:')) {
+                              const match = part.match(/\{\{VERSE:([^:]+):(.+)\}\}/)
+                              if (match) {
+                                const [, verseId, verseText] = match
+                                const isExpanded = expandedVerses[verseId]
+                                
+                                return (
+                                  <div key={partIndex} className="inline-block">
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      onClick={async (e) => {
+                                        e.preventDefault()
+                                        e.stopPropagation()
+                                        console.log('Toggle clicked for verse:', verseId, 'Current state:', isExpanded)
+                                          console.log('Verse text:', verseText)
+                                          
+                                          // Algoritmo direto para buscar versículo sem depender da IA
+                                          if (!verseText.includes('"') && !verseTexts[verseId]) {
+                                            console.log('🔍 Buscando versículo automaticamente:', verseText)
+                                            
+                                            // Buscar diretamente na base de dados local
+                                            const foundVerse = findBibleVerseDirectly(verseText)
+                                            if (foundVerse) {
+                                              console.log('✅ Versículo encontrado diretamente:', foundVerse)
+                                              setVerseTexts(prev => ({
+                                                ...prev,
+                                                [verseId]: `${foundVerse.reference} - "${foundVerse.text}"`
+                                              }))
+                                            } else {
+                                              // Fallback para API apenas se não encontrar diretamente
+                                              console.log('🔍 Fallback: Buscando na API...')
+                                              try {
+                                                const response = await fetch('/api/bible-references', {
+                                                  method: 'POST',
+                                                  headers: {
+                                                    'Content-Type': 'application/json',
+                                                  },
+                                                  body: JSON.stringify({ text: verseText })
+                                                })
+                                                
+                                                if (response.ok) {
+                                                  const data = await response.json()
+                                                  if (data.verses && data.verses.length > 0) {
+                                                    const foundVerse = data.verses[0]
+                                                    const fullVerseText = `${foundVerse.reference} - "${foundVerse.text}"`
+                                                    setVerseTexts(prev => ({
+                                                      ...prev,
+                                                      [verseId]: fullVerseText
+                                                    }))
+                                                  }
+                                                }
+                                              } catch (error) {
+                                                console.error('❌ Erro ao buscar versículo:', error)
+                                              }
+                                            }
+                                          }
+                                        
+                                        setExpandedVerses(prev => {
+                                          const newState = {
+                                            ...prev,
+                                            [verseId]: !prev[verseId]
+                                          }
+                                          console.log('New expanded state:', newState)
+                                          return newState
+                                        })
+                                      }}
+                                      className="inline-flex items-center gap-1 h-auto p-1 text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded mx-1"
+                                    >
+                                      <Book className="h-3 w-3" />
+                                      <span className="text-xs font-medium">
+                                        {(() => {
+                                          // Extrair referência de diferentes formatos
+                                          if (verseText.includes('Em ') && verseText.includes('está escrito:')) {
+                                            const match = verseText.match(/Em\s+(\d+\s+\w+\s+\d+:\d+(?:-\d+)?)/i)
+                                            return match ? match[1] : 'Versículo'
+                                          } else if (verseText.includes('A Bíblia nos ensina')) {
+                                            const match = verseText.match(/Em\s+(\d+\s+\w+\s+\d+:\d+(?:-\d+)?)/i)
+                                            return match ? match[1] : 'Versículo'
+                                          } else if (verseText.match(/^\d+\s+\w+\s+\d+:\d+/)) {
+                                            const match = verseText.match(/^(\d+\s+\w+\s+\d+:\d+(?:-\d+)?)/i)
+                                            return match ? match[1] : 'Versículo'
+                                          } else if (verseText.match(/^\w+\s+\d+:\d+/)) {
+                                            const match = verseText.match(/^(\w+\s+\d+:\d+(?:-\d+)?)/i)
+                                            return match ? match[1] : 'Versículo'
+                                          } else if (verseText.match(/como\s+vemos\s+em/i)) {
+                                            const match = verseText.match(/como\s+vemos\s+em\s+(\w+\s+\d+:\d+(?:-\d+)?)/i)
+                                            return match ? match[1] : 'Versículo'
+                                          } else if (verseText.includes('(') && verseText.includes(')')) {
+                                            const match = verseText.match(/\(([^)]*\d+:\d+(?:-\d+)?[^)]*)\)/)
+                                            return match ? match[1] : verseText.replace(/[()]/g, '')
+                                          } else if (verseText.includes('Paulo, inspirado')) {
+                                            return 'Paulo - Escritura'
+                                          } else if (verseText.includes('como está escrito')) {
+                                            const match = verseText.match(/(\w+\s+\d+:\d+(?:-\d+)?)/)
+                                            return match ? match[1] : 'Escritura'
+                                          } else if (verseText.includes('A Palavra diz')) {
+                                            const match = verseText.match(/(\w+\s+\d+:\d+(?:-\d+)?)/)
+                                            return match ? match[1] : 'A Palavra'
+                                          } else if (verseText.includes('nas Escrituras')) {
+                                            const match = verseText.match(/(\w+\s+\d+:\d+(?:-\d+)?)/)
+                                            return match ? match[1] : 'Escrituras'
+                                          } else if (verseText.includes('o Senhor disse')) {
+                                            const match = verseText.match(/(\w+\s+\d+:\d+(?:-\d+)?)/)
+                                            return match ? match[1] : 'O Senhor'
+                                          } else {
+                                            const match = verseText.match(/(\w+\s+\d+:\d+(?:-\d+)?)/)
+                                            return match ? match[1] : verseText.trim()
+                                          }
+                                        })()}
+                                      </span>
+                                      {isExpanded ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+                                    </Button>
+                                    {isExpanded && (
+                                      <div className="block w-full mt-2 p-3 bg-blue-50 border-l-4 border-blue-400 rounded-r text-sm italic shadow-sm">
+                                        <div className="font-medium text-blue-800 mb-1">📖 Escritura:</div>
+                                        <div className="text-blue-700">{verseTexts[verseId] || verseText}</div>
+                                      </div>
+                                    )}
+                                  </div>
+                                )
+                              }
+                            }
+                            return <span key={partIndex}>{part}</span>
+                          })}
+                        </div>
                         
                         {/* Botões de ação */}
                         <div className="flex items-center justify-between mt-2 pt-2 border-t border-border/20">
@@ -1228,7 +1602,7 @@ export function ChatInterface({ conversationId, onConversationUpdate, user, appC
                               <Share2 className="h-3 w-3 sm:h-4 sm:w-4" />
                             </Button>
                             
-                            {allReferences.length > 0 && (
+                            {(allReferences.length > 0 || bibleReferences.length > 0) && (
                               <Button
                                 variant="ghost"
                                 size="sm"
@@ -1240,7 +1614,7 @@ export function ChatInterface({ conversationId, onConversationUpdate, user, appC
                                 title={expandedReferences[index] ? "Ocultar referências" : "Ver referências"}
                               >
                                 <BookOpen className="h-3 w-3 sm:h-4 sm:w-4 mr-1" />
-                                {allReferences.length}
+                                {allReferences.length + bibleReferences.length}
                                 {expandedReferences[index] ? (
                                   <ChevronUp className="h-3 w-3 sm:h-4 sm:w-4 ml-1" />
                                 ) : (
@@ -1259,46 +1633,126 @@ export function ChatInterface({ conversationId, onConversationUpdate, user, appC
                         </div>
                         
                         {/* Seção de referências expandida */}
-                        {expandedReferences[index] && allReferences.length > 0 && (
-                          <div className="mt-3 p-2 sm:p-3 bg-muted/30 rounded-lg border">
-                            <div className="text-xs space-y-3">
+                        {expandedReferences[index] && (allReferences.length > 0 || bibleReferences.length > 0) && (
+                          <div className="mt-3 p-3 bg-slate-50 dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700">
+                            <div className="text-sm space-y-4">
                               {references.length > 0 && (
                                 <div>
-                                  <h4 className="text-xs font-semibold mb-2 text-foreground flex items-center gap-1">
-                                    <BookOpen className="w-3 h-3" />
-                                    Citações e Referências ({references.length})
+                                  <h4 className="text-sm font-semibold mb-3 text-slate-800 dark:text-slate-200 flex items-center gap-2">
+                                    <BookOpen className="w-4 h-4" />
+                                    Citações dos Sermões do Profeta ({references.length})
                                   </h4>
-                                  <div className="space-y-1">
-                                    {references.map((ref, refIndex) => (
-                                      <div key={refIndex} className="flex items-start gap-2 p-2 bg-background/50 rounded border-l-2 border-primary/20">
-                                        <span className="text-primary font-medium text-xs mt-0.5 flex-shrink-0">
-                                          {refIndex + 1}.
-                                        </span>
-                                        <span className="text-xs leading-relaxed break-words">{ref}</span>
-                                      </div>
-                                    ))}
+                                  <div className="space-y-3">
+                                    {references.map((ref, refIndex) => {
+                                      // Extrair título e parágrafos
+                                      const parts = ref.split(', parágrafos ')
+                                      const title = parts[0] || ref
+                                      const paragraphs = parts[1] || ''
+                                      
+                                      return (
+                                        <div key={refIndex} className="text-sm leading-relaxed">
+                                          <div className="flex items-start gap-3">
+                                            <span className="font-semibold text-blue-600 dark:text-blue-400 flex-shrink-0 text-base">
+                                              {refIndex + 1}.
+                                            </span>
+                                            <div className="flex-1">
+                                              <div className="font-semibold text-slate-900 dark:text-slate-100 mb-2">
+                                                {title}
+                                              </div>
+                                              {paragraphs && (
+                                                <div className="text-slate-700 dark:text-slate-300 bg-slate-100 dark:bg-slate-700 px-3 py-2 rounded-md">
+                                                  <span className="font-medium">Parágrafos utilizados:</span> {paragraphs}
+                                                </div>
+                                              )}
+                                            </div>
+                                          </div>
+                                        </div>
+                                      )
+                                    })}
                                   </div>
                                 </div>
                               )}
                               {sources.length > 0 && (
                                 <div>
-                                  <h4 className="text-xs font-semibold mb-2 text-foreground flex items-center gap-1">
-                                    <BookOpen className="w-3 h-3" />
-                                    Fontes da Base de Dados ({sources.length})
+                                  <h4 className="text-sm font-semibold mb-3 text-slate-800 dark:text-slate-200 flex items-center gap-2">
+                                    <BookOpen className="w-4 h-4" />
+                                    Documentos da Base de Dados Utilizados ({sources.length})
                                   </h4>
-                                  <div className="space-y-1">
-                                    {sources.map((source, sourceIndex) => (
-                                      <div key={sourceIndex} className="flex items-start gap-2 p-2 bg-background/50 rounded border-l-2 border-secondary/20">
-                                        <span className="text-secondary font-medium text-xs mt-0.5 flex-shrink-0">
-                                          {sourceIndex + 1}.
-                                        </span>
-                                        <span className="text-xs leading-relaxed break-words">{source}</span>
-                                      </div>
-                                    ))}
+                                  <div className="space-y-3">
+                                    {sources.map((source, sourceIndex) => {
+                                      // Extrair título e relevância
+                                      const titleMatch = source.match(/"([^"]+)"/)
+                                      const relevanceMatch = source.match(/Relevância:\s*(\d+)/)
+                                      const title = titleMatch ? titleMatch[1] : source
+                                      const relevance = relevanceMatch ? parseInt(relevanceMatch[1]) : 0
+                                      
+                                      const getRelevanceLabel = (score: number) => {
+                                        if (score >= 5000) return 'Muito Alta'
+                                        if (score >= 3000) return 'Alta'
+                                        if (score >= 1000) return 'Média'
+                                        return 'Baixa'
+                                      }
+                                      
+                                      return (
+                                        <div key={sourceIndex} className="text-sm leading-relaxed">
+                                          <div className="flex items-start gap-3">
+                                            <span className="font-semibold text-green-600 dark:text-green-400 flex-shrink-0 text-base">
+                                              {sourceIndex + 1}.
+                                            </span>
+                                            <div className="flex-1">
+                                              <div className="font-semibold text-slate-900 dark:text-slate-100 mb-2">
+                                                {title}
+                                              </div>
+                                              {relevance > 0 && (
+                                                <div className="text-slate-700 dark:text-slate-300 bg-slate-100 dark:bg-slate-700 px-3 py-2 rounded-md">
+                                                  <span className="font-medium">Relevância:</span> {getRelevanceLabel(relevance)} ({relevance})
+                                                </div>
+                                              )}
+                                            </div>
+                                          </div>
+                                        </div>
+                                      )
+                                    })}
                                   </div>
                                 </div>
                               )}
-                              {references.length === 0 && sources.length === 0 && (
+                              {bibleReferences.length > 0 && (
+                                <div>
+                                  <h4 className="text-sm font-semibold mb-3 text-slate-800 dark:text-slate-200 flex items-center gap-2">
+                                    <BookOpen className="w-4 h-4" />
+                                    Referências Bíblicas - King James 1611 ({bibleReferences.length})
+                                  </h4>
+                                  <div className="space-y-3">
+                                    {bibleReferences.map((bibleRef, bibleIndex) => {
+                                      // Extrair referência e texto
+                                      const parts = bibleRef.split(' - ')
+                                      const reference = parts[0] || bibleRef
+                                      const text = parts[1] || ''
+                                      
+                                      return (
+                                        <div key={bibleIndex} className="text-sm leading-relaxed">
+                                          <div className="flex items-start gap-3">
+                                            <span className="font-semibold text-purple-600 dark:text-purple-400 flex-shrink-0 text-base">
+                                              {bibleIndex + 1}.
+                                            </span>
+                                            <div className="flex-1">
+                                              <div className="font-semibold text-slate-900 dark:text-slate-100 mb-2">
+                                                {reference}
+                                              </div>
+                                              {text && (
+                                                <div className="text-slate-700 dark:text-slate-300 italic bg-slate-100 dark:bg-slate-700 px-3 py-2 rounded-md">
+                                                  "{text.replace(/"/g, '')}"
+                                                </div>
+                                              )}
+                                            </div>
+                                          </div>
+                                        </div>
+                                      )
+                                    })}
+                                  </div>
+                                </div>
+                              )}
+                              {references.length === 0 && sources.length === 0 && bibleReferences.length === 0 && (
                                 <div className="text-center py-4">
                                   <p className="text-xs text-muted-foreground">
                                     Nenhuma referência encontrada nesta mensagem.

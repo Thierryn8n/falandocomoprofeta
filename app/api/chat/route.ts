@@ -1136,9 +1136,9 @@ export async function POST(request: NextRequest) {
 
     console.log("✅ Message passed heresy detection - proceeding with normal AI processing")
 
-    // Check if question is very personal about the prophet (requires Wikipedia)
+    // Check if question is very personal about the prophet (no longer using Wikipedia)
     const isVeryPersonalQuestion = isVeryPersonalProphetQuestion(lastUserMessage.content)
-    console.log("🔍 Is very personal prophet question:", isVeryPersonalQuestion)
+    console.log("🔍 Is very personal prophet question:", isVeryPersonalQuestion, "(Wikipedia disabled)")
 
     // Get system prompt from database
     console.log("📋 Fetching system prompt from database...")
@@ -1218,13 +1218,8 @@ IMPORTANTE: Leia e compreenda profundamente TODOS os documentos relevantes antes
     const relevantDocuments = await analyzeDocumentDatabase(lastUserMessage.content)
     console.log("✅ ANÁLISE COMPLETA - Documentos encontrados:", relevantDocuments.length)
 
-    // Get Wikipedia info ONLY if it's a very personal question
-    let wikipediaInfo: WikipediaInfo | null = null
-    if (isVeryPersonalQuestion) {
-      console.log("📖 Fetching Wikipedia information for personal question...")
-      console.log("🔍 PROFETA ESTÁ CONSULTANDO INFORMAÇÕES BIOGRÁFICAS...")
-      wikipediaInfo = await fetchWikipediaInfo()
-    }
+    // Wikipedia functionality disabled - using only database documents
+    let wikipediaInfo: any = null
 
     console.log("📚 CONSTRUINDO HISTÓRICO COMPLETO DA CONVERSA...")
     let conversationHistory = ""
@@ -1244,9 +1239,9 @@ IMPORTANTE: Leia e compreenda profundamente TODOS os documentos relevantes antes
       console.log("📭 PRIMEIRA MENSAGEM DA CONVERSA - SEM HISTÓRICO ANTERIOR")
     }
 
-    // Check if we have any information to work with
-    if (relevantDocuments.length === 0 && !wikipediaInfo) {
-      console.log("📭 No relevant documents or Wikipedia info found - generating prophet-like response")
+    // Check if we have any information to work with (only database documents now)
+    if (relevantDocuments.length === 0) {
+      console.log("📭 No relevant documents found - generating prophet-like response")
 
       const noDocumentsResponse = await generateNoDocumentsResponse(lastUserMessage.content, false)
 
@@ -1327,19 +1322,27 @@ IMPORTANTE: Leia e compreenda profundamente TODOS os documentos relevantes antes
       contextInfo += "=== FIM DOS DOCUMENTOS DA BASE DE DADOS ===\n"
     }
 
-    // Add Wikipedia context
-    if (wikipediaInfo) {
-      console.log("✅ Adding Wikipedia information to context")
-      contextInfo += "\n\n=== INFORMAÇÕES BIOGRÁFICAS DE WILLIAM BRANHAM (Wikipedia) ===\n"
-      contextInfo += `TÍTULO: ${wikipediaInfo.title}\n`
-      contextInfo += `URL: ${wikipediaInfo.url}\n`
-      contextInfo += `CONTEÚDO BIOGRÁFICO:\n${wikipediaInfo.content}\n`
-      contextInfo += "=== FIM DAS INFORMAÇÕES BIOGRÁFICAS ===\n"
+    // Wikipedia context removed - using only database documents
 
-      if (!sourcesUsedInfo) {
-        sourcesUsedInfo = "\n\n---\n**Fontes utilizadas para esta resposta:**\n"
+    // Buscar referências bíblicas relevantes
+    console.log("📖 Buscando referências bíblicas da King James...")
+    let bibleReferences: any[] = []
+    try {
+      const bibleResponse = await fetch(`${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/api/bible-references`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ text: lastUserMessage.content })
+      })
+      
+      if (bibleResponse.ok) {
+        const bibleData = await bibleResponse.json()
+        bibleReferences = bibleData.verses || []
+        console.log(`📖 Encontradas ${bibleReferences.length} referências bíblicas`)
       }
-      sourcesUsedInfo += `- Informações biográficas da Wikipedia (${wikipediaInfo.url})\n`
+    } catch (bibleError) {
+      console.error("❌ Erro ao buscar referências bíblicas:", bibleError)
     }
 
     contextInfo += `\n\nINSTRUÇÕES FINAIS PARA RESPOSTA:
@@ -1351,16 +1354,22 @@ IMPORTANTE: Leia e compreenda profundamente TODOS os documentos relevantes antes
 6. NÃO cite fontes no meio da resposta - mantenha o fluxo natural da conversa
 7. DEPOIS: Adicione uma seção separada no final com as referências específicas
 
-FORMATO OBRIGATÓRIO PARA REFERÊNCIAS:
+FORMATO OBRIGATÓRIO PARA REFERÊNCIAS - SEJA MUITO DETALHADO:
 **Referências:**
-- [Título do Documento], parágrafos [números específicos]
-- [Título do Documento], parágrafos [números específicos]
+- [Título COMPLETO do Documento], parágrafos [TODOS os números específicos utilizados - ex: 1, 2, 5, 6, 11, 12, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40]
+- [Título COMPLETO do Documento], parágrafos [TODOS os números específicos utilizados]
 
 **Fontes da base de dados utilizadas para esta resposta:**
-- "[TÍTULO COMPLETO DO DOCUMENTO]" (Relevância: [pontuação])
-- "[TÍTULO COMPLETO DO DOCUMENTO]" (Relevância: [pontuação])
+- "[TÍTULO COMPLETO DO DOCUMENTO]" (Relevância: [pontuação numérica exata])
+- "[TÍTULO COMPLETO DO DOCUMENTO]" (Relevância: [pontuação numérica exata])
 
-Utilize EXCLUSIVAMENTE as informações dos documentos analisados E o contexto da conversa atual. SEMPRE cite o TÍTULO COMPLETO do documento e o NÚMERO ESPECÍFICO DO PARÁGRAFO, mas APENAS na seção de referências no final. NUNCA use apenas "Documento 1" ou "Documento 2".`
+IMPORTANTE: 
+- Liste TODOS os parágrafos específicos que você consultou de cada documento
+- Use EXATAMENTE as pontuações de relevância fornecidas nos documentos
+- Seja MUITO detalhado nas referências para mostrar transparência total
+- Liste os documentos em ordem decrescente de relevância
+
+Utilize EXCLUSIVAMENTE as informações dos documentos analisados E o contexto da conversa atual. SEMPRE cite o TÍTULO COMPLETO do documento e TODOS OS NÚMEROS ESPECÍFICOS DOS PARÁGRAFOS consultados, mas APENAS na seção de referências no final. NUNCA use apenas "Documento 1" ou "Documento 2".`
 
     try {
       console.log("🤖 Calling Gemini API with enhanced document analysis...")
@@ -1376,18 +1385,23 @@ ESTRUTURA OBRIGATÓRIA:
 4. NÃO cite fontes no meio da resposta - mantenha o fluxo natural da conversa
 5. DEPOIS: Adicione uma seção separada no final com as referências específicas
 
-FORMATO OBRIGATÓRIO PARA REFERÊNCIAS (exatamente como mostrado):
+FORMATO OBRIGATÓRIO PARA REFERÊNCIAS (exatamente como mostrado) - SEJA MUITO DETALHADO:
 **Referências:**
-- [Título do Documento], parágrafos [números específicos]
-- [Título do Documento], parágrafos [números específicos]
+- [Título COMPLETO do Documento], parágrafos [TODOS os números específicos utilizados - ex: 1, 2, 5, 6, 11, 12, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40]
+- [Título COMPLETO do Documento], parágrafos [TODOS os números específicos utilizados]
 
 **Fontes da base de dados utilizadas para esta resposta:**
-- "[TÍTULO COMPLETO DO DOCUMENTO]" (Relevância: [pontuação numérica])
-- "[TÍTULO COMPLETO DO DOCUMENTO]" (Relevância: [pontuação numérica])
+- "[TÍTULO COMPLETO DO DOCUMENTO]" (Relevância: [pontuação numérica exata])
+- "[TÍTULO COMPLETO DO DOCUMENTO]" (Relevância: [pontuação numérica exata])
 
-IMPORTANTE: Analise quais mensagens/documentos tiveram mais relevância para sua resposta e liste-os em ordem decrescente de relevância. Use EXATAMENTE a pontuação de relevância fornecida nos documentos acima.
+IMPORTANTE: 
+- Liste TODOS os parágrafos específicos que você consultou de cada documento
+- Use EXATAMENTE as pontuações de relevância fornecidas nos documentos acima
+- Seja MUITO detalhado nas referências para mostrar transparência total
+- Liste os documentos em ordem decrescente de relevância
+- Analise quais mensagens/documentos tiveram mais relevância para sua resposta
 
-Utilize EXCLUSIVAMENTE as informações dos documentos analisados E o contexto da conversa atual. SEMPRE cite o TÍTULO COMPLETO do documento e o NÚMERO ESPECÍFICO DO PARÁGRAFO, mas APENAS na seção de referências no final.`
+Utilize EXCLUSIVAMENTE as informações dos documentos analisados E o contexto da conversa atual. SEMPRE cite o TÍTULO COMPLETO do documento e TODOS OS NÚMEROS ESPECÍFICOS DOS PARÁGRAFOS consultados.`
 
       // Call Gemini API with the CORRECT MODEL: gemini-2.0-flash
       const response = await fetch(
@@ -1494,14 +1508,55 @@ Utilize EXCLUSIVAMENTE as informações dos documentos analisados E o contexto d
         aiResponse = "Irmão/irmã, não consegui gerar uma resposta no momento. Que o Senhor te abençoe."
       }
 
-      // Add sources citations to the response if not already included
-      if ((relevantDocuments.length > 0 || wikipediaInfo) && !aiResponse.includes("Fontes utilizadas")) {
-        aiResponse += sourcesUsedInfo
+      // SEMPRE adicionar referências se houver documentos relevantes (Wikipedia removed)
+      if (relevantDocuments.length > 0) {
+        // Verificar se já tem referências na resposta
+        const hasReferences = aiResponse.includes("**Referências:**") || aiResponse.includes("**Fontes da base de dados")
+        
+        if (!hasReferences) {
+          console.log("🔧 Adicionando referências programaticamente à resposta...")
+          
+          // Construir seção de referências baseada nos documentos
+          let referencesSection = "\n\n**Referências:**\n"
+          relevantDocuments.forEach((doc, index) => {
+            const title = doc.title || `Documento ${index + 1}`
+            // Extrair números de parágrafos do conteúdo se disponível
+            const paragraphMatches = doc.content.match(/\[PARÁGRAFO (\d+)\]/g)
+            if (paragraphMatches) {
+              const paragraphNumbers = paragraphMatches.map(match => match.match(/\d+/)?.[0]).filter(Boolean).slice(0, 5)
+              referencesSection += `- ${title}, parágrafos ${paragraphNumbers.join(', ')}\n`
+            } else {
+              referencesSection += `- ${title}\n`
+            }
+          })
+          
+          // Adicionar seção de fontes
+          aiResponse += referencesSection + sourcesUsedInfo
+          
+          // Adicionar referências bíblicas se existirem
+          if (bibleReferences.length > 0) {
+            aiResponse += "\n\n**Referências Bíblicas (King James 1611):**\n"
+            bibleReferences.forEach((verse, index) => {
+              aiResponse += `${index + 1}. ${verse.reference} - "${verse.text}"\n`
+            })
+          }
+        } else if (!aiResponse.includes("Fontes da base de dados")) {
+          // Se tem referências mas não tem fontes, adicionar apenas as fontes
+          aiResponse += sourcesUsedInfo
+          
+          // Adicionar referências bíblicas se existirem
+          if (bibleReferences.length > 0) {
+            aiResponse += "\n\n**Referências Bíblicas (King James 1611):**\n"
+            bibleReferences.forEach((verse, index) => {
+              aiResponse += `${index + 1}. ${verse.reference} - "${verse.text}"\n`
+            })
+          }
+        }
       }
 
       console.log("📝 AI Response length:", aiResponse.length)
       console.log("📚 Documents analyzed and used:", relevantDocuments.length)
-      console.log("📖 Wikipedia used:", !!wikipediaInfo)
+      console.log("📖 Wikipedia used:", false, "(disabled)")
 
       // Create the assistant message
       const assistantMessage: Message = {
@@ -1541,10 +1596,10 @@ Utilize EXCLUSIVAMENTE as informações dos documentos analisados E o contexto d
           return NextResponse.json({
             message: aiResponse,
             conversationId: saveResult.conversationId || conversationId,
-            saved: true,
+            saved: saveResult.success,
             documentsUsed: relevantDocuments.length,
             documentsUsedTitles: relevantDocuments.map((doc) => doc.title),
-            wikipediaUsed: !!wikipediaInfo,
+            wikipediaUsed: false,
           })
         } else {
           console.error("❌ SAVE FAILED:", saveResult.error)
@@ -1569,7 +1624,7 @@ Utilize EXCLUSIVAMENTE as informações dos documentos analisados E o contexto d
         saved: false,
         documentsUsed: relevantDocuments.length,
         documentsUsedTitles: relevantDocuments.map((doc) => doc.title),
-        wikipediaUsed: !!wikipediaInfo,
+        wikipediaUsed: false,
       })
     } catch (geminiError: any) {
       console.error("❌ Gemini API Error:", geminiError)
