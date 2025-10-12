@@ -360,8 +360,9 @@ export function ChatInterface({ conversationId, onConversationUpdate, user, appC
     setError(null)
     setIsSearchingMessages(true)
 
+    const userMessageId = crypto.randomUUID()
     const userMessage: Message = {
-      id: crypto.randomUUID(), // ID único para mensagem de texto do usuário
+      id: userMessageId, // ID único para mensagem de texto do usuário
       role: "user",
       content: textToSend,
       timestamp: new Date().toISOString(),
@@ -421,6 +422,8 @@ export function ChatInterface({ conversationId, onConversationUpdate, user, appC
         return
       }
 
+      // Enviar mensagem para a API de chat
+      console.log('📤 Enviando mensagem de texto para processamento...')
       const response = await fetch("/api/chat", {
         method: "POST",
         headers: {
@@ -439,6 +442,10 @@ export function ChatInterface({ conversationId, onConversationUpdate, user, appC
       }
 
       const data = await response.json()
+      console.log('✅ Resposta da API recebida:', {
+        hasMessage: !!data.message,
+        messageLength: data.message?.length || 0
+      })
 
       const assistantMessage: Message = {
         id: crypto.randomUUID(), // ID único para mensagem do assistente
@@ -451,6 +458,7 @@ export function ChatInterface({ conversationId, onConversationUpdate, user, appC
       setMessages(finalMessages)
 
       if (user?.id) {
+        console.log('💾 Salvando conversa com mensagem de texto...')
         const saveResponse = await fetch("/api/conversations", {
           method: "POST",
           headers: {
@@ -465,16 +473,18 @@ export function ChatInterface({ conversationId, onConversationUpdate, user, appC
         })
 
         const saveData = await saveResponse.json()
+        console.log('📊 Resposta do salvamento:', saveData)
         if (saveData.success && onConversationUpdate) {
           onConversationUpdate()
         }
+        console.log('✅ Conversa salva com sucesso!')
       }
 
       if (refreshSubscription) {
         refreshSubscription()
       }
     } catch (error) {
-      console.error("Error sending message:", error)
+      console.error("❌ Erro ao enviar mensagem:", error)
       setError("Erro ao enviar mensagem. Tente novamente.")
       
       const errorMessage: Message = {

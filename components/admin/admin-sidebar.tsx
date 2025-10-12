@@ -116,13 +116,7 @@ const menuItems = [
     icon: Bot,
     category: "main",
   },
-  {
-    id: "radio",
-    label: "Rádio Web",
-    description: "Player de rádio",
-    icon: Radio,
-    category: "config",
-  },
+
   {
     id: "app-identity",
     label: "Identidade",

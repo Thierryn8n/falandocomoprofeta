@@ -4,7 +4,6 @@ import { useState, useEffect, useCallback } from "react"
 import { ChatInterface } from "@/components/chat-interface"
 import { ChatSidebar } from "@/components/chat-sidebar"
 import { AuthModal } from "@/components/auth-modal"
-import { RadioPlayer } from "@/components/radio-player"
 import { Button } from "@/components/ui/button"
 import { Menu, LogOut, UserIcon } from "lucide-react"
 import { ThemeToggle } from "@/components/theme-toggle"
@@ -18,7 +17,6 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { Sheet, SheetContent } from "@/components/ui/sheet"
 import { useSupabaseAuth } from "@/hooks/use-supabase-auth"
-import { useRadioConfig } from "@/hooks/use-radio-config"
 import { useSessionTracking } from "@/hooks/use-session-tracking"
 import { useQuestionCounter } from "@/hooks/use-question-counter"
 import { Loader2, MessageCircle } from "lucide-react"
@@ -42,7 +40,6 @@ interface Conversation {
 export default function HomePage() {
   const { user, profile, loading: authLoading, isAdmin, signOut } = useSupabaseAuth()
   const { getConfigValue, loading: configLoading } = useAppConfig()
-  const { radioConfig, loading: radioLoading } = useRadioConfig(user)
   const { questionCount, loading: questionCountLoading } = useQuestionCounter()
   const [showAuthModal, setShowAuthModal] = useState(false)
   const [authMode, setAuthMode] = useState<"login" | "register">("login")
@@ -140,12 +137,6 @@ export default function HomePage() {
     }
   }, [sessionId])
 
-  const shouldShowRadioPlayer = () => {
-    if (!radioConfig || radioLoading) return false
-    if (!radioConfig.enabled || !radioConfig.radioUrl) return false
-    return user ? radioConfig.showForUsers : radioConfig.showForGuests
-  }
-
   if (authLoading || configLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-background">
@@ -175,7 +166,6 @@ export default function HomePage() {
           </div>
         </div>
         <AuthModal isOpen={showAuthModal} onClose={handleCloseAuthModal} mode={authMode} onModeChange={setAuthMode} />
-        {shouldShowRadioPlayer() && <RadioPlayer />}
       </>
     )
   }
@@ -255,9 +245,6 @@ export default function HomePage() {
                   </span>
                 </div>
               )}
-              
-              {/* Radio Player */}
-              {shouldShowRadioPlayer() && <RadioPlayer inHeader />}
               
               <ThemeToggle />
               <DropdownMenu>

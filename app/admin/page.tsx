@@ -28,7 +28,6 @@ import { AnalyticsConfig } from "@/components/admin/config/analytics-config"
 import { AdvancedConfig } from "@/components/admin/config/advanced-config"
 import { useSupabaseAuth } from "@/hooks/use-supabase-auth"
 import { useAppConfig } from "@/hooks/use-app-config"
-import { useRadioConfig } from "@/hooks/use-radio-config"
 import { Loader2 } from "lucide-react"
 import { supabase } from "@/lib/supabase"
 import { useToast } from "@/hooks/use-toast"
@@ -37,7 +36,6 @@ export default function AdminPage() {
   const [activeTab, setActiveTab] = useState("dashboard")
   const { user, profile, loading: authLoading, isAdmin } = useSupabaseAuth()
   const { getConfigValue, updateConfig, loading: configLoading } = useAppConfig()
-  const { radioConfig } = useRadioConfig()
   const { toast } = useToast()
 
   // Debug logs
@@ -81,30 +79,7 @@ export default function AdminPage() {
     }
   }
 
-  const handleRadioConfigUpdate = async (newValues: Record<string, any>) => {
-    try {
-      const updates = Object.entries(newValues).map(([key, value]) => ({
-        category: "radio_web",
-        key,
-        value: typeof value === "boolean" ? value.toString() : value.toString(),
-        description: `Configuração da rádio: ${key}`,
-      }))
 
-      for (const update of updates) {
-        const { error } = await supabase.from("app_config").upsert(update, { onConflict: "category,key" })
-
-        if (error) throw error
-      }
-
-      toast({
-        title: "Configurações da rádio salvas",
-        description: "As configurações da rádio foram atualizadas com sucesso.",
-      })
-    } catch (error) {
-      console.error("Erro ao atualizar configurações da rádio:", error)
-      throw error
-    }
-  }
 
   if (authLoading || configLoading) {
     return (
@@ -162,8 +137,6 @@ export default function AdminPage() {
         return <PaymentSystemSelector />
       case "ai-settings":
         return <AISettings />
-      case "radio":
-        return <RadioConfig appConfig={radioConfig} onConfigUpdate={handleRadioConfigUpdate} />
       case "app-identity":
         return (
           <AppIdentityConfig
