@@ -14,9 +14,11 @@ import {
 } from '@dnd-kit/core'
 import { supabase } from '@/lib/supabase'
 import { useSupabaseAuth } from '@/hooks/use-supabase-auth'
-import FloatingInputBar from '@/components/bible-study/floating-input-bar'
+import MobileInputBar from '@/components/bible-study/mobile-input-bar'
+import MobileTopBar from '@/components/bible-study/mobile-top-bar'
+import MobileBottomNav from '@/components/bible-study/mobile-bottom-nav'
 import { Button } from '@/components/ui/button'
-import { BookOpen, UserIcon, LogOut } from 'lucide-react'
+import { BookOpen, UserIcon, LogOut, MousePointer2, Type, FileText, Heading, PenTool, Grid3X3, Shapes, Image as ImageIcon, Send, Mic, Cloud } from 'lucide-react'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -33,6 +35,7 @@ import MiroTopBar from '@/components/bible-study/miro-top-bar'
 import MiroCanvas from '@/components/bible-study/miro-canvas'
 import MiroTextFormatBar from '@/components/bible-study/miro-text-format-bar'
 import MiroConnectionFormatBar from '@/components/bible-study/miro-connection-format-bar'
+import EmptyStateCard from '@/components/bible-study/miro-empty-state'
 import {
   type CanvasElement,
   type CanvasConnection,
@@ -128,7 +131,7 @@ export default function BibleStudyMiroPageClient() {
   const [selectedElementId, setSelectedElementId] = useState<string | null>(null)
   const [selectedConnectionId, setSelectedConnectionId] = useState<string | null>(null)
   const [editingElementId, setEditingElementId] = useState<string | null>(null)
-  const [selectedTool, setSelectedTool] = useState<MiroToolId | null>(null)
+  const [activeMobileTool, setActiveMobileTool] = useState('select')
   const router = useRouter()
 
   const sensors = useSensors(
@@ -172,70 +175,16 @@ export default function BibleStudyMiroPageClient() {
     loadConnections(currentPanel.id)
   }, [currentPanel?.id])
 
-  const handleDeleteSelected = useCallback(() => {
-    if (!selectedElementId) return
-    
-    setCanvasElements((prev) => {
-      const filtered = prev.filter((el) => el.id !== selectedElementId)
-      void saveCanvasElements(filtered)
-      return filtered
-    })
-    setSelectedElementId(null)
-    setEditingElementId(null)
-  }, [selectedElementId, saveCanvasElements])
-
-  useEffect(() => {
-    if (authLoading) return
-    if (!user) {
-      router.push('/login')
-      return
-    }
-    loadPanels(user.id)
-  }, [user, authLoading, router])
-
-  useEffect(() => {
-    if (!currentPanel) {
-      setCanvasElements([])
-      setConnections([])
-      setSelectedElementId(null)
-      setSelectedConnectionId(null)
-      setEditingElementId(null)
-      return
-    }
-    setSelectedElementId(null)
-    setSelectedConnectionId(null)
-    setEditingElementId(null)
-    loadCanvasData(currentPanel.id)
-    loadConnections(currentPanel.id)
-  }, [currentPanel?.id])
-
-  useEffect(() => {
-    if (authLoading) return
-    if (!user) {
-      router.push('/login')
-      return
-    }
-    loadPanels(user.id)
-  }, [user, authLoading, router])
-
-  useEffect(() => {
-    if (!currentPanel) {
-      setCanvasElements([])
-      setConnections([])
-      setSelectedElementId(null)
-      setSelectedConnectionId(null)
-      setEditingElementId(null)
-      return
-    }
-    setSelectedElementId(null)
-    setSelectedConnectionId(null)
-    setEditingElementId(null)
-    loadCanvasData(currentPanel.id)
-    loadConnections(currentPanel.id)
-  }, [currentPanel?.id])
-
   useEffect(() => {
     const fn = (e: KeyboardEvent) => {
+      if (e.key === 'Delete' || e.key === 'Backspace') {
+        if (selectedElementId) {
+          handleDeleteElement(selectedElementId)
+        } else if (selectedConnectionId) {
+          handleDeleteConnection(selectedConnectionId)
+        }
+        return
+      }
       if (e.key !== 'Escape') return
       if (connectArmed) {
         setConnectArmed(false)
@@ -246,23 +195,8 @@ export default function BibleStudyMiroPageClient() {
       setSelectedElementId(null)
       setSelectedConnectionId(null)
     }
-    
-    const deleteFn = (e: KeyboardEvent) => {
-      if (e.key === 'Delete' || e.key === 'Backspace') {
-        if (selectedElementId) {
-          handleDeleteSelected()
-        } else if (selectedConnectionId) {
-          handleDeleteSelectedConnection()
-        }
-      }
-    }
-    
     window.addEventListener('keydown', fn)
-    window.addEventListener('keydown', deleteFn)
-    return () => {
-      window.removeEventListener('keydown', fn)
-      window.removeEventListener('keydown', deleteFn)
-    }
+    return () => window.removeEventListener('keydown', fn)
   }, [connectArmed, selectedElementId, selectedConnectionId])
 
   const loadPanels = async (userId: string) => {
@@ -284,53 +218,31 @@ export default function BibleStudyMiroPageClient() {
   }
 
   const loadConnections = async (panelId: string) => {
-    const { data: fromConnections } = await supabase
-      .from('canvas_connections')
-      .select('*')
-      .eq('panel_id', panelId)
-      .order('created_at')
-
-    if (fromConnections?.length) {
-      setConnections(fromConnections.map((row) => canvasConnectionFromDb(row as Record<string, unknown>)))
-      return
-    }
-    setConnections([])
+    console.log('[loadConnections] Loading connections for panel:', panelId)
+    const [{ data: legacyRows }, { data: canvasRows, error: canvasErr }] = await Promise.all([
+      supabase.from('card_connections').select('*').eq('panel_id', panelId),
+      supabase.from('canvas_connections').select('*').eq('panel_id', panelId),
+    ])
+    console.log('[loadConnections] canvasRows:', canvasRows)
+    console.log('[loadConnections] canvasErr:', canvasErr)
+    
+    const legacyList = connectionsToCanvasConnections(legacyRows || [])
+    const canvasList =
+      !canvasErr && canvasRows?.length
+        ? canvasRows.map((row) => {
+            console.log('[loadConnections] Processing row:', row)
+            return canvasConnectionFromDb(row as Record<string, unknown>)
+          })
+        : []
+    console.log('[loadConnections] Final canvasList:', canvasList)
+    setConnections([...canvasList, ...legacyList])
   }
 
-  const loadCanvasData = async (panelId: string) => {
-    const { data: fromCanvas } = await supabase
-      .from('canvas_elements')
-      .select('*')
-      .eq('panel_id', panelId)
-      .order('created_at')
-
-    if (fromCanvas?.length) {
-      setCanvasElements(fromCanvas.map((row) => canvasElementFromDb(row as Record<string, unknown>)))
-      return
-    }
-    setCanvasElements([])
-  }
-
-  const saveCanvasElements = useCallback(
-    async (elements: CanvasElement[], panelId?: string) => {
-      const pid = panelId ?? currentPanel?.id
-      if (!pid) return
-      await supabase.from('canvas_elements').delete().eq('panel_id', pid)
-      if (elements.length === 0) return
-      await supabase.from('canvas_elements').insert(
-        elements.map((el) => ({
-          panel_id: pid,
-          type: el.type,
-          text: el.text,
-          color: el.color,
-          x: Math.round(el.x),
-          y: Math.round(el.y),
-          width: el.width,
   const saveCanvasConnection = useCallback(
     async (c: CanvasConnection) => {
       const pid = currentPanel?.id
       if (!pid) return
-      const { error } = await supabase.from('canvas_connections').insert({
+      const { error } = await supabase.from('canvas_connections').upsert({
         id: c.id,
         panel_id: pid,
         from_element_id: c.fromElementId,
@@ -343,12 +255,159 @@ export default function BibleStudyMiroPageClient() {
         stroke_color: c.strokeColor ?? null,
         dash_style: c.dashStyle ?? null,
         end_cap: c.endCap ?? null,
-      })
-      if (error && error.code !== '23505') console.warn('canvas_connections:', error.message)
+        waypoints: c.waypoints ?? null,
+      }, { onConflict: 'id' })
+      if (error) console.warn('[saveCanvasConnection] Error:', error.message, error)
     },
     [currentPanel?.id]
   )
 
+  const saveCanvasElements = useCallback(
+    async (elements: CanvasElement[], panelId?: string) => {
+      const pid = panelId ?? currentPanel?.id
+      if (!pid) return
+
+      // Filter out elements with invalid UUIDs
+      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+      const validElements = elements.filter(el => {
+        const isValid = uuidRegex.test(el.id)
+        if (!isValid) {
+          console.error('[saveCanvasElements] Skipping element with invalid UUID:', el.id, el.type, el.text?.substring(0, 50))
+        }
+        return isValid
+      })
+
+      if (validElements.length !== elements.length) {
+        console.warn(`[saveCanvasElements] Filtered out ${elements.length - validElements.length} elements with invalid UUIDs`)
+      }
+
+      // Use UPSERT (insert with onConflict) instead of delete+insert
+      // This prevents 409 conflicts when elements already exist
+      if (validElements.length === 0) {
+        // If no elements, delete all for this panel
+        await supabase.from('canvas_elements').delete().eq('panel_id', pid)
+        return
+      }
+
+      const { error } = await supabase.from('canvas_elements').upsert(
+        validElements.map((el) => ({
+          id: el.id,
+          panel_id: pid,
+          type: el.type,
+          text: el.text,
+          color: el.color,
+          x: Math.round(el.x),
+          y: Math.round(el.y),
+          width: el.width ? Math.round(el.width) : null,
+          height: el.height ? Math.round(el.height) : null,
+          data: el.data,
+        })),
+        { onConflict: 'id' }
+      )
+
+      if (error) {
+        console.error('[saveCanvasElements] Error:', error.message)
+      }
+    },
+    [currentPanel?.id]
+  )
+
+  const handleDeleteElement = useCallback(
+    async (elementId: string) => {
+      const pid = currentPanel?.id
+      if (!pid) return
+      
+      // Remove from local state
+      const updatedElements = canvasElements.filter((el) => el.id !== elementId)
+      setCanvasElements(updatedElements)
+      
+      // Remove any connections connected to this element
+      const updatedConnections = connections.filter(
+        (c) => c.fromElementId !== elementId && c.toElementId !== elementId
+      )
+      setConnections(updatedConnections)
+      
+      // Clear selection
+      setSelectedElementId(null)
+      
+      // Delete from Supabase
+      await supabase.from('canvas_elements').delete().eq('id', elementId)
+      
+      // Save updated elements and connections
+      await saveCanvasElements(updatedElements)
+      
+      // Delete connections from Supabase that were connected to this element
+      const deletedConnectionIds = connections
+        .filter((c) => c.fromElementId === elementId || c.toElementId === elementId)
+        .map((c) => c.id)
+      
+      for (const connId of deletedConnectionIds) {
+        await supabase.from('canvas_connections').delete().eq('id', connId)
+      }
+    },
+    [currentPanel?.id, canvasElements, connections, saveCanvasElements]
+  )
+
+  const handleDeleteConnection = useCallback(
+    async (connectionId: string) => {
+      const pid = currentPanel?.id
+      if (!pid) return
+      
+      // Remove from local state
+      const updatedConnections = connections.filter((c) => c.id !== connectionId)
+      setConnections(updatedConnections)
+      
+      // Clear selection
+      setSelectedConnectionId(null)
+      
+      // Delete from Supabase
+      await supabase.from('canvas_connections').delete().eq('id', connectionId)
+    },
+    [currentPanel?.id, connections]
+  )
+
+  const loadCanvasData = async (panelId: string) => {
+    const { data: fromCanvas } = await supabase
+      .from('canvas_elements')
+      .select('*')
+      .eq('panel_id', panelId)
+      .order('created_at')
+
+    if (fromCanvas?.length) {
+      setCanvasElements(fromCanvas.map((row) => canvasElementFromDb(row as Record<string, unknown>)))
+      return
+    }
+
+    const { data: cards } = await supabase
+      .from('study_cards')
+      .select('*')
+      .eq('panel_id', panelId)
+      .order('created_at')
+
+    if (cards?.length) {
+      // Detect mobile for vertical layout
+      const isMobile = typeof window !== 'undefined' && window.innerWidth < 768
+      const mapped = studyCardsToCanvasElements(cards as StudyCardRow[], isMobile)
+      setCanvasElements(mapped)
+      await saveCanvasElements(mapped, panelId)
+    } else {
+      setCanvasElements([])
+    }
+  }
+
+  const createPanel = async () => {
+    if (!user) return
+    if (!panelConfig.title.trim()) {
+      alert('Por favor, digite um título para o painel')
+      return
+    }
+
+    const { data, error } = await supabase
+      .from('bible_study_panels')
+      .insert({
+        user_id: user.id,
+        title: panelConfig.title,
+        description: panelConfig.description,
         bible_version: panelConfig.bible_version,
         prophet_assistance: panelConfig.prophet_assistance,
         theme: panelConfig.theme,
@@ -379,7 +438,21 @@ export default function BibleStudyMiroPageClient() {
     const rows = (cards || []) as StudyCardRow[]
     if (!rows.length) return
 
-    const newEls = studyCardsToCanvasElements(rows)
+    // Detect mobile for vertical stacking layout
+    const isMobile = typeof window !== 'undefined' && window.innerWidth < 768
+
+    // Convert cards to canvas elements - mobile gets vertical alignment
+    const newEls = studyCardsToCanvasElements(rows, isMobile)
+    
+    // Add animation effect for new cards
+    newEls.forEach((element) => {
+      element.data = {
+        ...element.data,
+        isNew: true,
+        generatedAt: Date.now()
+      }
+    })
+
     setCanvasElements((prev) => {
       const merged = mergeCanvasElements(prev, newEls)
       void saveCanvasElements(merged)
@@ -396,6 +469,19 @@ export default function BibleStudyMiroPageClient() {
     } else {
       await loadConnections(currentPanel.id)
     }
+
+    // Remove the "new" indicator after animation
+    setTimeout(() => {
+      setCanvasElements((prev) => 
+        prev.map(el => ({
+          ...el,
+          data: {
+            ...el.data,
+            isNew: false
+          }
+        }))
+      )
+    }, 2000)
   }
 
   const addElementAt = (kind: PaletteDropKind, x: number, y: number) => {
@@ -576,6 +662,7 @@ export default function BibleStudyMiroPageClient() {
 
   const patchConnection = useCallback(
     async (patch: Partial<CanvasConnection>) => {
+      console.log('[patchConnection] Called with:', patch, 'selectedConnectionId:', selectedConnectionId)
       if (!selectedConnectionId) return
       setConnections((prev) =>
         prev.map((c) => (c.id === selectedConnectionId ? { ...c, ...patch } : c))
@@ -586,12 +673,22 @@ export default function BibleStudyMiroPageClient() {
       if (patch.strokeColor !== undefined) row.stroke_color = patch.strokeColor
       if (patch.dashStyle !== undefined) row.dash_style = patch.dashStyle
       if (patch.endCap !== undefined) row.end_cap = patch.endCap
-      if (Object.keys(row).length === 0) return
-      const { error } = await supabase
+      if (patch.waypoints !== undefined) row.waypoints = patch.waypoints
+      console.log('[patchConnection] Saving to Supabase:', row)
+      if (Object.keys(row).length === 0) {
+        console.log('[patchConnection] Nothing to save, skipping')
+        return
+      }
+      const { error, data } = await supabase
         .from('canvas_connections')
         .update(row)
         .eq('id', selectedConnectionId)
-      if (error) console.warn('canvas_connections update:', error.message)
+        .select()
+      if (error) {
+        console.error('[patchConnection] Error:', error.message, error)
+      } else {
+        console.log('[patchConnection] Success:', data)
+      }
     },
     [selectedConnectionId]
   )
@@ -674,12 +771,30 @@ export default function BibleStudyMiroPageClient() {
     }
 
     const elId = String(active.id)
+    console.log('[handleDragEnd] Dragging element:', elId, 'delta:', delta)
+    
     setCanvasElements((prev) => {
       const el = prev.find((e) => e.id === elId)
-      if (!el) return prev
-      // delta já vem com o modifier de escala aplicado (coordenadas do canvas)
-      const newX = Math.max(0, el.x + delta.x)
-      const newY = Math.max(0, el.y + delta.y)
+      if (!el) {
+        console.warn('[handleDragEnd] Element not found:', elId)
+        return prev
+      }
+      
+      // Defensive check for element properties
+      if (typeof el.x !== 'number' || typeof el.y !== 'number') {
+        console.warn('[handleDragEnd] Element has invalid position:', el)
+        return prev
+      }
+      
+      // delta already comes with scale modifier applied
+      let newX = Math.max(0, el.x + delta.x)
+      let newY = Math.max(0, el.y + delta.y)
+      
+      const elWidth = el.width ?? 220
+      const elHeight = el.height ?? 160
+      
+      console.log('[handleDragEnd] New position calculated:', { newX, newY, elWidth, elHeight })
+      
       const updated = prev.map((e) =>
         e.id === elId ? { ...e, x: newX, y: newY } : e
       )
@@ -698,48 +813,87 @@ export default function BibleStudyMiroPageClient() {
 
   if (currentPanel) {
     return (
-      <div className="h-screen flex flex-col overflow-hidden bg-background">
-        <MiroTopBar
-          panel={currentPanel}
-          onNewStudy={() => {
-            setCurrentPanel(null)
-          }}
-        />
+      <div className="h-screen w-screen flex flex-col bg-white dark:bg-slate-950 overflow-hidden">
+        {/* Mobile Top Bar - Highest z-index */}
+        <div className="fixed top-0 left-0 right-0 z-[60] flex items-center justify-between px-4 py-3 bg-white dark:bg-slate-900 border-b border-gray-200 dark:border-slate-800">
+          {/* Novo Estudo Button */}
+          <button
+            onClick={() => setCurrentPanel(null)}
+            className="flex items-center gap-2 border border-gray-300 dark:border-slate-700 rounded-full px-4 py-2 text-sm font-medium text-gray-700 dark:text-slate-200 hover:bg-gray-50 dark:hover:bg-slate-800"
+          >
+            <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/>
+              <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/>
+            </svg>
+            <span>Novo Estudo</span>
+          </button>
 
-        <div className="flex flex-1 min-h-0 flex-col">
+          {/* Right side buttons */}
+          <div className="flex items-center gap-2">
+            {/* Compartilhar Button */}
+            <button
+              onClick={() => console.log('Share clicked')}
+              className="flex items-center gap-2 border border-gray-300 dark:border-slate-700 rounded-full px-4 py-2 text-sm font-medium text-gray-700 dark:text-slate-200 hover:bg-gray-50 dark:hover:bg-slate-800"
+            >
+              <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/>
+                <polyline points="16 6 12 2 8 6"/>
+                <line x1="12" y1="2" x2="12" y2="15"/>
+              </svg>
+              <span>Compartilhar</span>
+            </button>
+
+            {/* Profeta Branham Badge */}
+            <div className="flex items-center gap-2 border border-gray-300 dark:border-slate-700 rounded-full px-3 py-2">
+              <div className="w-6 h-6 rounded-full bg-orange-500 flex items-center justify-center text-white text-xs font-bold">
+                PB
+              </div>
+              <span className="text-gray-700 dark:text-slate-200 text-sm font-medium hidden sm:inline">
+                Profeta Branham
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {/* Main Canvas Area - FULL PAGE WITH ROUNDED TOP CORNERS */}
+        <div className="flex-1 relative z-0 h-screen pt-[1px]">
           <DndContext
             sensors={sensors}
             collisionDetection={pointerWithin}
             modifiers={[scaleModifier]}
             onDragEnd={handleDragEnd}
           >
-            <div className="flex flex-1 min-h-0 overflow-hidden">
-              <MiroLeftToolbar
-                onTool={setSelectedTool}
-                onAddShape={addShapeAtViewportCenter}
-                lineStyle={lineStyle}
-                onLineStyleChange={setLineStyle}
-                connectArmed={connectArmed}
-                onConnectToolbarClick={onConnectToolbarClick}
-                selectedElementId={selectedElementId}
-                onDeleteSelected={handleDeleteSelected}
-              />
+            {/* Canvas Container - Full page with 50px rounded top corners and padding to clear top bar */}
+            <div 
+              ref={canvasScrollRef}
+              className="absolute inset-0 overflow-auto bg-white dark:bg-slate-950 rounded-t-[50px] pt-[80px] pb-[180px]"
+            >
+              {/* Empty State Card */}
+              {canvasElements.length === 0 && (
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <EmptyStateCard
+                    panel={currentPanel}
+                    onGenerate={(elements, conns) => {
+                      setCanvasElements(elements)
+                      setConnections(conns)
+                      saveCanvasElements(elements)
+                      conns.forEach(async (c) => {
+                        await supabase.from('canvas_connections').insert({
+                          id: c.id,
+                          panel_id: currentPanel.id,
+                          from_element_id: c.fromElementId,
+                          to_element_id: c.toElementId,
+                          line_style: c.lineStyle,
+                          label: c.label,
+                        })
+                      })
+                    }}
+                  />
+                </div>
+              )}
 
-              <div className="flex-1 relative min-h-0 overflow-hidden bg-background">
-                {selectedFormatElement && !connectArmed && (
-                  <div className="pointer-events-none absolute bottom-20 left-0 right-0 z-[70] flex justify-center px-2">
-                    <MiroTextFormatBar 
-                      element={selectedFormatElement} 
-                      onPatchStyle={patchTextCardStyle} 
-                      onDelete={handleDeleteSelected}
-                    />
-                  </div>
-                )}
-                {selectedConnection && !connectArmed && (
-                  <div className="pointer-events-none absolute bottom-20 left-0 right-0 z-[71] flex justify-center px-2">
-                    <MiroConnectionFormatBar connection={selectedConnection} onPatch={patchConnection} />
-                  </div>
-                )}
+              {/* Canvas Elements */}
+              <div className="relative min-w-[2000px] min-h-[1400px] p-8">
                 <MiroCanvas
                   elements={canvasElements}
                   connections={connections}
@@ -773,6 +927,28 @@ export default function BibleStudyMiroPageClient() {
                     setEditingElementId(null)
                     setSelectedConnectionId(id)
                   }}
+                  onUpdateConnection={(id, patch) => {
+                    setConnections((prev) => {
+                      const updated = prev.map((c) =>
+                        c.id === id ? { ...c, ...patch } : c
+                      )
+                      const conn = updated.find((c) => c.id === id)
+                      if (conn && currentPanel) {
+                        supabase.from('canvas_connections').update({
+                          waypoints: conn.waypoints,
+                          line_style: conn.lineStyle,
+                          stroke_width: conn.strokeWidth,
+                          stroke_color: conn.strokeColor,
+                          dash_style: conn.dashStyle,
+                          end_cap: conn.endCap,
+                          from_side: conn.fromSide,
+                          to_side: conn.toSide,
+                          label: conn.label,
+                        }).eq('id', id)
+                      }
+                      return updated
+                    })
+                  }}
                   onStartEdit={setEditingElementId}
                   onCommitText={handleCommitText}
                   onUpdateElementData={handleUpdateElementData}
@@ -782,12 +958,64 @@ export default function BibleStudyMiroPageClient() {
               </div>
             </div>
           </DndContext>
+        </div>
 
-          <FloatingInputBar
-            panelId={currentPanel.id}
-            onCardsGenerated={handleCardsGenerated}
-            variant="dock"
-          />
+        {/* BOTTOM CONTAINER - FLOATING ABOVE CANVAS WITH 50% TRANSPARENCY */}
+        <div className="fixed bottom-4 left-4 right-4 z-[50] bg-white/50 dark:bg-slate-900/50 backdrop-blur-md border border-gray-200 dark:border-slate-800 rounded-3xl shadow-lg dark:shadow-slate-900/50 p-3">
+          {/* Bottom Navigation - Dark inside with overflow scroll */}
+          <div className="flex items-center justify-center gap-0.5 bg-slate-900 dark:bg-slate-950 rounded-2xl p-1.5 mb-2 overflow-x-auto">
+            {[
+              { id: 'select', icon: MousePointer2 },
+              { id: 'text', icon: Type },
+              { id: 'doc', icon: FileText },
+              { id: 'heading', icon: Heading },
+              { id: 'draw', icon: PenTool },
+              { id: 'table', icon: Grid3X3 },
+              { id: 'shape', icon: Shapes },
+              { id: 'image', icon: ImageIcon },
+            ].map((tool) => {
+              const Icon = tool.icon
+              const isActive = activeMobileTool === tool.id
+              return (
+                <button
+                  key={tool.id}
+                  onClick={() => setActiveMobileTool(tool.id)}
+                  className={`p-2 rounded-lg transition-all duration-200 flex items-center justify-center min-w-[36px] ${
+                    isActive 
+                      ? "bg-slate-700 text-white shadow-inner" 
+                      : "text-slate-400 hover:text-slate-200 hover:bg-slate-800"
+                  }`}
+                >
+                  <Icon className="w-4 h-4" />
+                </button>
+              )
+            })}
+          </div>
+
+          {/* Input Bar */}
+          <div className="flex items-center gap-2">
+            {/* Input Field */}
+            <input
+              type="text"
+              placeholder="Faça uma pergunta..."
+              className="flex-1 bg-white/80 dark:bg-slate-800/80 border border-gray-300 dark:border-slate-700 rounded-full px-3 py-2 text-sm text-gray-900 dark:text-slate-100 placeholder:text-gray-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500/50"
+            />
+
+            {/* Send Button */}
+            <button className="p-2 rounded-full bg-white/80 dark:bg-slate-800/80 border border-gray-300 dark:border-slate-700 text-gray-700 dark:text-slate-200 hover:bg-gray-50 dark:hover:bg-slate-700 transition-all">
+              <Send className="w-4 h-4" />
+            </button>
+
+            {/* Voice Button */}
+            <button className="p-2 rounded-full bg-white/80 dark:bg-slate-800/80 border border-gray-300 dark:border-slate-700 text-gray-700 dark:text-slate-200 hover:bg-gray-50 dark:hover:bg-slate-700 transition-all">
+              <Mic className="w-4 h-4" />
+            </button>
+
+            {/* Cloud Button */}
+            <button className="p-2 rounded-full bg-white/80 dark:bg-slate-800/80 border border-gray-300 dark:border-slate-700 text-gray-700 dark:text-slate-200 hover:bg-gray-50 dark:hover:bg-slate-700 transition-all">
+              <Cloud className="w-4 h-4" />
+            </button>
+          </div>
         </div>
       </div>
     )

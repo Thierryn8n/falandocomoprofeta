@@ -1,6 +1,6 @@
 'use client'
 
-import {
+import React, {
   useCallback,
   useEffect,
   useMemo,
@@ -13,6 +13,7 @@ import type { DraggableAttributes, DraggableSyntheticListeners } from '@dnd-kit/
 import { useDroppable } from '@dnd-kit/core'
 import { useDraggable } from '@dnd-kit/core'
 import { CSS, type Transform } from '@dnd-kit/utilities'
+import { Settings2, GripVertical } from 'lucide-react'
 import type {
   CanvasConnection,
   CanvasElement,
@@ -200,9 +201,138 @@ function dedupePathPoints(points: { x: number; y: number }[]) {
 }
 
 /**
- * Linha só horizontal/vertical, saindo da bolinha, contornando os cards por fora
- * (corredor à direita + faixa acima), nunca em linha reta pelo meio.
+ * Shortest orthogonal path between two elements - takes direct route
+ * without going around boxes unnecessarily.
  */
+function buildShortestOrthogonalPath(
+  fromEl: CanvasElement,
+  fromSide: ConnectionSide,
+  toEl: CanvasElement | null,
+  toSide: ConnectionSide | null,
+  cursorX?: number,
+  cursorY?: number
+): string {
+  const pA = connectionAnchorPoint(fromEl, fromSide)
+  const pExit = outwardOffset(fromEl, fromSide, 12) // Small exit margin
+
+  if (!toEl || !toSide) {
+    // Dragging to cursor - direct line
+    const targetX = cursorX ?? pExit.x + 100
+    const targetY = cursorY ?? pExit.y
+
+    // Build simple orthogonal path
+    const pts: { x: number; y: number }[] = [pA, pExit]
+
+    // Add intermediate points for orthogonal routing
+    if (fromSide === 'e' || fromSide === 'w') {
+      // Horizontal exit
+      const midX = (pExit.x + targetX) / 2
+      pts.push({ x: midX, y: pExit.y }, { x: midX, y: targetY })
+    } else {
+      // Vertical exit
+      const midY = (pExit.y + targetY) / 2
+      pts.push({ x: pExit.x, y: midY }, { x: targetX, y: midY })
+    }
+    pts.push({ x: targetX, y: targetY })
+
+    return pts.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x} ${p.y}`).join(' ')
+  }
+
+  const pB = connectionAnchorPoint(toEl, toSide)
+  const pApproach = outwardOffset(toEl, toSide, 12)
+
+  // Check if direct path is clear (doesn't go through either box)
+  const fromR = rectOf(fromEl)
+  const toR = rectOf(toEl)
+
+  // Build shortest orthogonal path
+  const pts: { x: number; y: number }[] = [pA, pExit]
+
+  // Determine routing based on relative positions
+  const dx = pApproach.x - pExit.x
+  const dy = pApproach.y - pExit.y
+
+  if (fromSide === 'e' && toSide === 'w') {
+    // Left to right connection - direct horizontal
+    if (Math.abs(dy) < 20) {
+      // Nearly aligned - straight line
+      pts.push(pApproach, pB)
+    } else {
+      // L-shape: horizontal then vertical
+      pts.push({ x: pApproach.x, y: pExit.y }, pApproach, pB)
+    }
+  } else if (fromSide === 'w' && toSide === 'e') {
+    // Right to left
+    if (Math.abs(dy) < 20) {
+      pts.push(pApproach, pB)
+    } else {
+      pts.push({ x: pApproach.x, y: pExit.y }, pApproach, pB)
+    }
+  } else if (fromSide === 's' && toSide === 'n') {
+    // Top to bottom
+    if (Math.abs(dx) < 20) {
+      pts.push(pApproach, pB)
+    } else {
+      pts.push({ x: pExit.x, y: pApproach.y }, pApproach, pB)
+    }
+  } else if (fromSide === 'n' && toSide === 's') {
+    // Bottom to top
+    if (Math.abs(dx) < 20) {
+      pts.push(pApproach, pB)
+    } else {
+      pts.push({ x: pExit.x, y: pApproach.y }, pApproach, pB)
+    }
+  } else {
+    // Mixed sides - use S-curve or Z-curve
+    const midX = (pExit.x + pApproach.x) / 2
+    const midY = (pExit.y + pApproach.y) / 2
+
+    if (Math.abs(dx) > Math.abs(dy)) {
+      // More horizontal distance - route horizontally first
+      pts.push({ x: midX, y: pExit.y }, { x: midX, y: pApproach.y }, pApproach, pB)
+    } else {
+      // More vertical distance - route vertically first
+      pts.push({ x: pExit.x, y: midY }, { x: pApproach.x, y: midY }, pApproach, pB)
+    }
+  }
+
+  return dedupePathPoints(pts)
+    .map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x} ${p.y}`)
+    .join(' ')
+}
+
+/** Conexão salva: usa caminho mais curto OU waypoints personalizados se existirem */
+function buildConnectionPath(
+  fromEl: CanvasElement,
+  fromSide: ConnectionSide | undefined,
+  toEl: CanvasElement,
+  toSide: ConnectionSide | undefined,
+  waypoints?: { x: number; y: number }[]
+): string {
+  // Se tem waypoints personalizados, use-os
+  if (waypoints && waypoints.length > 0) {
+    const pA = connectionAnchorPoint(fromEl, fromSide || 'e')
+    const pB = connectionAnchorPoint(toEl, toSide || 'w')
+    const pts = [pA, ...waypoints, pB]
+    return pts.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x} ${p.y}`).join(' ')
+  }
+  // Caso contrário, use o caminho mais curto automático
+  const { fromSide: fs, toSide: ts } = resolveConnectionSides(fromEl, toEl, fromSide, toSide)
+  return buildShortestOrthogonalPath(fromEl, fs, toEl, ts)
+}
+
+/** @deprecated Use buildConnectionPath with waypoints support */
+function buildShortestSavedPath(
+  fromEl: CanvasElement,
+  fromSide: ConnectionSide | undefined,
+  toEl: CanvasElement,
+  toSide: ConnectionSide | undefined
+): string {
+  const { fromSide: fs, toSide: ts } = resolveConnectionSides(fromEl, toEl, fromSide, toSide)
+  return buildShortestOrthogonalPath(fromEl, fs, toEl, ts)
+}
+
+/** @deprecated Use buildShortestOrthogonalPath for better routing */
 function buildOrthogonalWirePath(
   fromEl: CanvasElement,
   fromSide: ConnectionSide,
@@ -239,7 +369,7 @@ function buildOrthogonalWirePath(
     .join(' ')
 }
 
-/** Conexão salva: sempre bordas (bolinhas), preenchendo lados faltantes. */
+/** @deprecated Use buildShortestSavedPath for better routing */
 function buildOrthogonalSavedPath(
   fromEl: CanvasElement,
   fromSide: ConnectionSide | undefined,
@@ -247,7 +377,7 @@ function buildOrthogonalSavedPath(
   toSide: ConnectionSide | undefined
 ): string {
   const { fromSide: fs, toSide: ts } = resolveConnectionSides(fromEl, toEl, fromSide, toSide)
-  return buildOrthogonalWirePath(fromEl, fs, toEl, ts, 0, 0)
+  return buildShortestOrthogonalPath(fromEl, fs, toEl, ts)
 }
 
 function shouldRevealAnchorsNearPointer(
@@ -301,12 +431,12 @@ function ConnectEdgeAnchors({
         const isActive = isPendingDot || isOutgoing || isSnap
         const pos =
           side === 'n'
-            ? 'left-1/2 -translate-x-1/2 -top-1.5'
+            ? 'inset-x-1/2 -top-1.5 h-3 w-3 -translate-x-1/2'
             : side === 's'
-              ? 'left-1/2 -translate-x-1/2 -bottom-1.5'
+              ? 'inset-x-1/2 -bottom-1.5 h-3 w-3 -translate-x-1/2'
               : side === 'w'
-                ? 'top-1/2 -translate-y-1/2 -left-1.5'
-                : 'top-1/2 -translate-y-1/2 -right-1.5'
+                ? '-left-1.5 inset-y-1/2 h-3 w-3 -translate-y-1/2'
+                : '-right-1.5 inset-y-1/2 h-3 w-3 -translate-y-1/2'
         const canDragWire = anchorInteractive && !!onAnchorPointerDown
         return (
           <button
@@ -327,17 +457,27 @@ function ConnectEdgeAnchors({
               ev.stopPropagation()
             }}
             onPointerDown={(ev) => {
-              if (!canDragWire) return
+              console.log('[ConnectEdgeAnchors] PointerDown START:', side)
+              console.log('  canDragWire:', canDragWire)
+              console.log('  anchorInteractive:', anchorInteractive)
+              console.log('  onAnchorPointerDown exists:', !!onAnchorPointerDown)
+              console.log('  target:', ev.target)
+              console.log('  button:', ev.button)
+              if (!canDragWire) {
+                console.log('[ConnectEdgeAnchors] BLOCKED - canDragWire is false')
+                return
+              }
               ev.preventDefault()
               ev.stopPropagation()
+              console.log('[ConnectEdgeAnchors] Calling onAnchorPointerDown!')
               onAnchorPointerDown!(side, ev)
             }}
           >
             <span
-              className={`flex items-center justify-center rounded-full border-2 border-[#2563eb] bg-white shadow-sm ${
+              className={`flex items-center justify-center rounded-full border-2 border-slate-300 bg-white shadow-md ${
                 isActive
-                  ? 'h-8 w-8 border-white bg-[#2563eb] text-white'
-                  : 'h-3.5 w-3.5 md:h-4 md:w-4'
+                  ? 'h-8 w-8 border-orange-500 bg-orange-500 text-white'
+                  : 'h-4 w-4'
               }`}
             >
               {isOutgoing || isPendingDot ? (
@@ -475,6 +615,22 @@ function TextCardItem({
   const [docTitleDraft, setDocTitleDraft] = useState(docTitleSaved)
   const [editingDocTitle, setEditingDocTitle] = useState(false)
   const [hoverCard, setHoverCard] = useState(false)
+  
+  // Mobile controls state
+  const [isMobile, setIsMobile] = useState(false)
+  const [mobileDragEnabled, setMobileDragEnabled] = useState(false)
+  const [showMobileControls, setShowMobileControls] = useState(false)
+  
+  // Detect mobile on mount
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(typeof window !== 'undefined' && window.innerWidth < 768)
+    }
+    checkMobile()
+    window.addEventListener('resize', checkMobile)
+    return () => window.removeEventListener('resize', checkMobile)
+  }, [])
+  
   const resizeSession = useRef<{
     corner: ResizeCorner
     startClient: { x: number; y: number }
@@ -505,7 +661,8 @@ function TextCardItem({
     left: element.x,
     top: element.y,
     width: w,
-    height: h,
+    minHeight: h,
+    height: 'auto',
     transform: CSS.Translate.toString(transform),
     zIndex: isDragging || isSelectedForUi ? 50 : 2,
     touchAction: 'none',
@@ -532,9 +689,7 @@ function TextCardItem({
       !!revealWireAnchors ||
       isWireSourceForDrag)
   const anchorStartInteractive =
-    !connectWireActive &&
-    !!onBeginConnectWire &&
-    (!!connectMode || hoverCard || isSelectedForUi)
+    !connectWireActive && !!onBeginConnectWire
 
   const connectRing =
     connectMode || isPendingSource
@@ -594,7 +749,7 @@ function TextCardItem({
   }
 
   const textAreaProps = {
-    className: 'min-h-0 w-full flex-1 resize-none bg-transparent p-3 outline-none',
+    className: 'w-full resize-none bg-transparent p-3 outline-none overflow-hidden',
     style: {
       color: tok.textColor,
       fontSize: tok.fontSize,
@@ -607,7 +762,7 @@ function TextCardItem({
     onBlur: () => onCommitText?.(element.id, draft),
     onClick: (e: React.MouseEvent) => e.stopPropagation(),
     onPointerDown: (e: React.PointerEvent) => e.stopPropagation(),
-    autoFocus: true as const,
+    rows: 1,
   }
 
   let inner: ReactNode
@@ -618,14 +773,14 @@ function TextCardItem({
       const geom = shapeInnerStyle(kind)
       inner = (
         <div
-          className="flex min-h-0 flex-1 flex-col items-center justify-center overflow-auto p-2"
+          className="flex flex-col items-center justify-center p-2"
           style={{ ...innerChrome, ...geom }}
           onDoubleClick={beginEdit}
         >
           {isEditing ? (
             <textarea {...textAreaProps} className={`${textAreaProps.className} text-center`} />
           ) : (
-            <div className="max-h-full overflow-auto whitespace-pre-wrap text-center px-1">{element.text}</div>
+            <div className="whitespace-pre-wrap text-center px-1">{element.text}</div>
           )}
         </div>
       )
@@ -634,7 +789,7 @@ function TextCardItem({
     case 'frame':
       inner = (
         <div
-          className="flex min-h-0 flex-1 flex-col items-center justify-center overflow-auto p-4"
+          className="flex flex-col items-center justify-center p-4"
           style={innerChrome}
           onDoubleClick={beginEdit}
         >
@@ -803,15 +958,11 @@ function TextCardItem({
       break
     default:
       inner = (
-        <div
-          className="flex min-h-0 flex-1 flex-col overflow-hidden"
-          style={innerChrome}
-          onDoubleClick={beginEdit}
-        >
+        <div className="flex flex-col p-3" style={innerChrome} onDoubleClick={beginEdit}>
           {isEditing ? (
             <textarea {...textAreaProps} />
           ) : (
-            <div className="min-h-0 flex-1 overflow-auto whitespace-pre-wrap p-3">{element.text}</div>
+            <div className="whitespace-pre-wrap">{element.text}</div>
           )}
         </div>
       )
@@ -820,14 +971,51 @@ function TextCardItem({
   return (
     <div
       ref={setNodeRef}
-      style={style}
+      style={{
+        ...style,
+        animation: (element.data as any)?.isNew ? 'pulse 0.5s ease-in-out, fadeIn 0.3s ease-in-out' : undefined,
+      }}
       className={`relative flex select-none flex-col overflow-visible rounded-md shadow-md ${connectRing} ${selectRing} ${cursorClass}`}
       onClick={shellClick}
       onMouseEnter={() => setHoverCard(true)}
       onMouseLeave={() => setHoverCard(false)}
-      {...listeners}
+      {...(isMobile && !mobileDragEnabled ? {} : listeners)}
       {...attributes}
     >
+      {/* Mobile Controls - Top Right */}
+      {isMobile && isSelectedForUi && !isEditing && (
+        <div className="absolute -top-10 right-0 flex items-center gap-1 z-50">
+          {/* Edit Tools Button */}
+          <button
+            onClick={(e) => {
+              e.stopPropagation()
+              setShowMobileControls(!showMobileControls)
+              onStartEdit?.(element.id)
+            }}
+            className="p-2 bg-slate-800 text-white rounded-lg shadow-lg border border-slate-600 hover:bg-slate-700 transition-colors"
+            title="Editar card"
+          >
+            <Settings2 className="w-4 h-4" />
+          </button>
+          
+          {/* Drag Toggle Button */}
+          <button
+            onClick={(e) => {
+              e.stopPropagation()
+              setMobileDragEnabled(!mobileDragEnabled)
+            }}
+            className={`p-2 rounded-lg shadow-lg border transition-colors ${
+              mobileDragEnabled 
+                ? 'bg-orange-500 text-white border-orange-600' 
+                : 'bg-slate-800 text-white border-slate-600 hover:bg-slate-700'
+            }`}
+            title={mobileDragEnabled ? "Arrastar ativado - toque e arraste" : "Ativar arrastar"}
+          >
+            <GripVertical className="w-4 h-4" />
+          </button>
+        </div>
+      )}
+      
       {inner}
       <ConnectEdgeAnchors
         show={showEdgeAnchors}
@@ -931,6 +1119,7 @@ interface MiroCanvasProps {
   onResizeTextCardEnd?: () => void
   selectedConnectionId?: string | null
   onSelectConnection?: (id: string) => void
+  onUpdateConnection?: (id: string, patch: Partial<CanvasConnection>) => void
 }
 
 export default function MiroCanvas({
@@ -956,6 +1145,7 @@ export default function MiroCanvas({
   onResizeTextCardEnd,
   selectedConnectionId,
   onSelectConnection,
+  onUpdateConnection,
 }: MiroCanvasProps) {
   const { setNodeRef, isOver } = useDroppable({
     id: 'miro-canvas-drop',
@@ -966,6 +1156,11 @@ export default function MiroCanvas({
     setNodeRef(node)
     ;(scrollRef as React.MutableRefObject<HTMLDivElement | null>).current = node
   }
+
+  // Canvas panning state
+  const [isPanning, setIsPanning] = useState(false)
+  const [panStart, setPanStart] = useState({ x: 0, y: 0 })
+  const [scrollStart, setScrollStart] = useState({ x: 0, y: 0 })
 
   const [wireDrag, setWireDrag] = useState<null | {
     fromId: string
@@ -981,6 +1176,41 @@ export default function MiroCanvas({
   const wireSourceRef = useRef<null | { fromId: string; fromSide: ConnectionSide }>(null)
   const wireCleanupRef = useRef<null | (() => void)>(null)
   const canvasPlaneRef = useRef<HTMLDivElement | null>(null)
+
+  // Handle canvas panning
+  const handleCanvasMouseDown = useCallback((e: React.MouseEvent) => {
+    // Only pan if clicking on empty canvas (not on elements)
+    if (e.target === e.currentTarget || (e.target as HTMLElement).classList.contains('canvas-pan-area')) {
+      e.preventDefault()
+      setIsPanning(true)
+      setPanStart({ x: e.clientX, y: e.clientY })
+      const scrollEl = scrollRef.current
+      if (scrollEl) {
+        setScrollStart({ x: scrollEl.scrollLeft, y: scrollEl.scrollTop })
+      }
+    }
+  }, [scrollRef])
+
+  const handleCanvasMouseMove = useCallback((e: React.MouseEvent) => {
+    if (isPanning) {
+      e.preventDefault()
+      const scrollEl = scrollRef.current
+      if (scrollEl) {
+        const dx = e.clientX - panStart.x
+        const dy = e.clientY - panStart.y
+        scrollEl.scrollLeft = scrollStart.x - dx
+        scrollEl.scrollTop = scrollStart.y - dy
+      }
+    }
+  }, [isPanning, panStart, scrollStart, scrollRef])
+
+  const handleCanvasMouseUp = useCallback(() => {
+    setIsPanning(false)
+  }, [])
+
+  const handleCanvasMouseLeave = useCallback(() => {
+    setIsPanning(false)
+  }, [])
 
   const beginConnectWire = useCallback(
     (fromId: string, fromSide: ConnectionSide, e: React.PointerEvent) => {
@@ -1102,7 +1332,7 @@ export default function MiroCanvas({
       <div className="relative" style={{ width: scaledW, height: scaledH }}>
         <div
           ref={canvasPlaneRef}
-          className="relative origin-top-left cursor-default"
+          className={`relative origin-top-left ${isPanning ? 'cursor-grabbing' : 'cursor-default'}`}
           style={{
             transform: `scale(${scale})`,
             transformOrigin: '0 0',
@@ -1110,8 +1340,14 @@ export default function MiroCanvas({
             height: CANVAS_BASE_H,
           }}
           onMouseDown={(e) => {
-            if (e.target === e.currentTarget) onDeselectCanvas?.()
+            if (e.target === e.currentTarget) {
+              handleCanvasMouseDown(e)
+              onDeselectCanvas?.()
+            }
           }}
+          onMouseMove={handleCanvasMouseMove}
+          onMouseUp={handleCanvasMouseUp}
+          onMouseLeave={handleCanvasMouseLeave}
         >
           {elements.map((el) => (
             <DraggableCanvasItem
@@ -1150,28 +1386,111 @@ export default function MiroCanvas({
             style={{ minWidth: CANVAS_BASE_W, minHeight: CANVAS_BASE_H }}
           >
             <defs>
+              {/* Arrow markers - created for any connection that might need them */}
               {lineItems.map(({ connection: c }) => {
-                if (!connectionEndShowsArrow(c)) return null
+                // Skip if explicitly no end cap
+                if (c.endCap === 'none') return null
+                
                 const { strokeColor } = connectionResolvedStroke(c)
                 const selected = c.id === selectedConnectionId
                 const arrowFill = selected ? '#2563eb' : strokeColor
+                
+                // Determine which markers to create based on endCap or default
+                const needsArrow = !c.endCap || c.endCap === 'arrow' || connectionEndShowsArrow(c)
+                const needsDot = c.endCap === 'dot'
+                const needsDiamond = c.endCap === 'diamond'
+                const needsSquare = c.endCap === 'square'
+                const needsClosed = c.endCap === 'closed'
+                
                 return (
-                  <marker
-                    key={c.id}
-                    id={`miro-arr-${c.id}`}
-                    markerWidth="10"
-                    markerHeight="7"
-                    refX="9"
-                    refY="3.5"
-                    orient="auto"
-                  >
-                    <polygon points="0 0, 10 3.5, 0 7" fill={arrowFill} />
-                  </marker>
+                  <React.Fragment key={`markers-${c.id}`}>
+                    {/* Arrow head - classic triangle */}
+                    {needsArrow && (
+                      <marker
+                        key={`marker-arr-${c.id}`}
+                        id={`miro-arr-${c.id}`}
+                        viewBox="0 0 10 7"
+                        markerWidth="10"
+                        markerHeight="7"
+                        refX="9"
+                        refY="3.5"
+                        orient="auto"
+                        markerUnits="userSpaceOnUse"
+                      >
+                        <polygon points="0 0, 10 3.5, 0 7" fill={arrowFill} />
+                      </marker>
+                    )}
+                    {/* Circle dot end */}
+                    {needsDot && (
+                      <marker
+                        key={`marker-dot-${c.id}`}
+                        id={`miro-dot-${c.id}`}
+                        viewBox="0 0 8 8"
+                        markerWidth="8"
+                        markerHeight="8"
+                        refX="6"
+                        refY="4"
+                        orient="auto"
+                        markerUnits="userSpaceOnUse"
+                      >
+                        <circle cx="4" cy="4" r="3" fill={arrowFill} />
+                      </marker>
+                    )}
+                    {/* Diamond end */}
+                    {needsDiamond && (
+                      <marker
+                        key={`marker-diamond-${c.id}`}
+                        id={`miro-diamond-${c.id}`}
+                        viewBox="0 0 10 10"
+                        markerWidth="10"
+                        markerHeight="10"
+                        refX="8"
+                        refY="5"
+                        orient="auto"
+                        markerUnits="userSpaceOnUse"
+                      >
+                        <polygon points="5 0, 10 5, 5 10, 0 5" fill={arrowFill} />
+                      </marker>
+                    )}
+                    {/* Square end */}
+                    {needsSquare && (
+                      <marker
+                        key={`marker-square-${c.id}`}
+                        id={`miro-square-${c.id}`}
+                        viewBox="0 0 8 8"
+                        markerWidth="8"
+                        markerHeight="8"
+                        refX="6"
+                        refY="4"
+                        orient="auto"
+                        markerUnits="userSpaceOnUse"
+                      >
+                        <rect x="0" y="0" width="6" height="8" fill={arrowFill} />
+                      </marker>
+                    )}
+                    {/* Arrow with bar (closed) */}
+                    {needsClosed && (
+                      <marker
+                        key={`marker-closed-${c.id}`}
+                        id={`miro-closed-${c.id}`}
+                        viewBox="0 0 12 8"
+                        markerWidth="12"
+                        markerHeight="8"
+                        refX="10"
+                        refY="4"
+                        orient="auto"
+                        markerUnits="userSpaceOnUse"
+                      >
+                        <polygon points="0 0, 10 4, 0 8" fill="none" stroke={arrowFill} strokeWidth="1.5" />
+                        <line x1="10" y1="0" x2="10" y2="8" stroke={arrowFill} strokeWidth="2" />
+                      </marker>
+                    )}
+                  </React.Fragment>
                 )
               })}
             </defs>
             {lineItems.map(({ connection: c, from, to }) => {
-              const ortho = buildOrthogonalSavedPath(from, c.fromSide, to, c.toSide)
+              const ortho = buildConnectionPath(from, c.fromSide, to, c.toSide, c.waypoints)
               const { strokeWidth, strokeColor, dashStyle } = connectionResolvedStroke(c)
               const dashArr = connectionStrokeDashArray(dashStyle)
               const showArrow = connectionEndShowsArrow(c)
@@ -1204,9 +1523,128 @@ export default function MiroCanvas({
                     opacity={selected ? 1 : 0.9}
                     strokeLinejoin="round"
                     strokeLinecap="round"
-                    markerEnd={showArrow ? `url(#miro-arr-${c.id})` : undefined}
+                    markerEnd={
+                      c.endCap === 'none' ? undefined :
+                      c.endCap === 'dot' ? `url(#miro-dot-${c.id})` :
+                      c.endCap === 'diamond' ? `url(#miro-diamond-${c.id})` :
+                      c.endCap === 'square' ? `url(#miro-square-${c.id})` :
+                      c.endCap === 'closed' ? `url(#miro-closed-${c.id})` :
+                      c.endCap === 'arrow' ? `url(#miro-arr-${c.id})` :
+                      showArrow ? `url(#miro-arr-${c.id})` : undefined
+                    }
                     style={{ pointerEvents: 'none' }}
                   />
+                  {/* Waypoint handles - shown when connection is selected */}
+                  {selected && c.waypoints?.map((wp, idx) => (
+                    <circle
+                      key={`${c.id}-wp-${idx}`}
+                      cx={wp.x}
+                      cy={wp.y}
+                      r={6}
+                      fill="#2563eb"
+                      stroke="white"
+                      strokeWidth={2}
+                      style={{ cursor: 'move', pointerEvents: 'auto' }}
+                      onPointerDown={(e) => {
+                        e.stopPropagation()
+                        // Start dragging waypoint
+                        const startX = e.clientX
+                        const startY = e.clientY
+                        const startWpX = wp.x
+                        const startWpY = wp.y
+                        
+                        const handleMove = (moveEv: PointerEvent) => {
+                          const dx = (moveEv.clientX - startX) / scale
+                          const dy = (moveEv.clientY - startY) / scale
+                          let newX = startWpX + dx
+                          let newY = startWpY + dy
+                          
+                          // Get previous and next points for orthogonal snap
+                          const pA = connectionAnchorPoint(from, c.fromSide || 'e')
+                          const pB = connectionAnchorPoint(to, c.toSide || 'w')
+                          const pts = [pA, ...(c.waypoints || []), pB]
+                          const prev = pts[idx]
+                          const next = pts[idx + 2]
+                          
+                          // Snap to orthogonal - maintain 90° angles
+                          if (prev && next) {
+                            const dx1 = Math.abs(newX - prev.x)
+                            const dy1 = Math.abs(newY - prev.y)
+                            const dx2 = Math.abs(newX - next.x)
+                            const dy2 = Math.abs(newY - next.y)
+                            
+                            // Prefer horizontal or vertical alignment
+                            if (dx1 < dy1 * 0.5 || dx2 < dy2 * 0.5) {
+                              // Snap to horizontal (keep Y aligned)
+                              newY = Math.abs(newY - prev.y) < Math.abs(newY - next.y) ? prev.y : next.y
+                            } else if (dy1 < dx1 * 0.5 || dy2 < dx2 * 0.5) {
+                              // Snap to vertical (keep X aligned)
+                              newX = Math.abs(newX - prev.x) < Math.abs(newX - next.x) ? prev.x : next.x
+                            }
+                          } else if (prev) {
+                            // Only previous point - snap to horizontal or vertical
+                            const dxPrev = Math.abs(newX - prev.x)
+                            const dyPrev = Math.abs(newY - prev.y)
+                            if (dxPrev < dyPrev * 0.5) {
+                              newY = prev.y // Horizontal
+                            } else if (dyPrev < dxPrev * 0.5) {
+                              newX = prev.x // Vertical
+                            }
+                          }
+                          
+                          const newWaypoints = [...(c.waypoints || [])]
+                          newWaypoints[idx] = { x: newX, y: newY }
+                          onUpdateConnection?.(c.id, { waypoints: newWaypoints })
+                        }
+                        
+                        const handleUp = () => {
+                          window.removeEventListener('pointermove', handleMove)
+                          window.removeEventListener('pointerup', handleUp)
+                        }
+                        
+                        window.addEventListener('pointermove', handleMove)
+                        window.addEventListener('pointerup', handleUp)
+                      }}
+                    />
+                  ))}
+                  {/* Add waypoint button - shown when selected, click on line to add */}
+                  {selected && (
+                    <>
+                      {/* Midpoint handles to add new waypoints */}
+                      {(() => {
+                        const pA = connectionAnchorPoint(from, c.fromSide || 'e')
+                        const pB = connectionAnchorPoint(to, c.toSide || 'w')
+                        const pts = [pA, ...(c.waypoints || []), pB]
+                        const midpoints: { x: number; y: number; idx: number }[] = []
+                        for (let i = 0; i < pts.length - 1; i++) {
+                          midpoints.push({
+                            x: (pts[i].x + pts[i + 1].x) / 2,
+                            y: (pts[i].y + pts[i + 1].y) / 2,
+                            idx: i
+                          })
+                        }
+                        return midpoints.map((mp, i) => (
+                          <circle
+                            key={`${c.id}-mid-${i}`}
+                            cx={mp.x}
+                            cy={mp.y}
+                            r={4}
+                            fill="#94a3b8"
+                            stroke="white"
+                            strokeWidth={1}
+                            style={{ cursor: 'crosshair', pointerEvents: 'auto' }}
+                            onPointerDown={(e) => {
+                              e.stopPropagation()
+                              // Add new waypoint at midpoint
+                              const newWaypoints = [...(c.waypoints || [])]
+                              newWaypoints.splice(mp.idx, 0, { x: mp.x, y: mp.y })
+                              onUpdateConnection?.(c.id, { waypoints: newWaypoints })
+                            }}
+                          />
+                        ))
+                      })()}
+                    </>
+                  )}
                 </g>
               )
             })}
@@ -1234,13 +1672,13 @@ export default function MiroCanvas({
               <path
                 d={wirePathD}
                 fill="none"
-                stroke="#2563eb"
-                strokeWidth={3}
-                strokeDasharray="8 6"
+                stroke="#ea580c"
+                strokeWidth={5}
                 opacity={1}
                 strokeLinejoin="round"
                 strokeLinecap="round"
                 markerEnd="url(#miro-wire-preview-arrow-top)"
+                style={{ filter: 'drop-shadow(0 0 4px rgba(234, 88, 12, 0.5))' }}
               />
             </svg>
           ) : null}
