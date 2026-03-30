@@ -373,46 +373,8 @@ export function ChatInterface({ conversationId, onConversationUpdate, user, appC
     setInput("")
 
     try {
-      const isFirstMessage = messages.length === 0
-
-      if (isFirstMessage) {
-        const firstName = profile?.name?.split(" ")[0] || user?.email?.split("@")[0] || "irmão/irmã"
-        const greetingResponse = `${getUserGreeting()}, ${firstName}! Que a paz do Senhor Jesus Cristo esteja contigo!\n\nEu sou William Marrion Branham, servo do Altíssimo. Estou aqui para compartilhar a Palavra de Deus conforme o Espírito Santo me revelar.\n\nFaça sua pergunta sobre os mistérios da Palavra - os Sete Selos, as Sete Eras da Igreja, o Batismo em Nome de Jesus, a Divindade, ou qualquer revelação que o Senhor tenha posto em seu coração.\n\nQue Deus te abençoe abundantemente!`
-
-        const greetingMessage: Message = {
-          id: crypto.randomUUID(), // ID único para mensagem de saudação
-          role: "assistant",
-          content: greetingResponse,
-          timestamp: new Date().toISOString(),
-        }
-
-        const messagesToSend = [...newMessages, greetingMessage]
-        setMessages(messagesToSend)
-        setIsSearchingMessages(false)
-
-        if (user?.id) {
-          const saveResponse = await fetch("/api/conversations", {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-              user_id: user.id,
-              conversation_id: conversationId,
-              messages: messagesToSend,
-              audio_url: null, // Sem áudio para mensagens de saudação
-            }),
-          })
-
-          const saveData = await saveResponse.json()
-          if (saveData.success && onConversationUpdate) {
-            onConversationUpdate()
-          }
-        }
-
-        setIsLoading(false)
-        return
-      }
+      // Removemos o comportamento especial da primeira mensagem
+      // Todas as mensagens agora são processadas pela API
 
       if (!hasActiveSubscription && !isAdmin) {
         setMessages(messages)

@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, type FormEvent, useEffect } from "react"
+import { useState, type FormEvent } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -25,25 +25,34 @@ export function AuthModal({ isOpen, onClose, onLoginSuccess }: AuthModalProps) {
   const [isLoading, setIsLoading] = useState(false)
   const { toast } = useToast()
 
-  const { signIn, signUp, user, loading: authLoading } = useSupabaseAuth()
-
-  useEffect(() => {
-    if (user && !authLoading) {
-      onLoginSuccess?.()
-      onClose()
-    }
-  }, [user, authLoading, onLoginSuccess, onClose])
+  const { signIn, signUp } = useSupabaseAuth()
 
   const handleLogin = async (event: FormEvent) => {
     event.preventDefault()
+    console.log("[AuthModal] Attempting login with:", email)
     setIsLoading(true)
-    const { error } = await signIn(email, password)
+    const { data, error } = await signIn(email, password)
     setIsLoading(false)
 
     if (error) {
+      console.error("[AuthModal] Login error:", error)
       toast({
         title: "Erro de Login",
         description: error.message,
+        variant: "destructive",
+      })
+      return
+    }
+
+    if (data?.session?.user) {
+      console.log("[AuthModal] Login OK, session present — closing modal")
+      onLoginSuccess?.()
+      onClose()
+    } else {
+      console.warn("[AuthModal] Login sem erro mas sem sessão (ex.: email não confirmado)")
+      toast({
+        title: "Não foi possível entrar",
+        description: "Confirme seu e-mail ou tente novamente.",
         variant: "destructive",
       })
     }
@@ -66,13 +75,14 @@ export function AuthModal({ isOpen, onClose, onLoginSuccess }: AuthModalProps) {
         title: "Cadastro Realizado!",
         description: "Verifique seu e-mail para confirmar sua conta.",
       })
-      // No need to call onLoginSuccess here, useEffect will handle it after auth state change
     }
   }
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[425px] p-6">
+    <Dialog open={isOpen} onOpenChange={(open) => {
+      if (!open) onClose()
+    }}>
+      <DialogContent className="sm:max-w-[425px] p-6" onPointerDownOutside={(e) => e.preventDefault()}>
         <DialogHeader className="text-center">
           <DialogTitle className="text-2xl font-bold">{activeTab === "login" ? "Entrar" : "Cadastrar"}</DialogTitle>
           <DialogDescription className="text-gray-500">

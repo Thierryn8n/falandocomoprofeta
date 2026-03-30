@@ -37,7 +37,7 @@ export async function POST(request: NextRequest) {
     console.log("[v0] Making request to Gemini API with key:", geminiApiKey.substring(0, 10) + "...")
 
     const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${geminiApiKey}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiApiKey}`,
       {
         method: "POST",
         headers: {
@@ -61,7 +61,7 @@ export async function POST(request: NextRequest) {
           ],
           generationConfig: {
             temperature: 0.1,
-            maxOutputTokens: 1000,
+            maxOutputTokens: 3000,
           },
         }),
       },

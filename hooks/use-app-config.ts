@@ -24,6 +24,7 @@ export function useAppConfig() {
       // Cache for 5 minutes to reduce data usage
       const now = Date.now()
       if (!forceRefresh && configs.length > 0 && (now - lastFetch) < 300000) {
+        setLoading(false)
         return
       }
 
@@ -116,8 +117,18 @@ export function useAppConfig() {
   }, [])
 
   useEffect(() => {
-    fetchConfigs()
-  }, [fetchConfigs])
+    // Safety timeout to ensure loading always stops
+    const safetyTimeout = setTimeout(() => {
+      console.log("[AppConfig] Safety timeout, forcing loading false")
+      setLoading(false)
+    }, 3000)
+    
+    fetchConfigs().then(() => {
+      clearTimeout(safetyTimeout)
+    })
+    
+    return () => clearTimeout(safetyTimeout)
+  }, [])
 
   return {
     configs,

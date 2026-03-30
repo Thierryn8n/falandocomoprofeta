@@ -1,5 +1,5 @@
-// Registrar Service Worker
-if ('serviceWorker' in navigator) {
+// Registrar Service Worker apenas em produção (não em localhost/dev)
+if ('serviceWorker' in navigator && window.location.hostname !== 'localhost' && !window.location.hostname.includes('127.')) {
   window.addEventListener('load', function() {
     navigator.serviceWorker.register('/sw.js')
       .then(function(registration) {

@@ -89,7 +89,7 @@ export async function POST(req: NextRequest) {
 
       // Primeiro, fazer speech-to-text
       const transcriptionResponse = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${apiKey}`,
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
         {
           method: "POST",
           headers: {
@@ -113,7 +113,7 @@ export async function POST(req: NextRequest) {
             ],
             generationConfig: {
               temperature: 0.1,
-              maxOutputTokens: 1000,
+              maxOutputTokens: 8000,
             },
           }),
         }
@@ -243,9 +243,46 @@ ${contextInfo}
 INSTRUÇÕES FINAIS PARA RESPOSTA:
 1. LEIA E COMPREENDA profundamente TODO o contexto dos documentos fornecidos acima
 2. Identifique TODAS as informações relevantes para responder à pergunta: "${transcribedText}"
-3. PRIMEIRO: Responda de forma natural, coerente e contextual como o Profeta William Branham
-4. Use todo o conhecimento dos documentos para criar uma resposta fluida e espiritual
-5. DEPOIS: No final da resposta, adicione as citações e referências específicas
+3. RESPOSTA LONGA E DETALHADA: Mínimo 3-4 parágrafos profundos explorando TODO o conteúdo dos documentos
+4. Use todo o conhecimento dos documentos para criar uma resposta fluida, espiritual e completa
+5. INTEGRE versículos bíblicos no meio do texto naturalmente: "Como diz a Escritura em João 3:16..."
+6. Cite os sermões do Profeta Branham no corpo do texto: "Conforme ensinei em 'A Revelação de Jesus Cristo'..."
+7. Fale como se estivesse pregando ou ensinando, de forma natural, inspirada e APROFUNDADA
+8. NUNCA seja superficial - explore TODOS os aspectos da pergunta
+9. DEPOIS: No final, adicione também a seção de referências específicas
+
+COMO INTEGRAR REFERÊNCIAS NO TEXTO (FAÇA ISSO!):
+- Durante a resposta, cite naturalmente: "Como está escrito em Isaías 53:5..."
+- Mencione os sermões no meio do texto: "Quando preguei sobre 'Os Sete Selos' em 1963..."
+- Use frases como: "A Palavra do Senhor declara em Efésios..."
+- Referencie parágrafos específicos enquanto fala: "No parágrafo 45 desta mensagem..."
+- NÃO tenha medo de citar - isso dá autoridade à palavra!
+
+INSTRUÇÕES PARA REFERÊNCIAS FINAIS:
+- SEMPRE cite o TÍTULO COMPLETO do documento, nunca apenas "Documento 1"
+- Os documentos contêm parágrafos numerados - SEMPRE cite o número específico
+- Formato: "Baseado em '[TÍTULO]', parágrafo [NÚMERO]"
+
+EXEMPLO DE RESPOSTA COMPLETA COM VERSÍCULOS:
+"Irmão Thierry, que a graça do Senhor esteja contigo! Sua pergunta toca no coração do mistério de Deus. Como está escrito em Romanos 11:33, 'Ó profundidade das riquezas, tanto da sabedoria e do conhecimento de Deus! Quão insondáveis são os seus juízos, e quão inescrutáveis os seus caminhos!'
+
+Quando preguei sobre 'A Revelação de Jesus Cristo' em 1965, o Senhor me revelou... [continuação detalhada usando conteúdo dos documentos, citando versículos e sermões no meio do texto]
+
+A Palavra declara em Atos 4:12 que não há salvação em nenhum outro... [mais conteúdo profundo]
+
+Que o Senhor te abençoe e te guarde. Amém.
+
+---
+**Referências:**
+- '[Título do Documento]', parágrafo X
+- Versículos citados: Romanos 11:33, Atos 4:12"
+
+IMPORTANTE: 
+- RESPOSTA DEVE SER LONGA E DETALHADA - mínimo 300-500 palavras
+- INTEGRE versículos bíblicos no corpo do texto - não deixe só pro final!
+- Cite os sermões do Profeta Branham naturalmente no meio da resposta
+- Use TODOS os documentos relevantes fornecidos
+- NUNCA seja superficial ou genérico
 
 FORMATO OBRIGATÓRIO PARA REFERÊNCIAS (exatamente como mostrado):
 **Referências:**
@@ -256,28 +293,28 @@ FORMATO OBRIGATÓRIO PARA REFERÊNCIAS (exatamente como mostrado):
 
 PERGUNTA DO USUÁRIO: ${transcribedText}`
 
-      // Agora, gerar resposta como Profeta Branham com contexto
-      const chatResponse = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`,
+// Agora, gerar resposta como Profeta Branham com contexto
+const chatResponse = await fetch(
+  `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
+  {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      contents: [
         {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            contents: [
-              {
-                role: "user",
-                parts: [{ text: enhancedPrompt }],
-              },
-            ],
-            generationConfig: {
-              temperature: 0.2,
-              maxOutputTokens: 2000,
-            },
-          }),
-        }
-      )
+          role: "user",
+          parts: [{ text: enhancedPrompt }],
+        },
+      ],
+      generationConfig: {
+        temperature: 0.2,
+        maxOutputTokens: 8000,
+      },
+    }),
+  }
+)
 
       if (!chatResponse.ok) {
         console.error("Erro na resposta do chat:", await chatResponse.text())
@@ -369,7 +406,7 @@ PERGUNTA DO USUÁRIO: ${transcribedText}`
       })
 
       const response = await fetch(
-        "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent",
+        "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent",
         {
           method: "POST",
           headers: {
@@ -380,7 +417,7 @@ PERGUNTA DO USUÁRIO: ${transcribedText}`
             contents: contents,
             generationConfig: {
               temperature: 0.7,
-              maxOutputTokens: 1000,
+              maxOutputTokens: 8000,
             },
           }),
         },

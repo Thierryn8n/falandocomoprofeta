@@ -1,10 +1,10 @@
-import { RadioConfig } from "@/components/admin/config/radio-config"
+import LoginPageClient from "./login-page-client"
 
-export default async function RadioPage(props: {
+export default async function Page(props: {
   params: Promise<Record<string, string | string[]>>
   searchParams: Promise<Record<string, string | string[] | undefined>>
 }) {
   await props.params
   await props.searchParams
-  return <RadioConfig />
+  return <LoginPageClient />
 }

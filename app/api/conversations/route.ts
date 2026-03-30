@@ -1,5 +1,12 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { supabase } from "@/lib/supabase"
+import { createClient } from "@supabase/supabase-js"
+
+// Service role client for server-side operations (bypasses RLS)
+const supabaseService = createClient(
+  process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || "",
+  process.env.SUPABASE_SERVICE_ROLE_KEY || ""
+)
 
 interface Message {
   role: "user" | "assistant"
@@ -89,7 +96,7 @@ export async function POST(request: NextRequest) {
       console.log("📝 Updating existing conversation:", conversation_id)
       console.log("🎵 Audio URL to save:", audio_url)
       
-      const { data: updateData, error: updateError } = await supabase
+      const { data: updateData, error: updateError } = await supabaseService
         .from("conversations")
         .update({
           messages: validMessages,
@@ -119,7 +126,7 @@ export async function POST(request: NextRequest) {
       const newConversationId = crypto.randomUUID()
       finalConversationId = newConversationId
 
-      const { data: insertData, error: insertError } = await supabase
+      const { data: insertData, error: insertError } = await supabaseService
         .from("conversations")
         .insert({
           id: newConversationId,
@@ -145,7 +152,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Verify the save was successful
-    const { data: verifyData, error: verifyError } = await supabase
+    const { data: verifyData, error: verifyError } = await supabaseService
       .from("conversations")
       .select("id, messages")
       .eq("id", finalConversationId)
@@ -193,7 +200,7 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    const { data: conversations, error } = await supabase
+    const { data: conversations, error } = await supabaseService
       .from("conversations")
       .select("*")
       .eq("user_id", user_id)

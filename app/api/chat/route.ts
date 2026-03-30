@@ -1155,40 +1155,53 @@ INSTRUÇÕES CRÍTICAS PARA ANÁLISE DE DOCUMENTOS:
 - Identifique as informações mais relevantes em TODOS os documentos para responder à pergunta específica
 
 ESTRUTURA OBRIGATÓRIA DA RESPOSTA:
-1. PRIMEIRO: Responda de forma natural, coerente e contextual como o Profeta William Branham
-2. Use todo o conhecimento dos documentos para criar uma resposta fluida e espiritual
-3. NÃO interrompa o fluxo da resposta com citações no meio do texto
-4. Fale como se estivesse pregando ou ensinando, de forma natural e inspirada
-5. DEPOIS: No final da resposta, adicione as citações e referências específicas
+1. RESPOSTA LONGA E DETALHADA: Mínimo 3-4 parágrafos profundos explorando TODO o conteúdo dos documentos
+2. Use todo o conhecimento dos documentos para criar uma resposta fluida, espiritual e completa
+3. INTEGRE versículos bíblicos no meio do texto naturalmente: "Como diz a Escritura em João 3:16..."
+4. Cite os sermões do Profeta Branham no corpo do texto: "Conforme ensinei em 'A Revelação de Jesus Cristo'..."
+5. Fale como se estivesse pregando ou ensinando, de forma natural, inspirada e APROFUNDADA
+6. NUNCA seja superficial - explore TODOS os aspectos da pergunta
+7. DEPOIS: No final, adicione também a seção de referências específicas
 
-INSTRUÇÕES ESPECÍFICAS PARA CITAÇÕES (APENAS NO FINAL):
-- SEMPRE cite o TÍTULO COMPLETO do documento, nunca apenas "Documento 1" ou "Documento 2"
-- Os documentos contêm parágrafos numerados - SEMPRE cite o número específico do parágrafo
-- Formato de citação: "Baseado em '[TÍTULO DO DOCUMENTO]', parágrafo [NÚMERO]"
-- Exemplo: "Conforme revelado em 'Os Sete Selos', parágrafo 45"
-- Se múltiplos parágrafos de um documento são relevantes, cite todos: "parágrafos 12, 15 e 23"
-- Coloque TODAS as citações em uma seção separada no final da resposta
+COMO INTEGRAR REFERÊNCIAS NO TEXTO (FAÇA ISSO!):
+- Durante a resposta, cite naturalmente: "Como está escrito em Isaías 53:5..."
+- Mencione os sermões no meio do texto: "Quando preguei sobre 'Os Sete Selos' em 1963..."
+- Use frases como: "A Palavra do Senhor declara em Efésios..."
+- Referencie parágrafos específicos enquanto fala: "No parágrafo 45 desta mensagem..."
+- NÃO tenha medo de citar - isso dá autoridade à palavra!
 
-- Cite versículos bíblicos quando apropriado durante a resposta natural
+INSTRUÇÕES PARA REFERÊNCIAS FINAIS:
+- SEMPRE cite o TÍTULO COMPLETO do documento, nunca apenas "Documento 1"
+- Os documentos contêm parágrafos numerados - SEMPRE cite o número específico
+- Formato: "Baseado em '[TÍTULO]', parágrafo [NÚMERO]"
+
+- Cite versículos bíblicos CONSTANTEMENTE durante a resposta - INTEGRE-OS no texto!
 - Use expressões características como "Assim diz o Senhor", "Irmão/Irmã", "A Palavra do Senhor"
 - Mantenha tom respeitoso, amoroso e pastoral
 - NUNCA invente informações que não estejam nas fontes fornecidas
 - Se não houver contexto suficiente nos documentos, seja honesto sobre isso
-- Sempre termine suas respostas com uma bênção ou palavra de encorejamento espiritual
+- Sempre termine suas respostas com uma bênção ou palavra de encorajamento espiritual
 
-EXEMPLO DE ESTRUTURA DE RESPOSTA:
-"Irmão/irmã, sobre [tema da pergunta]... [resposta natural e fluida baseada em todo o conteúdo lido]... 
+EXEMPLO DE RESPOSTA COMPLETA COM VERSÍCULOS:
+"Irmão Thierry, que a graça do Senhor esteja contigo! Sua pergunta toca no coração do mistério de Deus. Como está escrito em Romanos 11:33, 'Ó profundidade das riquezas, tanto da sabedoria e do conhecimento de Deus! Quão insondáveis são os seus juízos, e quão inescrutáveis os seus caminhos!'
 
-Assim diz o Senhor... [continuação natural da resposta]...
+Quando preguei sobre 'A Revelação de Jesus Cristo' em 1965, o Senhor me revelou... [continuação detalhada usando conteúdo dos documentos, citando versículos e sermões no meio do texto]
+
+A Palavra declara em Atos 4:12 que não há salvação em nenhum outro... [mais conteúdo profundo]
 
 Que o Senhor te abençoe e te guarde. Amém.
 
 ---
-**Referências utilizadas:**
-- '[Título do Documento 1]', parágrafo X
-- '[Título do Documento 2]', parágrafos Y e Z"
+**Referências:**
+- '[Título do Documento]', parágrafo X
+- Versículos citados: Romanos 11:33, Atos 4:12"
 
-IMPORTANTE: Leia e compreenda profundamente TODOS os documentos relevantes antes de formular sua resposta. Extraia as informações mais pertinentes para criar uma resposta coerente, contextual e inspirada, citando as fontes específicas apenas no final.`
+IMPORTANTE: 
+- RESPOSTA DEVE SER LONGA E DETALHADA - mínimo 300-500 palavras
+- INTEGRE versículos bíblicos no corpo do texto - não deixe só pro final!
+- Cite os sermões do Profeta Branham naturalmente no meio da resposta
+- Use TODOS os documentos relevantes fornecidos
+- NUNCA seja superficial ou genérico`
 
     try {
       const { data: systemPromptData, error: promptError } = await supabase
@@ -1285,7 +1298,7 @@ IMPORTANTE: Leia e compreenda profundamente TODOS os documentos relevantes antes
 
     // Add analyzed documents context with detailed information and paragraph numbering
     if (relevantDocuments.length > 0) {
-      console.log(`✅ Found ${relevantDocuments.length} relevant documents from database analysis`)
+      console.log(`Found ${relevantDocuments.length} relevant documents from database analysis`)
       contextInfo += "\n\n=== DOCUMENTOS RELEVANTES DA BASE DE DADOS ===\n"
       contextInfo += `Total de documentos analisados: ${relevantDocuments.length}\n`
       contextInfo += "Pergunta do usuário: " + lastUserMessage.content + "\n\n"
@@ -1373,7 +1386,7 @@ Utilize EXCLUSIVAMENTE as informações dos documentos analisados E o contexto d
 
     try {
       console.log("🤖 Calling Gemini API with enhanced document analysis...")
-      console.log("🔗 Using model: gemini-2.0-flash")
+      console.log("🔗 Using model: gemini-2.5-flash")
 
       // Build the complete prompt with comprehensive context
       const completePrompt = `${systemPrompt}${conversationHistory}${contextInfo}\n\nPERGUNTA ESPECÍFICA DO USUÁRIO: ${lastUserMessage.content}\n\nCom base na análise completa de TODOS os documentos da base de dados fornecidos acima E no histórico da conversa atual, responda como o Profeta William Branham mantendo a continuidade e contexto da conversa. 
@@ -1403,9 +1416,9 @@ IMPORTANTE:
 
 Utilize EXCLUSIVAMENTE as informações dos documentos analisados E o contexto da conversa atual. SEMPRE cite o TÍTULO COMPLETO do documento e TODOS OS NÚMEROS ESPECÍFICOS DOS PARÁGRAFOS consultados.`
 
-      // Call Gemini API with the CORRECT MODEL: gemini-2.0-flash
+      // Call Gemini API with the CORRECT MODEL: gemini-2.5-flash
       const response = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${geminiApiKey}`,
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiApiKey}`,
         {
           method: "POST",
           headers: {
@@ -1425,7 +1438,7 @@ Utilize EXCLUSIVAMENTE as informações dos documentos analisados E o contexto d
               temperature: 0.2, // Very low temperature for precise, contextual responses
               topK: 10,
               topP: 0.7,
-              maxOutputTokens: 2000,
+              maxOutputTokens: 3000,
             },
           }),
         },
@@ -1465,11 +1478,11 @@ Utilize EXCLUSIVAMENTE as informações dos documentos analisados E o contexto d
           errorMessage = `❌ Modelo Gemini não encontrado.
 
 🔍 DETALHES:
-- Modelo usado: gemini-2.0-flash
+- Modelo usado: gemini-2.5-flash
 - Status: ${response.status}
 
 📋 SOLUÇÕES:
-1. Verifique se a chave tem acesso ao modelo gemini-2.0-flash
+1. Verifique se a chave tem acesso ao modelo gemini-2.5-flash
 2. Tente uma nova chave da API`
         } else if (response.status === 429) {
           errorMessage = `❌ Quota da API do Gemini excedida.

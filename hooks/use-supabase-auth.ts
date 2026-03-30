@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import type { User } from "@supabase/supabase-js"
 import { supabase } from "@/lib/supabase"
 
@@ -19,34 +19,7 @@ export function useSupabaseAuth() {
   const [profile, setProfile] = useState<Profile | null>(null)
   const [loading, setLoading] = useState(true)
 
-  useEffect(() => {
-    // Get initial session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setUser(session?.user ?? null)
-      if (session?.user) {
-        loadProfile(session.user.id)
-      } else {
-        setLoading(false)
-      }
-    })
-
-    // Listen for auth changes
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user ?? null)
-      if (session?.user) {
-        loadProfile(session.user.id)
-      } else {
-        setProfile(null)
-        setLoading(false)
-      }
-    })
-
-    return () => subscription.unsubscribe()
-  }, [])
-
-  const loadProfile = async (userId: string) => {
+  const loadProfile = useCallback(async (userId: string) => {
     try {
       const { data, error } = await supabase.from("profiles").select("*").eq("id", userId).single()
 
@@ -60,7 +33,50 @@ export function useSupabaseAuth() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [])
+
+  useEffect(() => {
+    console.log("[Auth] Starting auth check (single subscription)...")
+
+    supabase.auth
+      .getSession()
+      .then(({ data: { session } }) => {
+        console.log("[Auth] Session check complete, user:", session?.user?.id || "none")
+        setUser(session?.user ?? null)
+        if (session?.user) {
+          void loadProfile(session.user.id)
+        } else {
+          setProfile(null)
+          setLoading(false)
+        }
+      })
+      .catch((err) => {
+        console.error("[Auth] Session check error:", err)
+        setLoading(false)
+      })
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user ?? null)
+      if (session?.user) {
+        void loadProfile(session.user.id)
+      } else {
+        setProfile(null)
+      }
+      setLoading(false)
+    })
+
+    return () => subscription.unsubscribe()
+  }, [loadProfile])
+
+  // Evita spinner infinito se getSession/onAuthStateChange falharem de forma inesperada
+  useEffect(() => {
+    const t = setTimeout(() => {
+      setLoading((prev) => (prev ? false : prev))
+    }, 8000)
+    return () => clearTimeout(t)
+  }, [])
 
   const signIn = async (email: string, password: string) => {
     const { data, error } = await supabase.auth.signInWithPassword({

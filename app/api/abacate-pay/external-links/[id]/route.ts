@@ -9,10 +9,10 @@ const supabase = createClient(
 // PUT - Atualizar link externo
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { id } = params
+    const { id } = await params
     const body = await request.json()
     
     const {
@@ -84,10 +84,10 @@ export async function PUT(
 // DELETE - Deletar link externo
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { id } = params
+    const { id } = await params
 
     const { error } = await supabase
       .from('external_payment_links')

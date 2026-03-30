@@ -1,14 +1,13 @@
 "use client"
 
-import { useEffect, useCallback } from "react"
+import { useEffect, useCallback, useState } from "react"
 import { supabase } from "@/lib/supabase"
-import { useSupabaseAuth } from "@/hooks/use-supabase-auth"
 
-let sessionId: string | null = null
+let globalSessionId: string | null = null
 let heartbeatInterval: NodeJS.Timeout | null = null
 
 export function useSessionTracking() {
-  const { user } = useSupabaseAuth()
+  const [sessionId, setSessionId] = useState<string | null>(globalSessionId)
 
   const generateSessionId = () => {
     return `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
@@ -16,75 +15,38 @@ export function useSessionTracking() {
 
   const createSession = useCallback(async () => {
     try {
-      if (sessionId) return sessionId
+      if (globalSessionId) return globalSessionId
 
-      sessionId = generateSessionId()
+      globalSessionId = generateSessionId()
+      setSessionId(globalSessionId)
 
-      // Create session record with only existing columns
+      // Create session record
       const { error: sessionError } = await supabase.from("user_sessions").insert({
-        session_id: sessionId,
-        user_id: user?.id || null,
-        is_logged_in: !!user,
+        session_id: globalSessionId,
+        user_id: null,
+        is_logged_in: false,
         last_activity: new Date().toISOString(),
       })
 
       if (sessionError) {
         console.error("Error creating session:", sessionError)
-        return null
       }
 
-      // Create site visit record
-      const { error: visitError } = await supabase.from("site_visits").insert({
-        session_id: sessionId,
-        user_id: user?.id || null,
-        is_logged_in: !!user,
-        ip_address: null,
-        user_agent: navigator.userAgent,
-      })
-
-      if (visitError) {
-        console.error("Error creating visit record:", visitError)
-      }
-
-      return sessionId
+      return globalSessionId
     } catch (error) {
       console.error("Error in createSession:", error)
       return null
     }
-  }, [user])
-
-  const updateSession = useCallback(async () => {
-    try {
-      if (!sessionId) return
-
-      const { error } = await supabase
-        .from("user_sessions")
-        .update({
-          last_activity: new Date().toISOString(),
-          is_logged_in: !!user,
-          user_id: user?.id || null,
-        })
-        .eq("session_id", sessionId)
-
-      if (error) {
-        console.error("Error updating session:", error)
-      }
-    } catch (error) {
-      console.error("Error in updateSession:", error)
-    }
-  }, [user])
+  }, [])
 
   const endSession = useCallback(async () => {
     try {
-      if (!sessionId) return
+      if (!globalSessionId) return
 
-      const { error } = await supabase.from("user_sessions").delete().eq("session_id", sessionId)
+      await supabase.from("user_sessions").delete().eq("session_id", globalSessionId)
 
-      if (error) {
-        console.error("Error ending session:", error)
-      }
-
-      sessionId = null
+      globalSessionId = null
+      setSessionId(null)
       if (heartbeatInterval) {
         clearInterval(heartbeatInterval)
         heartbeatInterval = null
@@ -94,42 +56,16 @@ export function useSessionTracking() {
     }
   }, [])
 
-  const startHeartbeat = useCallback(() => {
-    if (heartbeatInterval) return
-
-    // Update session every 60 seconds (reduced from 5s to save data)
-    heartbeatInterval = setInterval(updateSession, 60000)
-  }, [updateSession])
-
   useEffect(() => {
-    // Initialize session when component mounts
-    createSession().then((id) => {
-      if (id) {
-        startHeartbeat()
-      }
-    })
-
-    // Handle page visibility changes
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === "visible") {
-        updateSession()
-      }
+    // Initialize session once
+    if (!globalSessionId) {
+      createSession()
     }
-
-    // Handle page unload
-    const handleBeforeUnload = () => {
-      endSession()
-    }
-
-    document.addEventListener("visibilitychange", handleVisibilityChange)
-    window.addEventListener("beforeunload", handleBeforeUnload)
 
     return () => {
-      document.removeEventListener("visibilitychange", handleVisibilityChange)
-      window.removeEventListener("beforeunload", handleBeforeUnload)
-      endSession()
+      // Cleanup only on unmount
     }
-  }, [createSession, updateSession, endSession, startHeartbeat])
+  }, [createSession])
 
   return {
     sessionId,

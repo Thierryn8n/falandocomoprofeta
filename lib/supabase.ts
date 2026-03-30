@@ -7,9 +7,15 @@ const supabaseAnonKey =
 
 export const supabase = createSupabaseClient(supabaseUrl, supabaseAnonKey)
 
-// Export a function to create a new client instance
+// Singleton instance to prevent multiple clients
+let clientInstance: ReturnType<typeof createSupabaseClient> | null = null
+
+// Export a function to get the same client instance
 export function createClient() {
-  return createSupabaseClient(supabaseUrl, supabaseAnonKey)
+  if (!clientInstance) {
+    clientInstance = createSupabaseClient(supabaseUrl, supabaseAnonKey)
+  }
+  return clientInstance
 }
 
 // Types
