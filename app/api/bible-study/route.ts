@@ -1,10 +1,5 @@
-import { createClient } from '@supabase/supabase-js'
+import { getSupabaseAdmin } from '@/lib/supabase'
 import { NextRequest, NextResponse } from 'next/server'
-
-const supabase = createClient(
-  process.env.SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-)
 
 // Interface for documents with relevance scoring
 interface Document {
@@ -191,7 +186,7 @@ Para cada card, forneça:
 - content: Conteúdo detalhado e explicativo baseado NAS MENSAGENS
 - card_type: Um dos 7 tipos acima
 - bible_reference: Referência bíblica (se aplicável)
-- prophet_message: Citação direta do Profeta (SEMPRE que possível)
+- prophet_message: Citação do Profeta (se relevante)
 - source_message: Título da mensagem original do profeta
 - paragraph_refs: Números dos parágrafos específicos usados da mensagem
 
