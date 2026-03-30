@@ -1,15 +1,10 @@
+import { getSupabaseAdmin } from '@/lib/supabase'
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@supabase/supabase-js'
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-)
 
 // GET - Listar links externos
 export async function GET() {
   try {
-    const { data: links, error } = await supabase
+    const { data: links, error } = await getSupabaseAdmin()
       .from('external_payment_links')
       .select('*')
       .order('sort_order', { ascending: true })
@@ -63,7 +58,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const { data: link, error } = await supabase
+    const { data: link, error } = await getSupabaseAdmin()
       .from('external_payment_links')
       .insert({
         name,
@@ -122,7 +117,7 @@ export async function PUT(request: NextRequest) {
     // Adicionar timestamp de atualização
     updateData.updated_at = new Date().toISOString()
 
-    const { data: link, error } = await supabase
+    const { data: link, error } = await getSupabaseAdmin()
       .from('external_payment_links')
       .update(updateData)
       .eq('id', id)
@@ -164,7 +159,7 @@ export async function DELETE(request: NextRequest) {
       )
     }
 
-    const { error } = await supabase
+    const { error } = await getSupabaseAdmin()
       .from('external_payment_links')
       .delete()
       .eq('id', id)

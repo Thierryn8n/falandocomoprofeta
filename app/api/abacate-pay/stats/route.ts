@@ -1,11 +1,5 @@
+import { getSupabaseAdmin } from '@/lib/supabase'
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@supabase/supabase-js'
-
-// Usar service role key para operações administrativas
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-)
 
 // Interface para estatísticas do Abacate Pay
 interface AbacatePayStats {
@@ -46,7 +40,7 @@ export async function GET() {
     const monthStartISO = monthStart.toISOString()
 
     // 1. Estatísticas gerais de transações
-    const { data: allTransactions, error: allError } = await supabase
+    const { data: allTransactions, error: allError } = await getSupabaseAdmin()
       .from('payment_transactions')
       .select('amount, payment_status, created_at')
 
@@ -55,7 +49,7 @@ export async function GET() {
     }
 
     // 2. Transações de hoje
-    const { data: todayTransactions, error: todayError } = await supabase
+    const { data: todayTransactions, error: todayError } = await getSupabaseAdmin()
       .from('payment_transactions')
       .select('amount, payment_status')
       .gte('created_at', todayISO)
@@ -65,7 +59,7 @@ export async function GET() {
     }
 
     // 3. Transações do mês
-    const { data: monthTransactions, error: monthError } = await supabase
+    const { data: monthTransactions, error: monthError } = await getSupabaseAdmin()
       .from('payment_transactions')
       .select('amount, payment_status')
       .gte('created_at', monthStartISO)
@@ -75,7 +69,7 @@ export async function GET() {
     }
 
     // 4. Top clientes (usando profiles para obter informações do usuário)
-    const { data: topCustomersData, error: topCustomersError } = await supabase
+    const { data: topCustomersData, error: topCustomersError } = await getSupabaseAdmin()
       .from('payment_transactions')
       .select(`
         amount, 
@@ -90,7 +84,7 @@ export async function GET() {
     }
 
     // 5. Transações recentes
-    const { data: recentTransactions, error: recentError } = await supabase
+    const { data: recentTransactions, error: recentError } = await getSupabaseAdmin()
       .from('payment_transactions')
       .select(`
         id, 

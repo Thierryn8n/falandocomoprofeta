@@ -1,12 +1,5 @@
+import { getSupabaseAdmin } from '@/lib/supabase'
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@supabase/supabase-js'
-import { createAbacatePayLink, AbacatePayLinkRequest } from '@/lib/abacate-pay'
-import { v4 as uuidv4 } from 'uuid'
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-)
 
 // POST - Gerar link de compra diretamente via API do Abacate Pay
 export async function POST(request: NextRequest) {
@@ -29,7 +22,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Buscar configuração do Abacate Pay
-    const { data: configData, error: configError } = await supabase
+    const { data: configData, error: configError } = await getSupabaseAdmin()
       .from('payment_methods_config')
       .select('config_data')
       .eq('method_name', 'abacate_pay')
@@ -44,7 +37,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Buscar produto local
-    const { data: product, error: productError } = await supabase
+    const { data: product, error: productError } = await getSupabaseAdmin()
       .from('products')
       .select('*')
       .eq('external_id', product_id)
@@ -81,7 +74,7 @@ export async function POST(request: NextRequest) {
     const abacatePayLink = await createAbacatePayLink(linkRequest)
 
     // Criar registro de transação pendente para rastreamento
-    const { data: transaction, error: transactionError } = await supabase
+    const { data: transaction, error: transactionError } = await getSupabaseAdmin()
       .from('payment_transactions')
       .insert({
         user_id: user_id || null,
@@ -163,7 +156,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Buscar transação pelo token de rastreamento
-    const { data: transaction, error } = await supabase
+    const { data: transaction, error } = await getSupabaseAdmin()
       .from('payment_transactions')
       .select(`
         *,

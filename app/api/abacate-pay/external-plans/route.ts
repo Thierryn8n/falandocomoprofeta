@@ -1,10 +1,5 @@
+import { getSupabaseAdmin } from '@/lib/supabase'
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@supabase/supabase-js'
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-)
 
 interface ExternalPlan {
   id?: string
@@ -19,7 +14,7 @@ interface ExternalPlan {
 // GET - Buscar todos os planos externos
 export async function GET() {
   try {
-    const { data: plans, error } = await supabase
+    const { data: plans, error } = await getSupabaseAdmin()
       .from('external_payment_links')
       .select('*')
       .order('created_at', { ascending: false })
@@ -82,7 +77,7 @@ export async function POST(request: NextRequest) {
       status: status || 'active'
     }
 
-    const { data: newPlan, error } = await supabase
+    const { data: newPlan, error } = await getSupabaseAdmin()
       .from('external_payment_links')
       .insert([planData])
       .select()
@@ -142,7 +137,7 @@ export async function PUT(request: NextRequest) {
     }
     if (status) updateData.status = status
 
-    const { data: updatedPlan, error } = await supabase
+    const { data: updatedPlan, error } = await getSupabaseAdmin()
       .from('external_payment_links')
       .update(updateData)
       .eq('id', id)
@@ -184,7 +179,7 @@ export async function DELETE(request: NextRequest) {
       )
     }
 
-    const { error } = await supabase
+    const { error } = await getSupabaseAdmin()
       .from('external_payment_links')
       .delete()
       .eq('id', id)

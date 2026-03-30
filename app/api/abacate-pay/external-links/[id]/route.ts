@@ -1,10 +1,5 @@
+import { getSupabaseAdmin } from '@/lib/supabase'
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@supabase/supabase-js'
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-)
 
 // PUT - Atualizar link externo
 export async function PUT(
@@ -38,7 +33,7 @@ export async function PUT(
       )
     }
 
-    const { data: link, error } = await supabase
+    const { data: link, error } = await getSupabaseAdmin()
       .from('external_payment_links')
       .update({
         name,
@@ -89,7 +84,7 @@ export async function DELETE(
   try {
     const { id } = await params
 
-    const { error } = await supabase
+    const { error } = await getSupabaseAdmin()
       .from('external_payment_links')
       .delete()
       .eq('id', id)

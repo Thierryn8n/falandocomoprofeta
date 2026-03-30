@@ -1,11 +1,5 @@
+import { getSupabaseAdmin } from '@/lib/supabase'
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@supabase/supabase-js'
-
-// Usar service role key para operações administrativas
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-)
 
 // Interface para transação do Abacate Pay
 interface AbacatePayTransaction {
@@ -132,7 +126,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Criar transação no banco
-    const { data: transaction, error } = await supabase
+    const { data: transaction, error } = await getSupabaseAdmin()
       .from('payment_transactions')
       .insert({
         user_id,

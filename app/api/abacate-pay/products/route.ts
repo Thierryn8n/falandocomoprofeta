@@ -1,12 +1,9 @@
+import { getSupabaseAdmin } from '@/lib/supabase'
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@supabase/supabase-js'
 import { createAbacatePayProduct, listAbacatePayProducts, AbacatePayProduct } from '@/lib/abacate-pay'
 
 // Usar service role key para operações administrativas
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-)
+const supabase = getSupabaseAdmin()
 
 // GET - Listar produtos do Abacate Pay
 export async function GET() {
@@ -51,7 +48,7 @@ export async function POST(request: NextRequest) {
     const { product_id, sync_all } = await request.json()
 
     // Buscar configuração do Abacate Pay
-    const { data: configData, error: configError } = await supabase
+    const { data: configData, error: configError } = await getSupabaseAdmin()
       .from('payment_methods_config')
       .select('config_data')
       .eq('method_name', 'abacate_pay')
@@ -67,7 +64,7 @@ export async function POST(request: NextRequest) {
 
     if (sync_all) {
       // Sincronizar todos os produtos
-      const { data: localProducts, error: productsError } = await supabase
+      const { data: localProducts, error: productsError } = await getSupabaseAdmin()
         .from('products')
         .select('*')
         .eq('status', 'active')
@@ -129,7 +126,7 @@ export async function POST(request: NextRequest) {
 
     } else if (product_id) {
       // Sincronizar produto específico
-      const { data: product, error: productError } = await supabase
+      const { data: product, error: productError } = await getSupabaseAdmin()
         .from('products')
         .select('*')
         .eq('id', product_id)

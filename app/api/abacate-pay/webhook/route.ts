@@ -1,11 +1,6 @@
+import { getSupabaseAdmin } from '@/lib/supabase'
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@supabase/supabase-js'
-import crypto from 'crypto'
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-)
+import { revalidatePath } from 'next/cache'
 
 // POST - Webhook do Abacate Pay
 export async function POST(request: NextRequest) {
@@ -14,7 +9,7 @@ export async function POST(request: NextRequest) {
     const signature = request.headers.get('x-abacate-signature')
 
     // Buscar configuração do webhook
-    const { data: configData, error: configError } = await supabase
+    const { data: configData, error: configError } = await getSupabaseAdmin()
       .from('payment_methods_config')
       .select('config_data')
       .eq('method_name', 'abacate_pay')
@@ -67,7 +62,7 @@ export async function POST(request: NextRequest) {
 
     // Primeiro, tentar encontrar por tracking_token se fornecido
     if (tracking_token) {
-      const { data, error } = await supabase
+      const { data, error } = await getSupabaseAdmin()
         .from('payment_transactions')
         .select('*')
         .eq('abacate_pay_tracking_token', tracking_token)
@@ -79,7 +74,7 @@ export async function POST(request: NextRequest) {
 
     // Se não encontrou por tracking_token, tentar por abacate_pay_id
     if (!transaction && abacatePayId) {
-      const { data, error } = await supabase
+      const { data, error } = await getSupabaseAdmin()
         .from('payment_transactions')
         .select('*')
         .eq('abacate_pay_id', abacatePayId)
@@ -91,7 +86,7 @@ export async function POST(request: NextRequest) {
 
     // Se não encontrou por abacate_pay_id, tentar por external_id
     if (!transaction && abacatePayExternalId) {
-      const { data, error } = await supabase
+      const { data, error } = await getSupabaseAdmin()
         .from('payment_transactions')
         .select('*')
         .eq('abacate_pay_external_id', abacatePayExternalId)
@@ -133,7 +128,7 @@ export async function POST(request: NextRequest) {
         }
       }
 
-      const { error: updateError } = await supabase
+      const { error: updateError } = await getSupabaseAdmin()
         .from('payment_transactions')
         .update(updateData)
         .eq('id', transaction.id)
@@ -169,7 +164,7 @@ export async function POST(request: NextRequest) {
         }
       }
 
-      const { data: newTransaction, error: createError } = await supabase
+      const { data: newTransaction, error: createError } = await getSupabaseAdmin()
         .from('payment_transactions')
         .insert(newTransactionData)
         .select()
@@ -201,7 +196,7 @@ export async function POST(request: NextRequest) {
 async function processPaymentSuccess(userId: string, planId: string, transactionId: string) {
   try {
     // Buscar detalhes do plano
-    const { data: plan, error: planError } = await supabase
+    const { data: plan, error: planError } = await getSupabaseAdmin()
       .from('subscription_plans')
       .select('*')
       .eq('id', planId)
@@ -213,7 +208,7 @@ async function processPaymentSuccess(userId: string, planId: string, transaction
     }
 
     // Verificar se o usuário já tem uma assinatura ativa
-    const { data: existingSubscription } = await supabase
+    const { data: existingSubscription } = await getSupabaseAdmin()
       .from('user_subscriptions')
       .select('*')
       .eq('user_id', userId)
@@ -225,7 +220,7 @@ async function processPaymentSuccess(userId: string, planId: string, transaction
       const newEndDate = new Date()
       newEndDate.setDate(newEndDate.getDate() + (plan.duration_days || 30))
 
-      await supabase
+      await getSupabaseAdmin()
         .from('user_subscriptions')
         .update({
           plan_id: planId,
@@ -240,7 +235,7 @@ async function processPaymentSuccess(userId: string, planId: string, transaction
       const endDate = new Date()
       endDate.setDate(endDate.getDate() + (plan.duration_days || 30))
 
-      await supabase
+      await getSupabaseAdmin()
         .from('user_subscriptions')
         .insert({
           user_id: userId,
@@ -254,7 +249,7 @@ async function processPaymentSuccess(userId: string, planId: string, transaction
 
     // Adicionar tokens se o plano incluir
     if (plan.tokens_included && plan.tokens_included > 0) {
-      await supabase
+      await getSupabaseAdmin()
         .from('user_tokens')
         .upsert({
           user_id: userId,

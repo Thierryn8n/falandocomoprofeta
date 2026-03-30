@@ -1,11 +1,5 @@
+import { getSupabaseAdmin } from '@/lib/supabase'
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@supabase/supabase-js'
-
-// Usar service role key para operações administrativas
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-)
 
 // Interface para resultado dos testes
 interface TestResult {
@@ -89,7 +83,7 @@ async function testConfiguration(): Promise<TestResult> {
   const testStart = Date.now()
   
   try {
-    const { data, error } = await supabase
+    const { data, error } = await getSupabaseAdmin()
       .from('payment_methods_config')
       .select('method_name, is_enabled, config_data')
       .eq('method_name', 'abacate_pay')
@@ -154,7 +148,7 @@ async function testDatabaseConnection(): Promise<TestResult> {
   const testStart = Date.now()
   
   try {
-    const { data, error } = await supabase
+    const { data, error } = await getSupabaseAdmin()
       .from('payment_transactions')
       .select('count(*)')
       .limit(1)
@@ -199,7 +193,7 @@ async function testProductCreation(): Promise<TestResult> {
       is_active: true
     }
 
-    const { data, error } = await supabase
+    const { data, error } = await getSupabaseAdmin()
       .from('abacate_pay_products')
       .insert([testProduct])
       .select()
@@ -215,7 +209,7 @@ async function testProductCreation(): Promise<TestResult> {
     }
 
     // Limpar produto de teste
-    await supabase
+    await getSupabaseAdmin()
       .from('abacate_pay_products')
       .delete()
       .eq('id', data.id)
@@ -244,7 +238,7 @@ async function testTransactionCreation(): Promise<TestResult> {
   
   try {
     // Primeiro, buscar um usuário existente para usar no teste
-    const { data: profiles, error: profileError } = await supabase
+    const { data: profiles, error: profileError } = await getSupabaseAdmin()
       .from('profiles')
       .select('id')
       .limit(1)
@@ -269,7 +263,7 @@ async function testTransactionCreation(): Promise<TestResult> {
       metadata: { test: true }
     }
 
-    const { data, error } = await supabase
+    const { data, error } = await getSupabaseAdmin()
       .from('payment_transactions')
       .insert([testTransaction])
       .select()
@@ -285,7 +279,7 @@ async function testTransactionCreation(): Promise<TestResult> {
     }
 
     // Limpar transação de teste
-    await supabase
+    await getSupabaseAdmin()
       .from('payment_transactions')
       .delete()
       .eq('id', data.id)
@@ -313,7 +307,7 @@ async function testStats(): Promise<TestResult> {
   const testStart = Date.now()
   
   try {
-    const { data: transactions, error } = await supabase
+    const { data: transactions, error } = await getSupabaseAdmin()
       .from('payment_transactions')
       .select('amount, status, created_at')
       .limit(5)
@@ -359,7 +353,7 @@ async function testWebhookSimulation(): Promise<TestResult> {
     }
 
     // Verificar se existe configuração de webhook
-    const { data: config } = await supabase
+    const { data: config } = await getSupabaseAdmin()
       .from('payment_methods_config')
       .select('config')
       .eq('provider', 'abacate_pay')

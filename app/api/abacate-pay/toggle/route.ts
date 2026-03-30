@@ -1,10 +1,5 @@
+import { getSupabaseAdmin } from '@/lib/supabase'
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@supabase/supabase-js'
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-)
 
 // PUT - Atualizar apenas o toggle do sistema externo
 export async function PUT(request: NextRequest) {
@@ -20,7 +15,7 @@ export async function PUT(request: NextRequest) {
     }
 
     // Verificar se existe configuração do Abacate Pay
-    const { data: existingConfig } = await supabase
+    const { data: existingConfig } = await getSupabaseAdmin()
       .from('payment_methods_config')
       .select('*')
       .eq('method_name', 'abacate_pay')
@@ -34,7 +29,7 @@ export async function PUT(request: NextRequest) {
         use_external_system: useExternalSystem
       }
 
-      result = await supabase
+      result = await getSupabaseAdmin()
         .from('payment_methods_config')
         .update({
           config_data: updatedConfigData,
@@ -54,7 +49,7 @@ export async function PUT(request: NextRequest) {
         use_external_system: useExternalSystem
       }
 
-      result = await supabase
+      result = await getSupabaseAdmin()
         .from('payment_methods_config')
         .insert({
           method_name: 'abacate_pay',

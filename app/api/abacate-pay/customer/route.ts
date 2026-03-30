@@ -1,11 +1,5 @@
+import { getSupabaseAdmin } from '@/lib/supabase'
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@supabase/supabase-js'
-
-// Usar service role key para operações administrativas
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-)
 
 // Interface para o cliente do Abacate Pay
 interface AbacatePayCustomer {
@@ -45,7 +39,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Primeiro, verificar se o cliente já existe no nosso banco
-    const { data: existingCustomer } = await supabase
+    const { data: existingCustomer } = await getSupabaseAdmin()
       .from('abacate_pay_customers')
       .select('*')
       .eq('email', email)
@@ -84,7 +78,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Salvar cliente no nosso banco de dados
-    const { data: savedCustomer, error: saveError } = await supabase
+    const { data: savedCustomer, error: saveError } = await getSupabaseAdmin()
       .from('abacate_pay_customers')
       .insert({
         abacate_customer_id: abacateCustomer.customer.id,
@@ -131,7 +125,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Buscar cliente no nosso banco primeiro
-    const { data: localCustomer } = await supabase
+    const { data: localCustomer } = await getSupabaseAdmin()
       .from('abacate_pay_customers')
       .select('*')
       .eq('email', email)
@@ -169,7 +163,7 @@ export async function GET(request: NextRequest) {
 
     if (customer) {
       // Salvar cliente encontrado no nosso banco
-      await supabase
+      await getSupabaseAdmin()
         .from('abacate_pay_customers')
         .insert({
           abacate_customer_id: customer.id,

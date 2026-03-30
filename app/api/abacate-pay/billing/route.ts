@@ -1,5 +1,5 @@
+import { getSupabaseAdmin } from '@/lib/supabase'
 import { NextRequest, NextResponse } from 'next/server'
-import { supabase } from '@/lib/supabase'
 
 interface BillingProduct {
   externalId: string
@@ -87,7 +87,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Get Abacate Pay configuration
-    const { data: config, error: configError } = await supabase
+    const { data: config, error: configError } = await getSupabaseAdmin()
       .from('payment_methods')
       .select('config')
       .eq('provider', 'abacate_pay')
@@ -155,7 +155,7 @@ export async function POST(request: NextRequest) {
     const billingResponse: BillingResponse = await response.json()
 
     // Store billing information in database for tracking
-    const { error: storeError } = await supabase
+    const { error: storeError } = await getSupabaseAdmin()
       .from('payment_transactions')
       .insert({
         user_id: null, // Will be updated when we know the user
@@ -190,7 +190,7 @@ export async function POST(request: NextRequest) {
 export async function GET(request: NextRequest) {
   try {
     // Get Abacate Pay configuration
-    const { data: config, error: configError } = await supabase
+    const { data: config, error: configError } = await getSupabaseAdmin()
       .from('payment_methods')
       .select('config')
       .eq('provider', 'abacate_pay')

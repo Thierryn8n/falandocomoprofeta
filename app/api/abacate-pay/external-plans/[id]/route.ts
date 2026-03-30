@@ -1,10 +1,5 @@
+import { getSupabaseAdmin } from '@/lib/supabase'
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@supabase/supabase-js'
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-)
 
 interface ExternalPlan {
   id?: string
@@ -71,7 +66,7 @@ export async function PUT(
 
     // Atualizar metadados de UI se fornecidos
     if (body.ui_config) {
-      const currentPlan = await supabase
+      const currentPlan = await getSupabaseAdmin()
         .from('external_payment_links')
         .select('metadata')
         .eq('id', id)
@@ -87,7 +82,7 @@ export async function PUT(
     // Atualizar timestamp
     updateData.updated_at = new Date().toISOString()
 
-    const { data: updatedPlan, error } = await supabase
+    const { data: updatedPlan, error } = await getSupabaseAdmin()
       .from('external_payment_links')
       .update(updateData)
       .eq('id', id)
@@ -139,7 +134,7 @@ export async function DELETE(
     }
 
     // Verificar se o plano existe antes de deletar
-    const { data: existingPlan, error: checkError } = await supabase
+    const { data: existingPlan, error: checkError } = await getSupabaseAdmin()
       .from('external_payment_links')
       .select('id, name')
       .eq('id', id)
@@ -153,7 +148,7 @@ export async function DELETE(
     }
 
     // Deletar o plano
-    const { error } = await supabase
+    const { error } = await getSupabaseAdmin()
       .from('external_payment_links')
       .delete()
       .eq('id', id)
@@ -195,7 +190,7 @@ export async function GET(
       )
     }
 
-    const { data: plan, error } = await supabase
+    const { data: plan, error } = await getSupabaseAdmin()
       .from('external_payment_links')
       .select('*')
       .eq('id', id)
