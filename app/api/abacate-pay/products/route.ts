@@ -2,12 +2,11 @@ import { getSupabaseAdmin } from '@/lib/supabase'
 import { NextRequest, NextResponse } from 'next/server'
 import { createAbacatePayProduct, listAbacatePayProducts, AbacatePayProduct } from '@/lib/abacate-pay'
 
-// Usar service role key para operações administrativas
-const supabase = getSupabaseAdmin()
-
 // GET - Listar produtos do Abacate Pay
 export async function GET() {
   try {
+    const supabase = getSupabaseAdmin()
+    
     // Buscar configuração do Abacate Pay
     const { data: configData, error: configError } = await supabase
       .from('payment_methods_config')
