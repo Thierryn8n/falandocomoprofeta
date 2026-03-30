@@ -18,7 +18,27 @@ export function createClient() {
   return clientInstance
 }
 
-// Types
+// Admin client with service role (lazy initialization)
+let adminClientInstance: ReturnType<typeof createSupabaseClient> | null = null
+
+export function getSupabaseAdmin() {
+  if (typeof window !== 'undefined') {
+    throw new Error('getSupabaseAdmin should only be used on server side')
+  }
+  
+  if (!adminClientInstance) {
+    const serviceUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || supabaseUrl
+    const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+    
+    if (!serviceKey) {
+      throw new Error('SUPABASE_SERVICE_ROLE_KEY is required')
+    }
+    
+    adminClientInstance = createSupabaseClient(serviceUrl, serviceKey)
+  }
+  
+  return adminClientInstance
+}
 export interface Profile {
   id: string
   email: string

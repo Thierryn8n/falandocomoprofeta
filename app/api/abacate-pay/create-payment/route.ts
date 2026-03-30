@@ -1,11 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@supabase/supabase-js'
-
-// Usar service role key para operações administrativas
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-)
+import { getSupabaseAdmin } from '@/lib/supabase'
 
 export async function POST(request: NextRequest) {
   try {
@@ -19,7 +13,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Verificar se o usuário existe e obter informações completas
-    const { data: user, error: userError } = await supabase
+    const { data: user, error: userError } = await getSupabaseAdmin()
       .from('profiles')
       .select('id, email, name')
       .eq('id', userId)
@@ -63,7 +57,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Salvar transação no banco de dados com status pending
-    const { data: transaction, error: transactionError } = await supabase
+    const { data: transaction, error: transactionError } = await getSupabaseAdmin()
       .from('payment_transactions')
       .insert({
         user_id: userId,
@@ -121,7 +115,7 @@ async function createAbacatePayBilling({
 }) {
   try {
     // Buscar informações do produto no banco de dados
-    const { data: productData, error: productError } = await supabase
+    const { data: productData, error: productError } = await getSupabaseAdmin()
       .from('abacate_pay_products')
       .select('*')
       .eq('plan_type', planType)
