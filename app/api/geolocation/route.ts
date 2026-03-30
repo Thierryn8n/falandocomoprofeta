@@ -1,5 +1,12 @@
-import { getSupabaseAdmin } from '@/lib/supabase'
 import { NextRequest, NextResponse } from 'next/server'
+import { supabase } from '@/lib/supabase'
+import { createClient } from '@supabase/supabase-js'
+
+// Create service role client for server-side operations (bypasses RLS)
+const supabaseService = createClient(
+  process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || '',
+  process.env.SUPABASE_SERVICE_ROLE_KEY || ''
+)
 
 // Interface para dados de geolocalização
 interface GeolocationData {
@@ -131,7 +138,7 @@ export async function POST(request: NextRequest) {
     }
     
     // Verificar se já temos dados para este IP
-    const { data: existingData, error: checkError } = await getSupabaseAdmin()
+    const { data: existingData, error: checkError } = await getSupabaseAdmin()Service
       .from('ip_geolocation')
       .select('*')
       .eq('ip_address', clientIP)
@@ -159,7 +166,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Inserir dados no banco
-    const { data: insertedData, error: insertError } = await getSupabaseAdmin()
+    const { data: insertedData, error: insertError } = await getSupabaseAdmin()Service
       .from('ip_geolocation')
       .insert({
         ip_address: geoData.ip,
@@ -204,8 +211,7 @@ export async function GET(request: NextRequest) {
     const groupBy = searchParams.get('group_by') || 'country' // country, region, city
 
     // Build query with date filters - simplified without join
-    const supabase = getSupabaseAdmin()
-    let query = supabase
+    let query = supabaseService
       .from('ip_geolocation')
       .select('*')
 

@@ -3,9 +3,6 @@ import { NextRequest, NextResponse } from 'next/server'
 
 export async function POST(request: NextRequest) {
   try {
-    // Create Supabase client inside function to avoid build-time errors
-    const supabaseAdmin = getSupabaseAdmin()
-    
     const { monthly, yearly, lifetime } = await request.json()
 
     console.log('Received prices:', { monthly, yearly, lifetime })
@@ -44,7 +41,7 @@ export async function POST(request: NextRequest) {
     for (const plan of planUpdates) {
       console.log(`Updating plan: ${plan.plan_type} with price: ${plan.price}`)
       
-      const { data, error } = await supabaseAdmin
+      const { data, error } = await getSupabaseAdmin()
         .from('subscription_plans')
         .upsert({
           plan_type: plan.plan_type,

@@ -96,7 +96,7 @@ export async function POST(request: NextRequest) {
       console.log("📝 Updating existing conversation:", conversation_id)
       console.log("🎵 Audio URL to save:", audio_url)
       
-      const { data: updateData, error: updateError } = await getSupabaseAdmin()
+      const { data: updateData, error: updateError } = await getSupabaseAdmin()Service
         .from("conversations")
         .update({
           messages: validMessages,
@@ -126,7 +126,7 @@ export async function POST(request: NextRequest) {
       const newConversationId = crypto.randomUUID()
       finalConversationId = newConversationId
 
-      const { data: insertData, error: insertError } = await getSupabaseAdmin()
+      const { data: insertData, error: insertError } = await getSupabaseAdmin()Service
         .from("conversations")
         .insert({
           id: newConversationId,
@@ -152,7 +152,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Verify the save was successful
-    const { data: verifyData, error: verifyError } = await getSupabaseAdmin()
+    const { data: verifyData, error: verifyError } = await getSupabaseAdmin()Service
       .from("conversations")
       .select("id, messages")
       .eq("id", finalConversationId)
@@ -200,7 +200,7 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    const { data: conversations, error } = await getSupabaseAdmin()
+    const { data: conversations, error } = await getSupabaseAdmin()Service
       .from("conversations")
       .select("*")
       .eq("user_id", user_id)
