@@ -6,9 +6,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
-import { RadioStation, Play, Pause, Settings } from 'lucide-react'
+import { RadioTower, Play, Pause, Settings } from 'lucide-react'
 
-export default function RadioConfig() {
+export function RadioConfig() {
   const [isLive, setIsLive] = useState(false)
   const [currentTrack, setCurrentTrack] = useState('')
   const [volume, setVolume] = useState(75)
