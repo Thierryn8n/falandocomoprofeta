@@ -1,11 +1,6 @@
-import { createClient } from '@supabase/supabase-js'
+import { getSupabaseAdmin } from '@/lib/supabase'
 import { NextRequest } from 'next/server'
 import { v4 as uuidv4 } from 'uuid'
-
-const supabase = createClient(
-  process.env.SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-)
 
 const SYSTEM_PROMPT = `Você é um assistente especializado em estudos bíblicos, com profundo conhecimento das Escrituras e dos ensinamentos do Profeta William Marrion Branham.
 
@@ -308,13 +303,13 @@ export async function POST(req: NextRequest) {
     let prophetContext = ''
     if (relevantDocuments && relevantDocuments.length > 0) {
       prophetContext += '\n\n=== MENSAGENS DO PROFETA RELEVANTES (ANÁLISE COMPLETA) ===\n'
-      prophetContext += `Total de mensagens relevantes: ${relevantDocuments.length}\n\n`
+      prophetContext += `Total de mensagens relevantes: ${relevantDocuments.length}\n\n'
       
       relevantDocuments.forEach((doc, index) => {
         prophetContext += `--- MENSAGEM ${index + 1}: "${doc.title}" ---\n`
         prophetContext += `Relevância: ${doc.relevanceScore} pontos\n`
         prophetContext += `Matches: ${doc.matchDetails.join('; ')}\n`
-        prophetContext += `\nCONTEÚDO COMPLETO COM NUMERAÇÃO DE PARÁGRAFOS:\n`
+        prophetContext += `\nCONTEÚDO COMPLETO COM NUMERAÇÃO DE PARÁGRAFOS:\n'
         
         // Add paragraph numbering
         const paragraphs = doc.content.split(/\n\s*\n|\n{2,}/).filter((p: string) => p.trim().length > 0)
