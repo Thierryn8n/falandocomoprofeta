@@ -16,7 +16,7 @@ export async function POST(request: NextRequest) {
     console.log('PIX webhook received:', { paymentId, status, transactionId })
 
     // Find the transaction in our database
-    const { data: transaction, error: fetchError } = await supabase
+    const { data: transaction, error: fetchError } = await getSupabaseAdmin()
       .from('payment_transactions')
       .select('*')
       .eq('payment_id', paymentId)
@@ -31,7 +31,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Update transaction status
-    const { error: updateError } = await supabase
+    const { error: updateError } = await getSupabaseAdmin()
       .from('payment_transactions')
       .update({
         status: status === 'approved' ? 'completed' : 'failed',
@@ -53,7 +53,7 @@ export async function POST(request: NextRequest) {
         // Add tokens for custom payment
         const tokensToAdd = Math.floor(transaction.amount / 1) // 1 token per R$1
         
-        const { error: tokenError } = await supabase
+        const { error: tokenError } = await getSupabaseAdmin()
           .from('profiles')
           .update({
             tokens: supabase.raw(`tokens + ${tokensToAdd}`),
@@ -75,7 +75,7 @@ export async function POST(request: NextRequest) {
           updated_at: new Date().toISOString()
         }
 
-        const { error: subscriptionError } = await supabase
+        const { error: subscriptionError } = await getSupabaseAdmin()
           .from('user_subscriptions')
           .upsert(subscriptionData, {
             onConflict: 'user_id'

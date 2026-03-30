@@ -4,18 +4,18 @@ import { supabase } from '@/lib/supabase'
 export async function GET(request: NextRequest) {
   try {
     // Get total users count
-    const { count: totalUsers } = await supabase
+    const { count: totalUsers } = await getSupabaseAdmin()
       .from('profiles')
       .select('*', { count: 'exact', head: true })
 
     // Get active subscriptions count
-    const { count: activeSubscriptions } = await supabase
+    const { count: activeSubscriptions } = await getSupabaseAdmin()
       .from('user_subscriptions')
       .select('*', { count: 'exact', head: true })
       .eq('status', 'active')
 
     // Get total revenue from completed transactions
-    const { data: revenueData } = await supabase
+    const { data: revenueData } = await getSupabaseAdmin()
       .from('payment_transactions')
       .select('amount')
       .eq('status', 'completed')
@@ -23,7 +23,7 @@ export async function GET(request: NextRequest) {
     const totalRevenue = revenueData?.reduce((sum, transaction) => sum + transaction.amount, 0) || 0
 
     // Get pending payments count
-    const { count: pendingPayments } = await supabase
+    const { count: pendingPayments } = await getSupabaseAdmin()
       .from('payment_transactions')
       .select('*', { count: 'exact', head: true })
       .eq('status', 'pending')

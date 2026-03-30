@@ -4,7 +4,7 @@ import { supabase } from "@/lib/supabase"
 export async function POST(request: NextRequest) {
   try {
     // Clean old sessions (older than 5 minutes)
-    const { error } = await supabase.rpc("clean_old_sessions")
+    const { error } = await getSupabaseAdmin().rpc("clean_old_sessions")
 
     if (error) {
       console.error("Error cleaning sessions:", error)
@@ -21,7 +21,7 @@ export async function POST(request: NextRequest) {
 export async function GET() {
   try {
     // Get current online users count
-    const { data: onlineUsers, error } = await supabase
+    const { data: onlineUsers, error } = await getSupabaseAdmin()
       .from("user_sessions")
       .select("id")
       .gte("last_activity", new Date(Date.now() - 30 * 1000).toISOString())

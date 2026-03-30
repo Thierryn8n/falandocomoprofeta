@@ -4,7 +4,7 @@ import { supabase } from '@/lib/supabase'
 export async function GET(request: NextRequest) {
   try {
     // Get recent transactions with user email
-    const { data: transactions, error } = await supabase
+    const { data: transactions, error } = await getSupabaseAdmin()
       .from('payment_transactions')
       .select(`
         id,

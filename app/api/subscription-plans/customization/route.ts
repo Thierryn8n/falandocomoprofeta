@@ -16,7 +16,7 @@ export async function PUT(request: NextRequest) {
     const updatePromises = Object.entries(cardCustomization).map(async ([planType, customization]) => {
       const custom = customization as { title?: string; description?: string; color?: string }
       
-      const { error } = await supabase
+      const { error } = await getSupabaseAdmin()
         .from('subscription_plans')
         .update({ 
           card_title: custom.title || null,

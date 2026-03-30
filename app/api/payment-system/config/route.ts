@@ -11,7 +11,7 @@ interface PaymentSystemConfig {
 
 export async function GET() {
   try {
-    const { data: config, error } = await supabase
+    const { data: config, error } = await getSupabaseAdmin()
       .from('payment_system_config')
       .select('*')
       .single()
@@ -72,7 +72,7 @@ export async function POST(request: NextRequest) {
     console.log('💾 [PAYMENT CONFIG API] Prepared data for upsert:', JSON.stringify(configData, null, 2))
 
     // First, check if there's an existing record
-    const { data: existingRecord } = await supabase
+    const { data: existingRecord } = await getSupabaseAdmin()
       .from('payment_system_config')
       .select('id')
       .limit(1)
@@ -82,7 +82,7 @@ export async function POST(request: NextRequest) {
 
     if (existingRecord) {
       // Update existing record
-      const result = await supabase
+      const result = await getSupabaseAdmin()
         .from('payment_system_config')
         .update(configData)
         .eq('id', existingRecord.id)
@@ -93,7 +93,7 @@ export async function POST(request: NextRequest) {
       error = result.error
     } else {
       // Insert new record
-      const result = await supabase
+      const result = await getSupabaseAdmin()
         .from('payment_system_config')
         .insert(configData)
         .select()

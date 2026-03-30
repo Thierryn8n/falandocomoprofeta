@@ -8,7 +8,7 @@ export async function GET(request: NextRequest) {
     // 1. Usuários online (últimos 30 minutos) - EXCLUINDO ADMINISTRADORES
     const thirtyMinutesAgo = new Date(Date.now() - 30 * 60 * 1000).toISOString()
     
-    const { data: onlineUsersData, error: onlineError } = await supabase
+    const { data: onlineUsersData, error: onlineError } = await getSupabaseAdmin()
       .from("user_sessions")
       .select(`
         id,
@@ -31,7 +31,7 @@ export async function GET(request: NextRequest) {
     const todayStart = new Date()
     todayStart.setHours(0, 0, 0, 0)
     
-    const { data: todayVisitsData, error: todayError } = await supabase
+    const { data: todayVisitsData, error: todayError } = await getSupabaseAdmin()
       .from("site_visits")
       .select(`
         id,
@@ -51,7 +51,7 @@ export async function GET(request: NextRequest) {
     console.log(`📅 [METRICS API] Today visits (excluding admins): ${todayVisits}`)
 
     // 3. Total de visitas (desde o início) - EXCLUINDO ADMINISTRADORES
-    const { data: totalVisitsData, error: totalError } = await supabase
+    const { data: totalVisitsData, error: totalError } = await getSupabaseAdmin()
       .from("site_visits")
       .select(`
         id,
@@ -114,7 +114,7 @@ export async function POST(request: NextRequest) {
     // Limpar sessões mais antigas que 1 hora
     const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString()
     
-    const { error } = await supabase
+    const { error } = await getSupabaseAdmin()
       .from("user_sessions")
       .delete()
       .lt("last_activity", oneHourAgo)

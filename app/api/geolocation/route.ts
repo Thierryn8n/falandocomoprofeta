@@ -106,13 +106,13 @@ export async function POST(request: NextRequest) {
         const token = authHeader.replace('Bearer ', '')
         
         // Verificar o usuário usando o token
-        const { data: { user }, error: authError } = await supabase.auth.getUser(token)
+        const { data: { user }, error: authError } = await getSupabaseAdmin().auth.getUser(token)
         
         if (!authError && user) {
           userId = user.id
           
           // Verificar se o usuário é admin
-          const { data: profile, error: profileError } = await supabase
+          const { data: profile, error: profileError } = await getSupabaseAdmin()
             .from('profiles')
             .select('role')
             .eq('id', user.id)
@@ -138,7 +138,7 @@ export async function POST(request: NextRequest) {
     }
     
     // Verificar se já temos dados para este IP
-    const { data: existingData, error: checkError } = await supabaseService
+    const { data: existingData, error: checkError } = await getSupabaseAdmin()Service
       .from('ip_geolocation')
       .select('*')
       .eq('ip_address', clientIP)
@@ -166,7 +166,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Inserir dados no banco
-    const { data: insertedData, error: insertError } = await supabaseService
+    const { data: insertedData, error: insertError } = await getSupabaseAdmin()Service
       .from('ip_geolocation')
       .insert({
         ip_address: geoData.ip,
