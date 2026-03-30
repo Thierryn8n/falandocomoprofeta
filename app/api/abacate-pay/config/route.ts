@@ -1,11 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 
-// Usar service role key para operações administrativas
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-)
+// Função para criar cliente Supabase com service role
+function getSupabaseAdmin() {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+  
+  if (!supabaseUrl || !supabaseServiceKey) {
+    throw new Error('Missing Supabase environment variables')
+  }
+  
+  return createClient(supabaseUrl, supabaseServiceKey)
+}
 
 // Interface para configuração do Abacate Pay
 interface AbacatePayConfig {
@@ -22,7 +28,7 @@ interface AbacatePayConfig {
 export async function GET() {
   try {
     // Buscar configuração do Abacate Pay no banco
-    const { data: config, error } = await supabase
+    const { data: config, error } = await getSupabaseAdmin()
       .from('payment_methods_config')
       .select('config_data, is_enabled')
       .eq('method_name', 'abacate_pay')
@@ -94,7 +100,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Verificar se já existe configuração
-    const { data: existingConfig } = await supabase
+    const { data: existingConfig } = await getSupabaseAdmin()
       .from('payment_methods_config')
       .select('id')
       .eq('method_name', 'abacate_pay')
@@ -102,7 +108,7 @@ export async function POST(request: NextRequest) {
 
     if (existingConfig) {
       // Atualizar configuração existente
-      const { error: updateError } = await supabase
+      const { error: updateError } = await getSupabaseAdmin()
         .from('payment_methods_config')
         .update({
           config_data: configData,
@@ -120,7 +126,7 @@ export async function POST(request: NextRequest) {
       }
     } else {
       // Criar nova configuração
-      const { error: insertError } = await supabase
+      const { error: insertError } = await getSupabaseAdmin()
         .from('payment_methods_config')
         .insert({
           method_name: 'abacate_pay',
