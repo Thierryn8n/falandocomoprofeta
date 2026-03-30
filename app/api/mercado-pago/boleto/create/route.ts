@@ -54,7 +54,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Buscar configurações do Mercado Pago
-    const { data: config, error: configError } = await supabase
+    const { data: config, error: configError } = await getSupabaseAdmin()
       .from('mercado_pago_settings')
       .select('*')
       .single()
@@ -123,7 +123,7 @@ export async function POST(request: NextRequest) {
     const paymentResult = await mpResponse.json()
 
     // Salvar no banco de dados
-    const { data: savedPayment, error: saveError } = await supabase
+    const { data: savedPayment, error: saveError } = await getSupabaseAdmin()
       .from('mercado_pago_boleto_payments')
       .insert({
         payment_id: paymentResult.id.toString(),

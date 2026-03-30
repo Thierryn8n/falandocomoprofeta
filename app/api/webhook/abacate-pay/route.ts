@@ -94,7 +94,7 @@ export async function POST(request: NextRequest) {
 async function handleBillingPaid(event: BillingPaidEvent, supabase: any) {
   try {
     // Registra a transação de pagamento
-    const { error } = await supabase
+    const { error } = await getSupabaseAdmin()
       .from('payment_transactions')
       .insert({
         transaction_id: event.data.pixQrCode.id,
@@ -127,7 +127,7 @@ async function handleBillingPaid(event: BillingPaidEvent, supabase: any) {
 async function handleWithdrawDone(event: WithdrawEvent, supabase: any) {
   try {
     // Registra a transação de saque concluído
-    const { error } = await supabase
+    const { error } = await getSupabaseAdmin()
       .from('payment_transactions')
       .insert({
         transaction_id: event.data.transaction.id,
@@ -158,7 +158,7 @@ async function handleWithdrawDone(event: WithdrawEvent, supabase: any) {
 async function handleWithdrawFailed(event: WithdrawEvent, supabase: any) {
   try {
     // Registra a transação de saque falhado
-    const { error } = await supabase
+    const { error } = await getSupabaseAdmin()
       .from('payment_transactions')
       .insert({
         transaction_id: event.data.transaction.id,

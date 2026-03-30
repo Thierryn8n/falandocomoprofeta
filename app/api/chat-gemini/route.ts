@@ -68,7 +68,7 @@ export async function POST(req: NextRequest) {
         const fileName = `audio_${Date.now()}_${Math.random().toString(36).substring(7)}.${fileExtension}`
         const filePath = `audio/${fileName}`
         
-        const { data: uploadData, error: uploadError } = await supabase.storage
+        const { data: uploadData, error: uploadError } = await getSupabaseAdmin().storage
           .from('attachments')
           .upload(filePath, arrayBuffer, {
             contentType: 'audio/webm',
@@ -186,7 +186,7 @@ export async function POST(req: NextRequest) {
 
       // Buscar documentos relevantes na base de dados (igual à API principal)
       console.log("🔍 Buscando documentos relevantes na base de dados...")
-      const { data: relevantDocuments, error: searchError } = await supabase
+      const { data: relevantDocuments, error: searchError } = await getSupabaseAdmin()
         .from('prophet_messages')
         .select('*')
         .textSearch('content', transcribedText, { 

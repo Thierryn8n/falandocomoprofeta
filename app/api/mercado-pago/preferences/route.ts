@@ -5,7 +5,7 @@ export async function GET() {
   try {
     const supabase = createClient()
     
-    const { data: preferences, error } = await supabase
+    const { data: preferences, error } = await getSupabaseAdmin()
       .from('mercado_pago_preferences')
       .select('*')
       .order('created_at', { ascending: false })
@@ -43,7 +43,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Buscar configuração do Mercado Pago
-    const { data: config } = await supabase
+    const { data: config } = await getSupabaseAdmin()
       .from('mercado_pago_config')
       .select('access_token, test_mode')
       .single()
@@ -100,7 +100,7 @@ export async function POST(request: NextRequest) {
     const mpPreference = await mpResponse.json()
 
     // Salvar no banco de dados
-    const { data, error } = await supabase
+    const { data, error } = await getSupabaseAdmin()
       .from('mercado_pago_preferences')
       .insert({
         mp_preference_id: mpPreference.id,
@@ -165,7 +165,7 @@ export async function PUT(request: NextRequest) {
       )
     }
 
-    const { data, error } = await supabase
+    const { data, error } = await getSupabaseAdmin()
       .from('mercado_pago_preferences')
       .update({
         title: preference.title,
@@ -211,7 +211,7 @@ export async function DELETE(request: NextRequest) {
 
     const supabase = createClient()
 
-    const { error } = await supabase
+    const { error } = await getSupabaseAdmin()
       .from('mercado_pago_preferences')
       .delete()
       .eq('id', preferenceId)

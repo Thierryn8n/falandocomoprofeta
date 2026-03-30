@@ -6,7 +6,7 @@ export async function GET() {
     const supabase = createClient()
 
     // Buscar todas as transações do Mercado Pago
-    const { data: transactions, error: transactionsError } = await supabase
+    const { data: transactions, error: transactionsError } = await getSupabaseAdmin()
       .from('mercado_pago_transactions')
       .select('*')
       .order('created_at', { ascending: false })

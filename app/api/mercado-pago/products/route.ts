@@ -5,7 +5,7 @@ export async function GET() {
   try {
     const supabase = createClient()
     
-    const { data: products, error } = await supabase
+    const { data: products, error } = await getSupabaseAdmin()
       .from('mercado_pago_products')
       .select('*')
       .order('created_at', { ascending: false })
@@ -42,7 +42,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const { data, error } = await supabase
+    const { data, error } = await getSupabaseAdmin()
       .from('mercado_pago_products')
       .insert({
         title: product.title,
@@ -95,7 +95,7 @@ export async function PUT(request: NextRequest) {
       )
     }
 
-    const { data, error } = await supabase
+    const { data, error } = await getSupabaseAdmin()
       .from('mercado_pago_products')
       .update({
         title: product.title,
@@ -137,7 +137,7 @@ export async function DELETE(request: NextRequest) {
 
     const supabase = createClient()
 
-    const { error } = await supabase
+    const { error } = await getSupabaseAdmin()
       .from('mercado_pago_products')
       .delete()
       .eq('id', productId)

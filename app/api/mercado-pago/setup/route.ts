@@ -109,7 +109,7 @@ export async function POST(request: NextRequest) {
     `
 
     // Executar o SQL
-    const { error: sqlError } = await supabase.rpc('exec_sql', { 
+    const { error: sqlError } = await getSupabaseAdmin().rpc('exec_sql', { 
       sql_query: createTablesSQL 
     })
 
@@ -122,7 +122,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Verificar se as tabelas foram criadas
-    const { data: tables, error: checkError } = await supabase
+    const { data: tables, error: checkError } = await getSupabaseAdmin()
       .from('information_schema.tables')
       .select('table_name')
       .in('table_name', [
@@ -136,13 +136,13 @@ export async function POST(request: NextRequest) {
     }
 
     // Inserir configuração padrão do sistema de pagamento se não existir
-    const { data: existingConfig } = await supabase
+    const { data: existingConfig } = await getSupabaseAdmin()
       .from('payment_system_config')
       .select('id')
       .limit(1)
 
     if (!existingConfig || existingConfig.length === 0) {
-      const { error: configError } = await supabase
+      const { error: configError } = await getSupabaseAdmin()
         .from('payment_system_config')
         .insert({
           active_system: 'abacate_pay',
@@ -156,7 +156,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Inserir produtos de exemplo
-    const { data: existingProducts } = await supabase
+    const { data: existingProducts } = await getSupabaseAdmin()
       .from('mercado_pago_products')
       .select('id')
       .limit(1)
@@ -181,7 +181,7 @@ export async function POST(request: NextRequest) {
         }
       ]
 
-      const { error: productsError } = await supabase
+      const { error: productsError } = await getSupabaseAdmin()
         .from('mercado_pago_products')
         .insert(sampleProducts)
 

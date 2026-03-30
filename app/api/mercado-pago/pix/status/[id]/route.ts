@@ -1,10 +1,5 @@
+import { getSupabaseAdmin } from '@/lib/supabase'
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@supabase/supabase-js'
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-)
 
 export async function GET(
   request: NextRequest,
@@ -21,7 +16,7 @@ export async function GET(
     }
 
     // Buscar configurações do Mercado Pago
-    const { data: config, error: configError } = await supabase
+    const { data: config, error: configError } = await getSupabaseAdmin()
       .from('mercado_pago_settings')
       .select('*')
       .single()
@@ -61,7 +56,7 @@ export async function GET(
     const paymentResult = await mpResponse.json()
 
     // Atualizar status no banco de dados
-    const { error: updateError } = await supabase
+    const { error: updateError } = await getSupabaseAdmin()
       .from('mercado_pago_pix_payments')
       .update({
         status: paymentResult.status,

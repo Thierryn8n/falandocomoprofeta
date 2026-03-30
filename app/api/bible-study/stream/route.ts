@@ -119,7 +119,7 @@ async function analyzeDocumentsForPanel(panelTitle: string, panelDescription: st
     console.log("🔍 Panel theme:", panelTheme)
 
     // Get ALL processed documents from database
-    const { data: allDocuments, error } = await supabase
+    const { data: allDocuments, error } = await getSupabaseAdmin()
       .from("documents")
       .select("id, title, content, type, file_url, created_at, updated_at")
       .eq("status", "processed")
@@ -265,7 +265,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Get panel information
-    const { data: panel, error: panelError } = await supabase
+    const { data: panel, error: panelError } = await getSupabaseAdmin()
       .from('bible_study_panels')
       .select('*')
       .eq('id', panelId)
@@ -276,7 +276,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Get existing cards and connections for context
-    const { data: existingCards } = await supabase
+    const { data: existingCards } = await getSupabaseAdmin()
       .from('study_cards')
       .select('*')
       .eq('panel_id', panelId)
@@ -496,7 +496,7 @@ RESPOSTA OBRIGATÓRIA EM FORMATO JSON:
             const cardData = studyContent.cards[i]
             
             // Create card with smart positioning and numbering
-            const { data: savedCard, error } = await supabase
+            const { data: savedCard, error } = await getSupabaseAdmin()
               .from('study_cards')
               .insert({
                 panel_id: panelId,
@@ -541,7 +541,7 @@ RESPOSTA OBRIGATÓRIA EM FORMATO JSON:
               const toCard = savedCards.find(c => c.title === connData.to_card_title)
               
               if (fromCard && toCard) {
-                const { data: savedConn, error } = await supabase
+                const { data: savedConn, error } = await getSupabaseAdmin()
                   .from('card_connections')
                   .insert({
                     panel_id: panelId,

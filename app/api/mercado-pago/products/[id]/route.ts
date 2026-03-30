@@ -32,7 +32,7 @@ export async function PUT(
       )
     }
 
-    const { data, error } = await supabase
+    const { data, error } = await getSupabaseAdmin()
       .from('mercado_pago_products')
       .update({
         title: product.title,
@@ -82,7 +82,7 @@ export async function DELETE(
       )
     }
 
-    const { error } = await supabase
+    const { error } = await getSupabaseAdmin()
       .from('mercado_pago_products')
       .delete()
       .eq('id', productId)

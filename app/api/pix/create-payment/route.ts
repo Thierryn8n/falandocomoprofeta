@@ -28,7 +28,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Get user data
-    const { data: user, error: userError } = await supabase
+    const { data: user, error: userError } = await getSupabaseAdmin()
       .from('profiles')
       .select('*')
       .eq('id', userId)
@@ -54,7 +54,7 @@ export async function POST(request: NextRequest) {
     })
 
     // Save transaction to database
-    const { data: transaction, error: transactionError } = await supabase
+    const { data: transaction, error: transactionError } = await getSupabaseAdmin()
       .from('payment_transactions')
       .insert({
         user_id: userId,

@@ -5,7 +5,7 @@ export async function GET() {
   try {
     const supabase = createClient()
     
-    const { data, error } = await supabase
+    const { data, error } = await getSupabaseAdmin()
       .from('mercado_pago_config')
       .select('*')
       .single()
@@ -86,7 +86,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Verificar se já existe configuração
-    const { data: existingConfig } = await supabase
+    const { data: existingConfig } = await getSupabaseAdmin()
       .from('mercado_pago_config')
       .select('id')
       .single()
@@ -94,7 +94,7 @@ export async function POST(request: NextRequest) {
     let result
     if (existingConfig) {
       // Atualizar configuração existente
-      result = await supabase
+      result = await getSupabaseAdmin()
         .from('mercado_pago_config')
         .update({
           access_token,
@@ -109,7 +109,7 @@ export async function POST(request: NextRequest) {
         .eq('id', existingConfig.id)
     } else {
       // Criar nova configuração
-      result = await supabase
+      result = await getSupabaseAdmin()
         .from('mercado_pago_config')
         .insert({
           access_token,
@@ -128,7 +128,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Atualizar tabela de configuração de sistemas de pagamento
-    await supabase
+    await getSupabaseAdmin()
       .from('payment_system_config')
       .upsert({
         system_name: 'mercado_pago',

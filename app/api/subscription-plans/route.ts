@@ -10,7 +10,7 @@ const supabase = createClient(supabaseUrl, supabaseServiceKey)
 export async function GET() {
   try {
     
-    const { data: plans, error } = await supabase
+    const { data: plans, error } = await getSupabaseAdmin()
       .from('subscription_plans')
       .select('*')
       .eq('is_active', true)
@@ -41,7 +41,7 @@ export async function PUT(request: Request) {
     console.log('PUT Request received:', { planType, price })
     
     // Verificar se o plano existe antes de atualizar
-    const { data: existingPlan, error: checkError } = await supabase
+    const { data: existingPlan, error: checkError } = await getSupabaseAdmin()
       .from('subscription_plans')
       .select('*')
       .eq('plan_type', planType)
@@ -57,7 +57,7 @@ export async function PUT(request: Request) {
     
     console.log('Existing plan found:', existingPlan)
 
-    const { data, error } = await supabase
+    const { data, error } = await getSupabaseAdmin()
       .from('subscription_plans')
       .update({ 
         price: parseFloat(price)

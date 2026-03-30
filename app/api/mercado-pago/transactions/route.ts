@@ -5,7 +5,7 @@ export async function GET() {
   try {
     const supabase = createClient()
     
-    const { data: transactions, error } = await supabase
+    const { data: transactions, error } = await getSupabaseAdmin()
       .from('mercado_pago_transactions')
       .select('*')
       .order('created_at', { ascending: false })
@@ -35,7 +35,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const { data, error } = await supabase
+    const { data, error } = await getSupabaseAdmin()
       .from('mercado_pago_transactions')
       .insert({
         mp_payment_id: transaction.payment_id,
@@ -79,7 +79,7 @@ export async function PUT(request: NextRequest) {
       )
     }
 
-    const { data, error } = await supabase
+    const { data, error } = await getSupabaseAdmin()
       .from('mercado_pago_transactions')
       .update({
         status: transaction.status,

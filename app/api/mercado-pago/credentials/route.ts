@@ -9,7 +9,7 @@ const supabase = createClient(
 
 // Função para verificar se o usuário é admin
 async function isUserAdmin(userId: string): Promise<boolean> {
-  const { data, error } = await supabase
+  const { data, error } = await getSupabaseAdmin()
     .from('profiles')
     .select('role')
     .eq('id', userId)
@@ -31,7 +31,7 @@ async function getUserFromToken(request: NextRequest) {
   }
 
   const token = authHeader.substring(7)
-  const { data: { user }, error } = await supabase.auth.getUser(token)
+  const { data: { user }, error } = await getSupabaseAdmin().auth.getUser(token)
   
   if (error || !user) {
     return null
@@ -55,7 +55,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Buscar credenciais ativas de produção
-    const { data: credentials, error } = await supabase
+    const { data: credentials, error } = await getSupabaseAdmin()
       .from('mercado_pago_credentials')
       .select('*')
       .eq('is_active', true)
@@ -131,13 +131,13 @@ export async function POST(request: NextRequest) {
     })
 
     // Desativar credenciais existentes
-    await supabase
+    await getSupabaseAdmin()
       .from('mercado_pago_credentials')
       .update({ active: false })
       .eq('environment', 'production')
 
     // Inserir novas credenciais
-    const { data, error } = await supabase
+    const { data, error } = await getSupabaseAdmin()
       .from('mercado_pago_credentials')
       .insert({
         public_key_encrypted: encryptedCredentials.publicKey,
@@ -192,14 +192,14 @@ export async function PUT(request: NextRequest) {
     }
 
     const token = authHeader.replace('Bearer ', '')
-    const { data: { user }, error: authError } = await supabase.auth.getUser(token)
+    const { data: { user }, error: authError } = await getSupabaseAdmin().auth.getUser(token)
     
     if (authError || !user) {
       return NextResponse.json({ error: 'Token inválido' }, { status: 401 })
     }
 
     // Verificar se o usuário é admin
-    const { data: profile, error: profileError } = await supabase
+    const { data: profile, error: profileError } = await getSupabaseAdmin()
       .from('profiles')
       .select('role')
       .eq('id', user.id)
@@ -218,7 +218,7 @@ export async function PUT(request: NextRequest) {
     }
 
     // Atualizar credenciais ativas
-    const { data, error } = await supabase
+    const { data, error } = await getSupabaseAdmin()
       .from('mercado_pago_credentials')
       .update(encryptedCredentials)
       .eq('environment', 'production')

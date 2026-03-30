@@ -9,7 +9,7 @@ const supabase = createClient(
 export async function GET(request: NextRequest) {
   try {
     // Buscar pagamentos PIX recentes do banco de dados
-    const { data: payments, error } = await supabase
+    const { data: payments, error } = await getSupabaseAdmin()
       .from('mercado_pago_pix_payments')
       .select('*')
       .order('created_at', { ascending: false })

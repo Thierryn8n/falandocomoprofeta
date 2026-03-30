@@ -19,7 +19,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Get transaction from database
-    const { data: transaction, error: transactionError } = await supabase
+    const { data: transaction, error: transactionError } = await getSupabaseAdmin()
       .from('payment_transactions')
       .select('*')
       .eq('payment_intent_id', paymentId)
@@ -57,7 +57,7 @@ export async function POST(request: NextRequest) {
     // If payment is completed, update transaction and add tokens/subscription
     if (pixPayment.status === 'paid') {
       // Update transaction status
-      const { error: updateError } = await supabase
+      const { error: updateError } = await getSupabaseAdmin()
         .from('payment_transactions')
         .update({
           status: 'completed',
@@ -76,7 +76,7 @@ export async function POST(request: NextRequest) {
       // Handle different plan types
       if (transaction.plan_type === 'custom') {
         // Add tokens for custom plans
-        const { error: tokenError } = await supabase
+        const { error: tokenError } = await getSupabaseAdmin()
           .rpc('add_user_tokens', {
             p_user_id: userId,
             p_amount: transaction.tokens_amount,
@@ -102,7 +102,7 @@ export async function POST(request: NextRequest) {
             : null
 
           // Create or update subscription
-          const { error: subscriptionError } = await supabase
+          const { error: subscriptionError } = await getSupabaseAdmin()
             .from('user_subscriptions')
             .upsert({
               user_id: userId,
@@ -119,7 +119,7 @@ export async function POST(request: NextRequest) {
 
           // Add tokens if applicable
           if (config.tokens) {
-            const { error: tokenError } = await supabase
+            const { error: tokenError } = await getSupabaseAdmin()
               .rpc('add_user_tokens', {
                 p_user_id: userId,
                 p_amount: config.tokens,

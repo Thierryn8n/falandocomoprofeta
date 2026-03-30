@@ -92,7 +92,7 @@ export async function POST() {
       CREATE POLICY "Users can delete own study interactions" ON study_interactions FOR DELETE USING (auth.uid() = user_id);
     `
 
-    const { error } = await supabase.rpc('exec_sql', { sql_query: sql })
+    const { error } = await getSupabaseAdmin().rpc('exec_sql', { sql_query: sql })
     
     if (error) {
       console.error('Setup error:', error)

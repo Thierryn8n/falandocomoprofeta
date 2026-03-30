@@ -21,7 +21,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Buscar configuração do Mercado Pago
-    const { data: config } = await supabase
+    const { data: config } = await getSupabaseAdmin()
       .from('mercado_pago_config')
       .select('access_token')
       .single()
@@ -48,7 +48,7 @@ export async function POST(request: NextRequest) {
     const paymentData = await paymentResponse.json()
 
     // Verificar se a transação já existe
-    const { data: existingTransaction } = await supabase
+    const { data: existingTransaction } = await getSupabaseAdmin()
       .from('mercado_pago_transactions')
       .select('id')
       .eq('mp_payment_id', paymentId.toString())
@@ -84,7 +84,7 @@ export async function POST(request: NextRequest) {
     let result
     if (existingTransaction) {
       // Atualizar transação existente
-      result = await supabase
+      result = await getSupabaseAdmin()
         .from('mercado_pago_transactions')
         .update({
           ...transactionData,
@@ -95,7 +95,7 @@ export async function POST(request: NextRequest) {
         .single()
     } else {
       // Criar nova transação
-      result = await supabase
+      result = await getSupabaseAdmin()
         .from('mercado_pago_transactions')
         .insert(transactionData)
         .select()

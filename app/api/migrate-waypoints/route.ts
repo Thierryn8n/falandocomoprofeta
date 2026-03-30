@@ -47,7 +47,7 @@ export async function POST() {
       end $$;
     `
 
-    const { error } = await supabase.rpc('exec_sql', { sql_query: sql })
+    const { error } = await getSupabaseAdmin().rpc('exec_sql', { sql_query: sql })
     
     if (error) {
       console.error('Migration error:', error)

@@ -6,7 +6,7 @@ export async function GET() {
     const supabase = createClient()
     
     // Buscar configuração do sistema de pagamento
-    const { data: paymentConfig, error: paymentError } = await supabase
+    const { data: paymentConfig, error: paymentError } = await getSupabaseAdmin()
       .from('payment_system_config')
       .select('*')
       .single()
@@ -27,14 +27,14 @@ export async function GET() {
 
     if (activeSystem === 'abacate_pay' && abacatePayEnabled) {
       // Buscar configuração do Abacate Pay
-      const { data: abacateConfig } = await supabase
+      const { data: abacateConfig } = await getSupabaseAdmin()
         .from('abacate_pay_config')
         .select('*')
         .single()
 
       // Buscar planos do Abacate Pay
       if (abacateConfig?.use_external_system) {
-        const { data: externalPlans } = await supabase
+        const { data: externalPlans } = await getSupabaseAdmin()
           .from('external_payment_links')
           .select('*')
           .eq('status', 'active')
@@ -42,7 +42,7 @@ export async function GET() {
         
         plans = externalPlans || []
       } else {
-        const { data: internalPlans } = await supabase
+        const { data: internalPlans } = await getSupabaseAdmin()
           .from('abacate_pay_products')
           .select('*')
           .eq('status', 'active')
@@ -58,13 +58,13 @@ export async function GET() {
       }
     } else if (activeSystem === 'mercado_pago' && mercadoPagoEnabled) {
       // Buscar configuração do Mercado Pago
-      const { data: mpConfig } = await supabase
+      const { data: mpConfig } = await getSupabaseAdmin()
         .from('mercado_pago_config')
         .select('*')
         .single()
 
       // Buscar produtos do Mercado Pago
-      const { data: mpProducts } = await supabase
+      const { data: mpProducts } = await getSupabaseAdmin()
         .from('mercado_pago_products')
         .select('*')
         .eq('status', 'active')
