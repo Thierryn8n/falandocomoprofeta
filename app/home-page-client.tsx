@@ -181,6 +181,7 @@ export default function HomePageClient() {
             onSelectConversation={handleSelectConversation}
             onNewConversation={handleNewConversation}
             user={user}
+            profile={profile}
             appConfig={{ appName, logo, prophetName, prophetAvatar }}
             onClose={() => {}}
             onToggle={() => setSidebarCollapsed(!sidebarCollapsed)}
@@ -199,6 +200,7 @@ export default function HomePageClient() {
               onSelectConversation={handleSelectConversation}
               onNewConversation={handleNewConversation}
               user={user}
+            profile={profile}
               appConfig={{ appName, logo, prophetName, prophetAvatar }}
               onClose={() => setSidebarOpen(false)}
               onToggle={() => {}}
@@ -304,6 +306,7 @@ export default function HomePageClient() {
               conversationId={currentConversationId}
               onConversationUpdate={loadConversations}
               user={user}
+            profile={profile}
               appConfig={{ appName, prophetName, prophetAvatar }}
             />
           </div>

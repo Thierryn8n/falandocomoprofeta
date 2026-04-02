@@ -48,6 +48,10 @@ interface ChatSidebarProps {
   onNewConversation: () => void
   onDeleteConversation?: (conversationId: string) => void
   user: UserType | null
+  profile?: {
+    avatar_url?: string
+    full_name?: string
+  } | null
   appConfig: {
     appName: string
     logo: string
@@ -67,6 +71,7 @@ export function ChatSidebar({
   onSelectConversation,
   onNewConversation,
   onDeleteConversation,
+  profile,
   user,
   appConfig,
   onToggle,
@@ -220,13 +225,13 @@ export function ChatSidebar({
             <CardContent className="p-3">
               <div className="flex items-center gap-3">
                 <Avatar className="h-8 w-8">
-                  <AvatarImage src={user?.avatar_url || "/placeholder.svg"} />
+                  <AvatarImage src={profile?.avatar_url || user?.avatar_url || "/placeholder.svg"} />
                   <AvatarFallback className="bg-primary/10 text-primary">
                     <User className="h-4 w-4" />
                   </AvatarFallback>
                 </Avatar>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium truncate">{user?.name || user?.email?.split("@")[0]}</p>
+                  <p className="text-sm font-medium truncate">{profile?.full_name || user?.name || user?.email?.split("@")[0]}</p>
                   <p className="text-xs text-muted-foreground truncate">{user.email}</p>
                 </div>
                 {isAdmin && (
