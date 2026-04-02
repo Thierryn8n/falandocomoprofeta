@@ -1,5 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server"
-import { supabase } from "@/lib/supabase"
+import { supabase, getSupabaseAdmin } from "@/lib/supabase"
 
 export const maxDuration = 30
 
