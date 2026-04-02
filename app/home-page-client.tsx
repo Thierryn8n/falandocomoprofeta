@@ -181,7 +181,7 @@ export default function HomePageClient() {
             onSelectConversation={handleSelectConversation}
             onNewConversation={handleNewConversation}
             user={user}
-            appConfig={{ appName, logo, prophetName }}
+            appConfig={{ appName, logo, prophetName, prophetAvatar }}
             onClose={() => {}}
             onToggle={() => setSidebarCollapsed(!sidebarCollapsed)}
             isOpen={!sidebarCollapsed}
@@ -199,7 +199,7 @@ export default function HomePageClient() {
               onSelectConversation={handleSelectConversation}
               onNewConversation={handleNewConversation}
               user={user}
-              appConfig={{ appName, logo, prophetName }}
+              appConfig={{ appName, logo, prophetName, prophetAvatar }}
               onClose={() => setSidebarOpen(false)}
               onToggle={() => {}}
               isOpen={true}
@@ -262,24 +262,24 @@ export default function HomePageClient() {
                 <DropdownMenuTrigger asChild>
                   <Button variant="ghost" className="h-9 px-2 gap-2 hover:bg-muted/50">
                     <Avatar className="h-6 w-6">
-                      <AvatarImage src={profile?.avatar_url || "/placeholder.svg"} alt={profile?.name || user.email} />
+                      <AvatarImage src={profile?.avatar_url || "/placeholder.svg"} alt={profile?.full_name || user.email} />
                       <AvatarFallback className="text-xs">
-                        {(profile?.name || user.email || "U").charAt(0).toUpperCase()}
+                        {(profile?.full_name || user.email || "U").charAt(0).toUpperCase()}
                       </AvatarFallback>
                     </Avatar>
                     <span className="text-sm font-medium hidden sm:inline-block max-w-32 truncate">
-                      {profile?.name || user.email?.split("@")[0]}
+                      {profile?.full_name || user.email?.split("@")[0]}
                     </span>
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-56">
                   <div className="flex items-center gap-2 p-2">
                     <Avatar className="h-8 w-8">
-                      <AvatarImage src={profile?.avatar_url || "/placeholder.svg"} alt={profile?.name || user.email} />
-                      <AvatarFallback>{(profile?.name || user.email || "U").charAt(0).toUpperCase()}</AvatarFallback>
+                      <AvatarImage src={profile?.avatar_url || "/placeholder.svg"} alt={profile?.full_name || user.email} />
+                      <AvatarFallback>{(profile?.full_name || user.email || "U").charAt(0).toUpperCase()}</AvatarFallback>
                     </Avatar>
                     <div className="flex flex-col space-y-1">
-                      <p className="text-sm font-medium leading-none">{profile?.name || user.email?.split("@")[0]}</p>
+                      <p className="text-sm font-medium leading-none">{profile?.full_name || user.email?.split("@")[0]}</p>
                       <p className="text-xs leading-none text-muted-foreground">{user.email}</p>
                     </div>
                   </div>
