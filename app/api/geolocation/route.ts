@@ -138,7 +138,7 @@ export async function POST(request: NextRequest) {
     }
     
     // Verificar se já temos dados para este IP
-    const { data: existingData, error: checkError } = await getSupabaseAdmin()
+    const { data: existingData, error: checkError } = await supabaseService
       .from('ip_geolocation')
       .select('*')
       .eq('ip_address', clientIP)
@@ -166,7 +166,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Inserir dados no banco
-    const { data: insertedData, error: insertError } = await getSupabaseAdmin()
+    const { data: insertedData, error: insertError } = await supabaseService
       .from('ip_geolocation')
       .insert({
         ip_address: geoData.ip,
