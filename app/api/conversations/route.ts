@@ -45,7 +45,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Verify user exists
-    const { data: userProfile, error: userError } = await getSupabaseAdmin()
+    const { data: userProfile, error: userError } = await supabaseService
       .from("profiles")
       .select("id, email")
       .eq("id", user_id)
@@ -96,7 +96,7 @@ export async function POST(request: NextRequest) {
       console.log("📝 Updating existing conversation:", conversation_id)
       console.log("🎵 Audio URL to save:", audio_url)
       
-      const { data: updateData, error: updateError } = await getSupabaseAdmin()
+      const { data: updateData, error: updateError } = await supabaseService
         .from("conversations")
         .update({
           messages: validMessages,
@@ -126,7 +126,7 @@ export async function POST(request: NextRequest) {
       const newConversationId = crypto.randomUUID()
       finalConversationId = newConversationId
 
-      const { data: insertData, error: insertError } = await getSupabaseAdmin()
+      const { data: insertData, error: insertError } = await supabaseService
         .from("conversations")
         .insert({
           id: newConversationId,
@@ -152,7 +152,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Verify the save was successful
-    const { data: verifyData, error: verifyError } = await getSupabaseAdmin()
+    const { data: verifyData, error: verifyError } = await supabaseService
       .from("conversations")
       .select("id, messages")
       .eq("id", finalConversationId)
@@ -200,7 +200,7 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    const { data: conversations, error } = await getSupabaseAdmin()
+    const { data: conversations, error } = await supabaseService
       .from("conversations")
       .select("*")
       .eq("user_id", user_id)
