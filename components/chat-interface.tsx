@@ -1013,10 +1013,14 @@ export function ChatInterface({ conversationId, onConversationUpdate, user, appC
       ctx.fillText(`Compartilhado via ${appConfig.appName || "Falando com o Profeta"}`, padding + 20, currentY + 12)
       
       // Converter canvas para blob
-      const blob = await new Promise<Blob>((resolve) => {
-        canvas.toBlob((blob) => {
-          resolve(blob!)
-        }, 'image/png', 0.9)
+      const blob: Blob = await new Promise((resolve) => {
+        canvas.toBlob(
+          (blob) => {
+            resolve(blob!)
+          },
+          'image/png',
+          0.9
+        )
       })
       
       // Criar arquivo para compartilhamento
