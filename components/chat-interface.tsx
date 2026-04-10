@@ -1374,9 +1374,7 @@ export function ChatInterface({ conversationId, onConversationUpdate, user, appC
             src={appConfig.prophetAvatar} 
             alt={appConfig.prophetName}
             onLoad={() => console.log("✅ Prophet welcome avatar loaded:", appConfig.prophetAvatar)}
-            onError={() => 
-              console.error("❌ Failed to load prophet welcome avatar:", appConfig.prophetAvatar)
-            }
+            onError={() => console.error("❌ Failed to load prophet welcome avatar:", appConfig.prophetAvatar)}
           />
           <AvatarFallback>WB</AvatarFallback>
         </Avatar>
