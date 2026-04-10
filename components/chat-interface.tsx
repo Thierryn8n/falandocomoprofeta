@@ -1389,7 +1389,7 @@ export function ChatInterface({ conversationId, onConversationUpdate, user, appC
         </AlertDescription>
       </Alert>
     </div>
-  )
+  );
 
   return (
     <div className="flex flex-col h-full">
