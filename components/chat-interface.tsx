@@ -175,32 +175,32 @@ export function ChatInterface({ conversationId, onConversationUpdate, user, appC
     })
   }, [messages])
 
-   const getUserGreeting = () => {
-     if (!profile?.name && !user?.email) {
-       return "Bem-vindo, irmão/irmã!"
-     }
+  const getUserGreeting = () => {
+    if (!profile?.name && !user?.email) {
+      return "Bem-vindo, irmão/irmã!"
+    }
 
-     const name = profile?.name || user?.email?.split("@")[0] || "irmão/irmã"
+    const name = profile?.name || user?.email?.split("@")[0] || "irmão/irmã"
 
-     if (!name || name === "irmão/irmã") {
-       return "Bem-vindo, irmão/irmã!"
-     }
+    if (!name || name === "irmão/irmã") {
+      return "Bem-vindo, irmão/irmã!"
+    }
 
-     const feminineIndicators = [
-       "maria",
-       "ana",
-       "joana",
-       "helena",
-       "lucia",
-     ]
+    const feminineIndicators = [
+      "maria",
+      "ana",
+      "joana",
+      "helena",
+      "lucia",
+    ]
 
-     const lowerName = name.toLowerCase()
-     const isFeminine = lowerName.endsWith("a") || feminineIndicators.some((indicator) => lowerName.includes(indicator))
-     const greeting = isFeminine ? "irmã" : "irmão"
-     const firstName = name.split(" ")[0]
+    const lowerName = name.toLowerCase()
+    const isFeminine = lowerName.endsWith("a") || feminineIndicators.some((indicator) => lowerName.includes(indicator))
+    const greeting = isFeminine ? "irmã" : "irmão"
+    const firstName = name.split(" ")[0]
 
-     return `Bem-vindo, ${greeting} ${firstName}!`
-   }
+    return `Bem-vindo, ${greeting} ${firstName}!`
+  }
 
   const { 
     canChat, 
@@ -1362,36 +1362,34 @@ export function ChatInterface({ conversationId, onConversationUpdate, user, appC
     }
   }
 
-  if (!user) {
-    return (
-      <div className="flex flex-col items-center justify-center h-full p-8 text-center">
-        <div className="mb-6">
-          <Avatar className="w-20 h-20 mx-auto mb-4">
-            <AvatarImage 
-              src={appConfig.prophetAvatar} 
-              alt={appConfig.prophetName}
-              onLoad={() => console.log("✅ Prophet welcome avatar loaded:", appConfig.prophetAvatar)}
-              onError={() => 
-                console.error("❌ Failed to load prophet welcome avatar:", appConfig.prophetAvatar)
-              }
-            />
-            <AvatarFallback>WB</AvatarFallback>
-          </Avatar>
-          <h2 className="text-xl font-semibold mb-2">Bem-vindo ao {appConfig.appName}</h2>
-          <p className="text-muted-foreground mb-4">
-            Eu sou William Marrion Branham, servo do Senhor Jesus Cristo. Faça sua pergunta sobre a Palavra de Deus
-            e eu responderei conforme o Espírito Santo me guiar.
-          </p>
-        </div>
-        <Alert>
-          <AlertCircle className="h-4 w-4" />
-          <AlertDescription>
-            <p>⚠️ Faça login para salvar suas conversas</p>
-          </AlertDescription>
-        </Alert>
+  if (!user) return (
+    <div className="flex flex-col items-center justify-center h-full p-8 text-center">
+      <div className="mb-6">
+        <Avatar className="w-20 h-20 mx-auto mb-4">
+          <AvatarImage 
+            src={appConfig.prophetAvatar} 
+            alt={appConfig.prophetName}
+            onLoad={() => console.log("✅ Prophet welcome avatar loaded:", appConfig.prophetAvatar)}
+            onError={() => 
+              console.error("❌ Failed to load prophet welcome avatar:", appConfig.prophetAvatar)
+            }
+          />
+          <AvatarFallback>WB</AvatarFallback>
+        </Avatar>
+        <h2 className="text-xl font-semibold mb-2">Bem-vindo ao {appConfig.appName}</h2>
+        <p className="text-muted-foreground mb-4">
+          Eu sou William Marrion Branham, servo do Senhor Jesus Cristo. Faça sua pergunta sobre a Palavra de Deus
+          e eu responderei conforme o Espírito Santo me guiar.
+        </p>
       </div>
-    )
-  }
+      <Alert>
+        <AlertCircle className="h-4 w-4" />
+        <AlertDescription>
+          <p>⚠️ Faça login para salvar suas conversas</p>
+        </AlertDescription>
+      </Alert>
+    </div>
+  )
 
   return (
     <div className="flex flex-col h-full">
