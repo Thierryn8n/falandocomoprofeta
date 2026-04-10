@@ -1083,8 +1083,6 @@ export function ChatInterface({ conversationId, onConversationUpdate, user, appC
       
       const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(shareText)}`
       window.open(whatsappUrl, '_blank')
-    } catch (error) {
-      console.error('Erro ao compartilhar mensagem:', error)
     }
   }
 
