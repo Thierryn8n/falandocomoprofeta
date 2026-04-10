@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Card, CardContent } from "@/components/ui/card"
+import { Progress } from "@/components/ui/progress"
 import { Send, Loader2, AlertCircle, BookOpen, Copy, Share2, ChevronDown, ChevronUp, Book } from "lucide-react"
 import { supabase } from "@/lib/supabase"
 import { Alert, AlertDescription } from "@/components/ui/alert"
@@ -48,6 +49,25 @@ export function ChatInterface({ conversationId, onConversationUpdate, user, appC
   const [expandedVerses, setExpandedVerses] = useState<{ [key: string]: boolean }>({})
   const [verseTexts, setVerseTexts] = useState<{ [key: string]: string }>({})
   const [isRecordingActive, setIsRecordingActive] = useState(false)
+  const [progress, setProgress] = useState(0)
+
+  // Animar progresso durante o carregamento
+  useEffect(() => {
+    if (isLoading) {
+      setProgress(0)
+      const interval = setInterval(() => {
+        setProgress(prev => {
+          if (prev >= 90) return 90 // Manter em 90% até completar
+          return prev + Math.random() * 10
+        })
+      }, 500)
+      
+      return () => clearInterval(interval)
+    } else {
+      setProgress(100) // Completar quando terminar
+      setTimeout(() => setProgress(0), 500) // Resetar após 500ms
+    }
+  }, [isLoading])
 
   // Base de dados local de versículos bíblicos em português
   const localBibleDatabase = [
@@ -395,6 +415,7 @@ export function ChatInterface({ conversationId, onConversationUpdate, user, appC
           messages: newMessages,
           conversationId: conversationId,
           userId: user?.id || "anonymous",
+          userName: profile?.name || user?.email?.split('@')[0] || 'irmão/irmã',
         }),
       })
 
@@ -471,6 +492,7 @@ export function ChatInterface({ conversationId, onConversationUpdate, user, appC
       
       const formData = new FormData()
       formData.append('audio', audioBlob, 'recording.wav')
+      formData.append('userName', profile?.name || user?.email?.split('@')[0] || 'irmão/irmã')
       
       const audioUrl = URL.createObjectURL(audioBlob)
       const userMessageId = crypto.randomUUID()
@@ -1220,6 +1242,13 @@ export function ChatInterface({ conversationId, onConversationUpdate, user, appC
     
     // Padrões mais abrangentes para capturar diferentes formatos de versículos
     const versePatterns = [
+      // Padrão genérico para capturar qualquer formato de capítulo:versículo (primeiro para capturar o mais amplo)
+      /(\d+\s+\w+\s+\d+:\d+(?:-\d+)?)/g,
+      /(\w+\s+\d+:\d+(?:-\d+)?)/g,
+      /(\d+:\d+(?:-\d+)?)/g,
+      // NOVO: Formato com asteriscos: **1 Timóteo 2:9-10**
+      /(\*\*\d+\s+\w+\s+\d+:\d+(?:-\d+)?\*\*)/g,
+      /(\*\*\w+\s+\d+:\d+(?:-\d+)?\*\*)/g,
       // Formato: 2:17-18: "texto"
       /(\d+:\d+(?:-\d+)?:\s*"[^"]+?")/g,
       // Formato: Em 1 Timóteo 2:12, está escrito: "texto"
@@ -1271,12 +1300,15 @@ export function ChatInterface({ conversationId, onConversationUpdate, user, appC
         // Usar um ID baseado no índice da mensagem e contador para ser consistente
          const verseId = `verse_${messageIndex}_${verseCounter++}`
          
+         // Remover asteriscos do texto do versículo
+         const cleanVerseText = match.replace(/\*\*/g, '')
+         
          // Se não tem texto (aspas), adicionar à lista para buscar
-         if (!match.includes('"')) {
-           versesToFetch.push({ id: verseId, text: match })
+         if (!cleanVerseText.includes('"')) {
+           versesToFetch.push({ id: verseId, text: cleanVerseText })
          }
          
-        return `{{VERSE:${verseId}:${match}}}`
+        return `{{VERSE:${verseId}:${cleanVerseText}}}`
       })
     })
     
@@ -1463,13 +1495,29 @@ export function ChatInterface({ conversationId, onConversationUpdate, user, appC
                                                       ...prev,
                                                       [verseId]: fullVerseText
                                                     }))
+                                                  } else {
+                                                    // Se não encontrou na API, explicar que não é um versículo válido
+                                                    setVerseTexts(prev => ({
+                                                      ...prev,
+                                                      [verseId]: `"${verseText}" - Esta referência não foi encontrada como um versículo bíblico válido.`
+                                                    }))
                                                   }
+                                                } else {
+                                                  // Se a API retornou erro, explicar que não é um versículo válido
+                                                  setVerseTexts(prev => ({
+                                                    ...prev,
+                                                    [verseId]: `"${verseText}" - Esta referência não foi encontrada como um versículo bíblico válido.`
+                                                  }))
                                                 }
                                               } catch (error) {
                                                 console.error('❌ Erro ao buscar versículo:', error)
+                                                // Se não encontrou na API, explicar que não é um versículo válido
+                                                setVerseTexts(prev => ({
+                                                  ...prev,
+                                                  [verseId]: `"${verseText}" - Esta referência não foi encontrada como um versículo bíblico válido.`
+                                                }))
                                               }
                                             }
-                                          }
                                         
                                         setExpandedVerses(prev => {
                                           const newState = {
@@ -1562,8 +1610,7 @@ export function ChatInterface({ conversationId, onConversationUpdate, user, appC
                                 if (message.role === "assistant" && index > 0) {
                                   const previousMessage = messages[index - 1]
                                   if (previousMessage.role === "user") {
-                                    const { cleanContent: userCleanContent } = processMessageContent(previousMessage.content)
-                                    userQuestion = userCleanContent
+                                    userQuestion = previousMessage.content
                                   }
                                 }
                                 shareMessage(cleanContent, allReferences, userQuestion)
@@ -1762,6 +1809,9 @@ export function ChatInterface({ conversationId, onConversationUpdate, user, appC
                       <Loader2 className="w-4 h-4 animate-spin" />
                       <span className="text-sm">O profeta está meditando na Palavra...</span>
                     </div>
+                    {isLoading && (
+                      <Progress value={progress} className="w-full mt-2" />
+                    )}
                   </CardContent>
                 </Card>
               </div>

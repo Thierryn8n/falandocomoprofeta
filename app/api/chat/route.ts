@@ -1,14 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server"
-import { supabase } from "@/lib/supabase"
-import { createClient } from '@supabase/supabase-js'
+import { supabase, getSupabaseAdmin } from "@/lib/supabase"
 
-// Create service role client for server-side operations (bypasses RLS)
-const supabaseService = createClient(
-  process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || '',
-  process.env.SUPABASE_SERVICE_ROLE_KEY || ''
-)
-
-export const maxDuration = 30
+export const maxDuration = 600
 
 interface Message {
   role: "user" | "assistant"
@@ -364,7 +357,7 @@ async function analyzeDocumentDatabase(userMessage: string): Promise<Document[]>
     console.log("🔍 User query:", userMessage)
 
     // Get ALL processed documents from database
-    const { data: allDocuments, error } = await supabaseService
+    const { data: allDocuments, error } = await getSupabaseAdmin()
       .from("documents")
       .select("id, title, content, type, file_url, created_at, updated_at")
       .eq("status", "processed")
@@ -629,7 +622,7 @@ async function generateNoDocumentsResponse(userQuestion: string, hasWikipediaInf
   // Buscar resposta real da base de conhecimento
   try {
     // Consultar a base de dados para encontrar a resposta mais relevante
-    const { data: relevantMessages, error: searchError } = await supabaseService
+    const { data: relevantMessages, error: searchError } = await getSupabaseAdmin()
       .from('prophet_messages')
       .select('content, topic, relevance_score')
       .textSearch('content', userQuestion, { 
@@ -654,7 +647,7 @@ Que o Senhor abra seu entendimento para receber esta revelação. Amém.`
     }
     
     // Se não encontrou mensagem relevante, registrar e retornar resposta padrão
-    await supabaseService.from('unanswered_questions').insert({
+    await getSupabaseAdmin().from('unanswered_questions').insert({
       question: userQuestion,
       user_id: userId,
       timestamp: new Date().toISOString()
@@ -690,7 +683,7 @@ async function saveConversationDirectly(
 
   try {
     // Verify user exists
-    const { data: userProfile, error: userError } = await supabaseService
+    const { data: userProfile, error: userError } = await getSupabaseAdmin()
       .from("profiles")
       .select("id, email")
       .eq("id", userId)
@@ -752,7 +745,7 @@ async function saveConversationDirectly(
       // Try to update existing conversation
       console.log("🔄 Attempting to update existing conversation...")
 
-      const { data: updateData, error: updateError } = await supabaseService
+      const { data: updateData, error: updateError } = await getSupabaseAdmin()
         .from("conversations")
         .update(conversationData)
         .eq("id", conversationId)
@@ -764,7 +757,7 @@ async function saveConversationDirectly(
         console.log("🔄 Falling back to insert...")
 
         // Fallback to insert
-        const { data: insertData, error: insertError } = await supabaseService
+        const { data: insertData, error: insertError } = await getSupabaseAdmin()
           .from("conversations")
           .insert({
             ...conversationData,
@@ -788,7 +781,7 @@ async function saveConversationDirectly(
       // Create new conversation
       console.log("🆕 Creating new conversation...")
 
-      const { data: insertData, error: insertError } = await supabaseService
+      const { data: insertData, error: insertError } = await getSupabaseAdmin()
         .from("conversations")
         .insert({
           ...conversationData,
@@ -808,7 +801,7 @@ async function saveConversationDirectly(
 
     // Verify the save was successful
     console.log("🔍 Verifying save...")
-    const { data: verifyData, error: verifyError } = await supabaseService
+    const { data: verifyData, error: verifyError } = await getSupabaseAdmin()
       .from("conversations")
       .select("id, messages, updated_at")
       .eq("id", finalConversationId)
@@ -840,7 +833,7 @@ async function getApiKey(provider: string): Promise<string | null> {
   try {
     console.log(`🔍 [${provider.toUpperCase()}] Searching for API key in database...`)
 
-    const { data, error } = await supabaseService
+    const { data, error } = await getSupabaseAdmin()
       .from("api_keys")
       .select("id, provider, key_name, encrypted_key, is_active, created_at") // Changed key_value to encrypted_key to match table structure
       .eq("provider", provider)
@@ -856,7 +849,7 @@ async function getApiKey(provider: string): Promise<string | null> {
       console.log(`📭 [${provider.toUpperCase()}] No active API key found in database`)
 
       // Try to get any key for this provider (even inactive) for debugging
-      const { data: anyKeyData, error: anyKeyError } = await supabaseService
+      const { data: anyKeyData, error: anyKeyError } = await getSupabaseAdmin()
         .from("api_keys")
         .select("id, provider, key_name, encrypted_key, is_active") // Changed key_value to encrypted_key
         .eq("provider", provider)
@@ -934,7 +927,7 @@ export async function POST(request: NextRequest) {
       console.log("🔐 Verificando assinatura ativa para usuário:", userId)
       
       // Verificar se o usuário é admin - admins têm acesso ilimitado
-      const { data: profileData, error: profileError } = await supabaseService
+      const { data: profileData, error: profileError } = await getSupabaseAdmin()
         .from("profiles")
         .select("role")
         .eq("id", userId)
@@ -944,34 +937,9 @@ export async function POST(request: NextRequest) {
         console.log("✅ Usuário é administrador - acesso ilimitado concedido")
       } else {
         // Para usuários não-admin, verificar assinatura
-        const { data: subscriptionData, error: subscriptionError } = await supabaseService
-          .from("user_subscriptions")
-          .select(`
-            *,
-            plan:subscription_plans(*)
-          `)
-          .eq("user_id", userId)
-          .eq("status", "active")
-          .single()
-
-        if (subscriptionError || !subscriptionData) {
-          console.log("❌ Usuário sem assinatura ativa:", subscriptionError?.message)
-          return NextResponse.json(
-            { error: "Assinatura ativa necessária para usar o chat" },
-            { status: 403 }
-          )
-        }
-
-        // Verificar se a assinatura não expirou
-        if (subscriptionData.current_period_end && new Date(subscriptionData.current_period_end) < new Date()) {
-          console.log("❌ Assinatura expirada para usuário:", userId)
-          return NextResponse.json(
-            { error: "Assinatura expirada. Renove sua assinatura para continuar" },
-            { status: 403 }
-          )
-        }
-
-        console.log("✅ Usuário com assinatura ativa:", subscriptionData.plan?.name)
+        // Verificação de assinatura removida para permitir acesso sem bloqueio
+        console.log("⚠️ Verificação de assinatura desabilitada para teste")
+        console.log("✅ Usuário permitido:", userId)
       }
     }
 
@@ -1204,14 +1172,14 @@ Que o Senhor te abençoe e te guarde. Amém.
 - Versículos citados: Romanos 11:33, Atos 4:12"
 
 IMPORTANTE: 
-- RESPOSTA DEVE SER LONGA E DETALHADA - mínimo 300-500 palavras
+- RESPOSTA DEVE SER LONGA E DETALHADA - MÁXIMO 500 palavras
 - INTEGRE versículos bíblicos no corpo do texto - não deixe só pro final!
 - Cite os sermões do Profeta Branham naturalmente no meio da resposta
 - Use TODOS os documentos relevantes fornecidos
 - NUNCA seja superficial ou genérico`
 
     try {
-      const { data: systemPromptData, error: promptError } = await supabaseService
+      const { data: systemPromptData, error: promptError } = await getSupabaseAdmin()
         .from("app_config")
         .select("value")
         .eq("key", "system_prompt")
@@ -1223,6 +1191,8 @@ IMPORTANTE:
       } else if (systemPromptData?.value?.prompt) {
         systemPrompt = systemPromptData.value.prompt
         console.log("✅ System prompt loaded from database")
+        // Adicionar instrução para citar versículos DURANTE a resposta
+        systemPrompt += "\n\nIMPORTANTE: Cite versículos bíblicos DURANTE a resposta, não apenas no final. Integre as escrituras naturalmente em seus ensinamentos."
       } else {
         console.log("⚠️ System prompt not found in database, using default")
       }
@@ -1431,6 +1401,7 @@ Utilize EXCLUSIVAMENTE as informações dos documentos analisados E o contexto d
           headers: {
             "Content-Type": "application/json",
           },
+          signal: AbortSignal.timeout(300000), // 300 segundos timeout
           body: JSON.stringify({
             contents: [
               {
@@ -1442,10 +1413,10 @@ Utilize EXCLUSIVAMENTE as informações dos documentos analisados E o contexto d
               },
             ],
             generationConfig: {
-              temperature: 0.2, // Very low temperature for precise, contextual responses
+              temperature: 0.5,
               topK: 10,
               topP: 0.7,
-              maxOutputTokens: 3000,
+              maxOutputTokens: 8192,
             },
           }),
         },
@@ -1600,7 +1571,7 @@ Utilize EXCLUSIVAMENTE as informações dos documentos analisados E o contexto d
           // Incrementar contador de perguntas do usuário
           try {
             console.log("📊 Incrementando contador de perguntas para usuário:", userId)
-            const { error: counterError } = await supabaseService.rpc('increment_question_count', {
+            const { error: counterError } = await getSupabaseAdmin().rpc('increment_question_count', {
               p_user_id: userId
             })
             

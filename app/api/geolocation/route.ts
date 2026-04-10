@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { supabase } from '@/lib/supabase'
+import { supabase, getSupabaseAdmin } from '@/lib/supabase'
 import { createClient } from '@supabase/supabase-js'
 
 // Create service role client for server-side operations (bypasses RLS)
@@ -138,7 +138,7 @@ export async function POST(request: NextRequest) {
     }
     
     // Verificar se já temos dados para este IP
-    const { data: existingData, error: checkError } = await supabaseService
+    const { data: existingData, error: checkError } = await getSupabaseAdmin()
       .from('ip_geolocation')
       .select('*')
       .eq('ip_address', clientIP)
@@ -166,7 +166,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Inserir dados no banco
-    const { data: insertedData, error: insertError } = await supabaseService
+    const { data: insertedData, error: insertError } = await getSupabaseAdmin()
       .from('ip_geolocation')
       .insert({
         ip_address: geoData.ip,

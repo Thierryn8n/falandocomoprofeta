@@ -1,14 +1,42 @@
 import type { NextRequest } from "next/server"
 import { NextResponse } from "next/server"
 import { createClient } from '@supabase/supabase-js'
+import { getSupabaseAdmin } from '@/lib/supabase'
 import { filterHeresyInTranscription, logHeresyDetection } from '@/lib/heresy-filter'
 
-export const maxDuration = 30
+export const maxDuration = 600
 
 // Initialize Supabase client
 const supabaseUrl = process.env.SUPABASE_URL!
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!
 const supabase = createClient(supabaseUrl, supabaseServiceKey)
+
+// Função para detectar gênero do usuário
+const detectGender = (name: string): 'irmão' | 'irmã' => {
+  if (!name) return 'irmão'
+  
+  const feminineIndicators = [
+    'maria', 'ana', 'joana', 'helena', 'lucia', 'beatriz', 'carla', 'claudia',
+    'daniela', 'elena', 'fernanda', 'gabriela', 'isabela', 'julia', 'larissa',
+    'marcela', 'natalia', 'olivia', 'patricia', 'raquel', 'sandra', 'tatiana',
+    'valeria', 'amanda', 'bruna', 'camila', 'daiana', 'elaine', 'fabiana'
+  ]
+  
+  const lowerName = name.toLowerCase()
+  const firstName = lowerName.split(' ')[0]
+  
+  // Verifica se termina com 'a' (comum em português)
+  if (firstName.endsWith('a') && !firstName.endsWith('ra')) {
+    return 'irmã'
+  }
+  
+  // Verifica indicadores femininos
+  if (feminineIndicators.some(indicator => firstName.includes(indicator))) {
+    return 'irmã'
+  }
+  
+  return 'irmão'
+}
 
 const SYSTEM_PROMPT = `Você é o Profeta William Marrion Branham (1909-1965), um evangelista e pregador pentecostal. 
 
@@ -22,17 +50,6 @@ INSTRUÇÕES IMPORTANTES:
 - Não invente doutrinas ou ensinamentos que não sejam do Profeta Branham
 - Se não souber algo específico, diga "Irmão/Irmã, busque isso na Palavra de Deus"
 
-TEMAS PRINCIPAIS que você deve abordar:
-- A Mensagem do Tempo do Fim
-- Os Sete Selos
-- As Sete Eras da Igreja
-- Batismo em Nome de Jesus
-- A Serpente Semente
-- A Divindade (não Trindade)
-- Cura Divina
-- Dons Espirituais
-- Segunda Vinda de Cristo
-
 Sempre termine suas respostas com uma bênção ou palavra de encorajamento espiritual.`
 
 export async function POST(req: NextRequest) {
@@ -44,6 +61,8 @@ export async function POST(req: NextRequest) {
       // Processar áudio
       const formData = await req.formData()
       const audioFile = formData.get("audio") as File
+      const userName = formData.get("userName") as string || "irmão/irmã"
+      const userGender = detectGender(userName)
 
       if (!audioFile) {
         return NextResponse.json({ error: "Arquivo de áudio é obrigatório" }, { status: 400 })
@@ -95,6 +114,7 @@ export async function POST(req: NextRequest) {
           headers: {
             "Content-Type": "application/json",
           },
+          signal: AbortSignal.timeout(120000), // 120 segundos timeout
           body: JSON.stringify({
             contents: [
               {
@@ -113,7 +133,7 @@ export async function POST(req: NextRequest) {
             ],
             generationConfig: {
               temperature: 0.1,
-              maxOutputTokens: 8000,
+              maxOutputTokens: 4000,
             },
           }),
         }
@@ -238,51 +258,21 @@ export async function POST(req: NextRequest) {
       // Prompt melhorado com contexto dos documentos
       const enhancedPrompt = `${SYSTEM_PROMPT}
 
+INFORMAÇÃO DO USUÁRIO:
+- Nome: ${userName}
+- Gênero detectado: ${userGender}
+
 ${contextInfo}
 
 INSTRUÇÕES FINAIS PARA RESPOSTA:
 1. LEIA E COMPREENDA profundamente TODO o contexto dos documentos fornecidos acima
 2. Identifique TODAS as informações relevantes para responder à pergunta: "${transcribedText}"
-3. RESPOSTA LONGA E DETALHADA: Mínimo 3-4 parágrafos profundos explorando TODO o conteúdo dos documentos
-4. Use todo o conhecimento dos documentos para criar uma resposta fluida, espiritual e completa
-5. INTEGRE versículos bíblicos no meio do texto naturalmente: "Como diz a Escritura em João 3:16..."
-6. Cite os sermões do Profeta Branham no corpo do texto: "Conforme ensinei em 'A Revelação de Jesus Cristo'..."
-7. Fale como se estivesse pregando ou ensinando, de forma natural, inspirada e APROFUNDADA
-8. NUNCA seja superficial - explore TODOS os aspectos da pergunta
-9. DEPOIS: No final, adicione também a seção de referências específicas
-
-COMO INTEGRAR REFERÊNCIAS NO TEXTO (FAÇA ISSO!):
-- Durante a resposta, cite naturalmente: "Como está escrito em Isaías 53:5..."
-- Mencione os sermões no meio do texto: "Quando preguei sobre 'Os Sete Selos' em 1963..."
-- Use frases como: "A Palavra do Senhor declara em Efésios..."
-- Referencie parágrafos específicos enquanto fala: "No parágrafo 45 desta mensagem..."
-- NÃO tenha medo de citar - isso dá autoridade à palavra!
-
-INSTRUÇÕES PARA REFERÊNCIAS FINAIS:
-- SEMPRE cite o TÍTULO COMPLETO do documento, nunca apenas "Documento 1"
-- Os documentos contêm parágrafos numerados - SEMPRE cite o número específico
-- Formato: "Baseado em '[TÍTULO]', parágrafo [NÚMERO]"
-
-EXEMPLO DE RESPOSTA COMPLETA COM VERSÍCULOS:
-"Irmão Thierry, que a graça do Senhor esteja contigo! Sua pergunta toca no coração do mistério de Deus. Como está escrito em Romanos 11:33, 'Ó profundidade das riquezas, tanto da sabedoria e do conhecimento de Deus! Quão insondáveis são os seus juízos, e quão inescrutáveis os seus caminhos!'
-
-Quando preguei sobre 'A Revelação de Jesus Cristo' em 1965, o Senhor me revelou... [continuação detalhada usando conteúdo dos documentos, citando versículos e sermões no meio do texto]
-
-A Palavra declara em Atos 4:12 que não há salvação em nenhum outro... [mais conteúdo profundo]
-
-Que o Senhor te abençoe e te guarde. Amém.
-
----
-**Referências:**
-- '[Título do Documento]', parágrafo X
-- Versículos citados: Romanos 11:33, Atos 4:12"
-
-IMPORTANTE: 
-- RESPOSTA DEVE SER LONGA E DETALHADA - mínimo 300-500 palavras
-- INTEGRE versículos bíblicos no corpo do texto - não deixe só pro final!
-- Cite os sermões do Profeta Branham naturalmente no meio da resposta
-- Use TODOS os documentos relevantes fornecidos
-- NUNCA seja superficial ou genérico
+3. PRIMEIRO: Saude o usuário pelo nome (${userName}) usando "${userGender}" no início da resposta
+4. Responda de forma natural, coerente e contextual como o Profeta William Branham
+5. Use todo o conhecimento dos documentos para criar uma resposta fluida e espiritual
+6. **IMPORTANTE: Cite versículos bíblicos DURANTE a resposta, não apenas no final. Integre as escrituras naturalmente em seus ensinamentos.**
+7. **IMPORTANTE: Forneça uma resposta LONGA e DETALHADA, mas com MÁXIMO de 500 palavras. Explique profundamente cada ponto, use exemplos, parábolas e ensinamentos bíblicos relevantes.**
+8. DEPOIS: No final da resposta, adicione as citações e referências específicas
 
 FORMATO OBRIGATÓRIO PARA REFERÊNCIAS (exatamente como mostrado):
 **Referências:**
@@ -301,6 +291,7 @@ const chatResponse = await fetch(
     headers: {
       "Content-Type": "application/json",
     },
+    signal: AbortSignal.timeout(300000), // 300 segundos timeout
     body: JSON.stringify({
       contents: [
         {
@@ -309,8 +300,8 @@ const chatResponse = await fetch(
         },
       ],
       generationConfig: {
-        temperature: 0.2,
-        maxOutputTokens: 8000,
+        temperature: 0.5,
+        maxOutputTokens: 8192,
       },
     }),
   }
@@ -373,8 +364,17 @@ const chatResponse = await fetch(
       })
 
     } else {
-      // Processar mensagens de texto (comportamento original)
-      const { messages } = await req.json()
+      // Processar mensagens de texto com a MESMA estrutura do áudio
+      const { messages, userName } = await req.json()
+      
+      // Pegar a última mensagem do usuário
+      const lastUserMessage = messages.filter((msg: any) => msg.role === 'user').pop()
+      const textMessage = lastUserMessage?.content || ""
+      
+      // Detectar gênero do usuário
+      const userGender = detectGender(userName || 'irmão/irmã')
+      
+      console.log("💬 Processando mensagem de texto:", textMessage)
 
       const apiKey = process.env.GEMINI_API_KEY
       if (!apiKey) {
@@ -382,17 +382,114 @@ const chatResponse = await fetch(
         return new Response("Erro de configuração da API", { status: 500 })
       }
 
-      // Construir o histórico de mensagens para o Gemini
+      // Buscar referências bíblicas relevantes (igual à rota de áudio)
+      console.log("📖 Buscando referências bíblicas da King James...")
+      let bibleReferences: any[] = []
+      try {
+        const bibleResponse = await fetch(`${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/api/bible-references`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ text: textMessage })
+        })
+        
+        if (bibleResponse.ok) {
+          const bibleData = await bibleResponse.json()
+          bibleReferences = bibleData.verses || []
+          console.log(`📖 Encontradas ${bibleReferences.length} referências bíblicas`)
+        }
+      } catch (bibleError) {
+        console.error("❌ Erro ao buscar referências bíblicas:", bibleError)
+      }
+
+      // Buscar documentos relevantes na base de dados (igual à rota de áudio)
+      console.log("🔍 Buscando documentos relevantes na base de dados...")
+      const { data: relevantDocuments, error: searchError } = await getSupabaseAdmin()
+        .from('prophet_messages')
+        .select('*')
+        .textSearch('content', textMessage, { 
+          config: 'portuguese',
+          type: 'websearch'
+        })
+        .order('relevance_score', { ascending: false })
+        .limit(5)
+
+      if (searchError) {
+        console.error("Erro ao buscar documentos:", searchError)
+      }
+
+      const documentsFound = relevantDocuments || []
+      console.log(`📚 Encontrados ${documentsFound.length} documentos relevantes`)
+
+      // Construir contexto dos documentos (igual à rota de áudio)
+      let contextInfo = ""
+      let sourcesUsedInfo = ""
+
+      if (documentsFound.length > 0) {
+        contextInfo += "\n\n=== DOCUMENTOS RELEVANTES DA BASE DE DADOS ===\n"
+        contextInfo += `Total de documentos analisados: ${documentsFound.length}\n`
+        contextInfo += "Pergunta do usuário: " + textMessage + "\n\n"
+        sourcesUsedInfo += "\n\n---\n**Fontes da base de dados utilizadas para esta resposta:**\n"
+
+        documentsFound.forEach((doc, index) => {
+          const documentTitle = doc.title || `Documento ${index + 1}`
+          contextInfo += `--- DOCUMENTO: "${documentTitle}" ---\n`
+          contextInfo += `Tipo: ${doc.type}\n`
+          contextInfo += `Pontuação de Relevância: ${doc.relevance_score}\n`
+          if (doc.file_url) {
+            contextInfo += `URL do Arquivo: ${doc.file_url}\n`
+          }
+          contextInfo += `Data de Criação: ${new Date(doc.created_at).toLocaleDateString("pt-BR")}\n`
+          contextInfo += `\nCONTEÚDO COMPLETO:\n${doc.content}\n\n`
+          contextInfo += `--- FIM DO DOCUMENTO: "${documentTitle}" ---\n\n`
+
+          sourcesUsedInfo += `- "${documentTitle}" (Relevância: ${doc.relevance_score})`
+          if (doc.file_url) {
+            sourcesUsedInfo += ` - ${doc.file_url}`
+          }
+          sourcesUsedInfo += "\n"
+        })
+
+        contextInfo += "=== FIM DOS DOCUMENTOS DA BASE DE DADOS ===\n"
+      }
+
+      // Construir histórico de conversação com contexto
       const contents = [
         {
           role: "user",
-          parts: [{ text: SYSTEM_PROMPT }],
+          parts: [{ text: `${SYSTEM_PROMPT}
+
+INFORMAÇÃO DO USUÁRIO:
+- Nome: ${userName || 'irmão/irmã'}
+- Gênero detectado: ${userGender}
+
+${contextInfo}
+
+INSTRUÇÕES FINAIS PARA RESPOSTA:
+1. LEIA E COMPREENDA profundamente TODO o contexto dos documentos fornecidos acima
+2. Identifique TODAS as informações relevantes para responder à pergunta: "${textMessage}"
+3. PRIMEIRO: Saude o usuário pelo nome (${userName || 'irmão/irmã'}) usando "${userGender}" no início da resposta
+4. Responda de forma natural, coerente e contextual como o Profeta William Branham
+5. Use todo o conhecimento dos documentos para criar uma resposta fluida e espiritual
+6. **IMPORTANTE: Cite versículos bíblicos DURANTE a resposta, não apenas no final. Integre as escrituras naturalmente em seus ensinamentos.**
+7. **IMPORTANTE: Forneça uma resposta LONGA e DETALHADA, mas com MÁXIMO de 500 palavras. Explique profundamente cada ponto, use exemplos, parábolas e ensinamentos bíblicos relevantes.**
+8. DEPOIS: No final da resposta, adicione as citações e referências específicas
+
+FORMATO OBRIGATÓRIO PARA REFERÊNCIAS (exatamente como mostrado):
+**Referências:**
+- [Título do Documento], parágrafos [números específicos]
+
+**Fontes da base de dados utilizadas para esta resposta:**
+- "[TÍTULO COMPLETO DO DOCUMENTO]" (Relevância: [pontuação numérica])
+
+PERGUNTA DO USUÁRIO: ${textMessage}` }],
         }
       ]
 
-      // Adicionar mensagens do usuário
+      // Adicionar mensagens anteriores do histórico
       messages.forEach((message: any) => {
-        if (message.role === "user") {
+        if (message.role === "user" && message.content !== textMessage) {
           contents.push({
             role: "user",
             parts: [{ text: message.content }],
@@ -406,18 +503,18 @@ const chatResponse = await fetch(
       })
 
       const response = await fetch(
-        "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent",
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
         {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            "X-goog-api-key": apiKey,
           },
+          signal: AbortSignal.timeout(300000), // 300 segundos timeout
           body: JSON.stringify({
             contents: contents,
             generationConfig: {
-              temperature: 0.7,
-              maxOutputTokens: 8000,
+              temperature: 0.5,
+              maxOutputTokens: 6000,
             },
           }),
         },
@@ -433,13 +530,50 @@ const chatResponse = await fetch(
       }
 
       const data = await response.json()
-      console.log("Resposta da API do Gemini:", JSON.stringify(data, null, 2))
-      const generatedText = data.candidates?.[0]?.content?.parts?.[0]?.text || "Erro ao gerar resposta"
+      console.log("Resposta da API do Gemini processada com sucesso")
+      let generatedText = data.candidates?.[0]?.content?.parts?.[0]?.text || "Erro ao gerar resposta"
 
-      return new Response(generatedText, {
-        headers: {
-          "Content-Type": "text/plain",
-        },
+      // SEMPRE adicionar referências se houver documentos relevantes (igual à rota de áudio)
+      if (documentsFound.length > 0) {
+        const hasReferences = generatedText.includes("**Referências:**") || generatedText.includes("**Fontes da base de dados")
+        
+        if (!hasReferences) {
+          console.log("🔧 Adicionando referências programaticamente à resposta de texto...")
+          
+          // Construir seção de referências baseada nos documentos
+          let referencesSection = "\n\n**Referências:**\n"
+          documentsFound.forEach((doc, index) => {
+            const title = doc.title || `Documento ${index + 1}`
+            referencesSection += `- ${title}\n`
+          })
+          
+          // Adicionar seção de fontes
+          generatedText += referencesSection + sourcesUsedInfo
+          
+          // Adicionar referências bíblicas se existirem
+          if (bibleReferences.length > 0) {
+            generatedText += "\n\n**Referências Bíblicas (King James 1611):**\n"
+            bibleReferences.forEach((verse, index) => {
+              generatedText += `${index + 1}. ${verse.reference} - "${verse.text}"\n`
+            })
+          }
+        } else if (!generatedText.includes("Fontes da base de dados")) {
+          // Se tem referências mas não tem fontes, adicionar apenas as fontes
+          generatedText += sourcesUsedInfo
+          
+          // Adicionar referências bíblicas se existirem
+          if (bibleReferences.length > 0) {
+            generatedText += "\n\n**Referências Bíblicas (King James 1611):**\n"
+            bibleReferences.forEach((verse, index) => {
+              generatedText += `${index + 1}. ${verse.reference} - "${verse.text}"\n`
+            })
+          }
+        }
+      }
+
+      return NextResponse.json({ 
+        response: generatedText,
+        transcription: textMessage
       })
     }
   } catch (error) {

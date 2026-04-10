@@ -9,147 +9,32 @@ interface BibleVerse {
   reference: string
 }
 
-// Base de dados simplificada da Bíblia King James (1611) - principais versículos
-const KING_JAMES_BIBLE: BibleVerse[] = [
-  // Gênesis
-  { book: "Genesis", chapter: 1, verse: 1, text: "In the beginning God created the heaven and the earth.", reference: "Genesis 1:1" },
-  { book: "Genesis", chapter: 1, verse: 3, text: "And God said, Let there be light: and there was light.", reference: "Genesis 1:3" },
-  { book: "Genesis", chapter: 3, verse: 15, text: "And I will put enmity between thee and the woman, and between thy seed and her seed; it shall bruise thy head, and thou shalt bruise his heel.", reference: "Genesis 3:15" },
-  
-  // João
-  { book: "John", chapter: 1, verse: 1, text: "No princípio era o Verbo, e o Verbo estava com Deus, e o Verbo era Deus.", reference: "João 1:1" },
-  { book: "John", chapter: 1, verse: 14, text: "E o Verbo se fez carne e habitou entre nós, e vimos a sua glória, como a glória do Unigênito do Pai, cheio de graça e de verdade.", reference: "João 1:14" },
-  { book: "John", chapter: 3, verse: 16, text: "Porque Deus amou o mundo de tal maneira que deu o seu Filho unigênito, para que todo aquele que nele crê não pereça, mas tenha a vida eterna.", reference: "João 3:16" },
-  { book: "John", chapter: 14, verse: 6, text: "Disse-lhe Jesus: Eu sou o caminho, e a verdade, e a vida. Ninguém vem ao Pai senão por mim.", reference: "João 14:6" },
-  { book: "John", chapter: 13, verse: 34, text: "Um novo mandamento vos dou: Que vos ameis uns aos outros; como eu vos amei a vós, que também vós uns aos outros vos ameis.", reference: "João 13:34" },
-  
-  // Atos
-  { book: "Acts", chapter: 2, verse: 38, text: "Then Peter said unto them, Repent, and be baptized every one of you in the name of Jesus Christ for the remission of sins, and ye shall receive the gift of the Holy Ghost.", reference: "Acts 2:38" },
-  { book: "Acts", chapter: 4, verse: 12, text: "Neither is there salvation in any other: for there is none other name under heaven given among men, whereby we must be saved.", reference: "Acts 4:12" },
-  
-  // Romanos
-  { book: "Romans", chapter: 3, verse: 23, text: "For all have sinned, and come short of the glory of God;", reference: "Romans 3:23" },
-  { book: "Romans", chapter: 6, verse: 23, text: "For the wages of sin is death; but the gift of God is eternal life through Jesus Christ our Lord.", reference: "Romans 6:23" },
-  { book: "Romans", chapter: 10, verse: 9, text: "That if thou shalt confess with thy mouth the Lord Jesus, and shalt believe in thine heart that God hath raised him from the dead, thou shalt be saved.", reference: "Romans 10:9" },
-  
-  // 1 Coríntios
-  { book: "1 Corinthians", chapter: 15, verse: 3, text: "For I delivered unto you first of all that which I also received, how that Christ died for our sins according to the scriptures;", reference: "1 Corinthians 15:3" },
-  { book: "1 Corinthians", chapter: 15, verse: 4, text: "And that he was buried, and that he rose again the third day according to the scriptures:", reference: "1 Corinthians 15:4" },
-  
-  // Efésios
-  { book: "Ephesians", chapter: 2, verse: 8, text: "For by grace are ye saved through faith; and that not of yourselves: it is the gift of God:", reference: "Ephesians 2:8" },
-  { book: "Ephesians", chapter: 2, verse: 9, text: "Not of works, lest any man should boast.", reference: "Ephesians 2:9" },
-  { book: "Ephesians", chapter: 4, verse: 5, text: "One Lord, one faith, one baptism,", reference: "Ephesians 4:5" },
-  
-  // Apocalipse
-  { book: "Revelation", chapter: 1, verse: 8, text: "I am Alpha and Omega, the beginning and the ending, saith the Lord, which is, and which was, and which is to come, the Almighty.", reference: "Revelation 1:8" },
-  { book: "Revelation", chapter: 3, verse: 20, text: "Behold, I stand at the door, and knock: if any man hear my voice, and open the door, I will come in to him, and will sup with him, and he with me.", reference: "Revelation 3:20" },
-  { book: "Revelation", chapter: 22, verse: 13, text: "I am Alpha and Omega, the beginning and the end, the first and the last.", reference: "Revelation 22:13" },
-  
-  // Mateus
-  { book: "Matthew", chapter: 28, verse: 19, text: "Go ye therefore, and teach all nations, baptizing them in the name of the Father, and of the Son, and of the Holy Ghost:", reference: "Matthew 28:19" },
-  { book: "Matthew", chapter: 1, verse: 21, text: "And she shall bring forth a son, and thou shalt call his name JESUS: for he shall save his people from their sins.", reference: "Matthew 1:21" },
-  
-  // Marcos
-  { book: "Mark", chapter: 16, verse: 16, text: "He that believeth and is baptized shall be saved; but he that believeth not shall be damned.", reference: "Mark 16:16" },
-  
-  // Lucas
-  { book: "Luke", chapter: 24, verse: 47, text: "And that repentance and remission of sins should be preached in his name among all nations, beginning at Jerusalem.", reference: "Luke 24:47" },
-  
-  // 1 João
-  { book: "1 John", chapter: 5, verse: 7, text: "For there are three that bear record in heaven, the Father, the Word, and the Holy Ghost: and these three are one.", reference: "1 John 5:7" },
-  { book: "1 John", chapter: 1, verse: 9, text: "If we confess our sins, he is faithful and just to forgive us our sins, and to cleanse us from all unrighteousness.", reference: "1 John 1:9" },
-  
-  // Colossenses
-  { book: "Colossians", chapter: 2, verse: 9, text: "For in him dwelleth all the fulness of the Godhead bodily.", reference: "Colossians 2:9" },
-  
-  // Hebreus
-  { book: "Hebrews", chapter: 13, verse: 8, text: "Jesus Christ the same yesterday, and to day, and for ever.", reference: "Hebrews 13:8" },
-  { book: "Hebrews", chapter: 4, verse: 15, text: "For we have not an high priest which cannot be touched with the feeling of our infirmities; but was in all points tempted like as we are, yet without sin.", reference: "Hebrews 4:15" },
-  { book: "Hebrews", chapter: 1, verse: 1, text: "God, who at sundry times and in divers manners spake in time past unto the fathers by the prophets,", reference: "Hebrews 1:1" },
-  { book: "Hebrews", chapter: 1, verse: 2, text: "Hath in these last days spoken unto us by his Son, whom he hath appointed heir of all things, by whom also he made the worlds;", reference: "Hebrews 1:2" },
-]
-
-// Função para buscar versículos relevantes baseado em palavras-chave
-function findRelevantVerses(text: string): BibleVerse[] {
-  const cleanText = text.toLowerCase().trim()
-  console.log('🔍 Texto para busca:', cleanText)
-  
-  // Primeiro, tentar busca direta por referência específica
-  const directMatch = findDirectReference(cleanText)
-  if (directMatch.length > 0) {
-    console.log('✅ Encontrou referência direta:', directMatch)
-    return directMatch
-  }
-  
-  // Se não encontrou referência direta, buscar por temas
-  const keywords = cleanText.split(/\s+/)
-  const relevantVerses: BibleVerse[] = []
-  
-  // Palavras-chave específicas para temas do Profeta Branham
-  const themeKeywords = {
-    salvation: ['salvation', 'saved', 'save', 'salvação', 'salvo'],
-    baptism: ['baptism', 'baptize', 'baptized', 'batismo', 'batizar'],
-    jesus: ['jesus', 'christ', 'lord', 'senhor', 'cristo'],
-    name: ['name', 'nome'],
-    sin: ['sin', 'sins', 'pecado', 'pecados'],
-    grace: ['grace', 'graça'],
-    faith: ['faith', 'believe', 'fé', 'crer'],
-    god: ['god', 'father', 'deus', 'pai'],
-    spirit: ['spirit', 'ghost', 'espírito'],
-    word: ['word', 'palavra'],
-    beginning: ['beginning', 'início', 'começo'],
-    creation: ['creation', 'created', 'criação', 'criou'],
-    revelation: ['revelation', 'reveal', 'revelação', 'revelar'],
-    alpha: ['alpha', 'omega', 'alfa'],
-    trinity: ['trinity', 'trindade', 'three', 'três'],
-    oneness: ['one', 'oneness', 'um', 'unidade']
-  }
-  
-  // Buscar versículos baseados em temas
-  for (const [theme, themeWords] of Object.entries(themeKeywords)) {
-    const hasThemeWord = keywords.some(keyword => 
-      themeWords.some(themeWord => keyword.includes(themeWord) || themeWord.includes(keyword))
-    )
-    
-    if (hasThemeWord) {
-      const themeVerses = KING_JAMES_BIBLE.filter(verse => 
-        themeWords.some(themeWord => 
-          verse.text.toLowerCase().includes(themeWord) || 
-          verse.reference.toLowerCase().includes(themeWord)
-        )
-      )
-      relevantVerses.push(...themeVerses)
-    }
-  }
-  
-  // Remover duplicatas e limitar a 5 versículos mais relevantes
-  const uniqueVerses = relevantVerses.filter((verse, index, self) => 
-    index === self.findIndex(v => v.reference === verse.reference)
-  )
-  
-  return uniqueVerses.slice(0, 5)
+// Função para normalizar texto e remover acentos
+function normalizeText(text: string): string {
+  return text.normalize('NFD').replace(/[\u0300-\u036f]/g, '')
 }
 
-// Nova função para buscar referências diretas
-function findDirectReference(text: string): BibleVerse[] {
-  // Remover parênteses e limpar o texto
-  const cleanText = text.replace(/[()]/g, '').trim()
+// Função para buscar referências diretas via API externa (Bible API - King James Version)
+async function findDirectReference(text: string): Promise<BibleVerse[]> {
+  // Remover parênteses, limpar o texto e normalizar acentos
+  const cleanText = normalizeText(text.replace(/[()]/g, '').trim())
+  console.log(' Texto original:', text)
+  console.log(' Texto normalizado:', cleanText)
   
-  // Padrões para diferentes formatos de referência
+  // Padrões para diferentes formatos de referência (com suporte para acentos)
   const patterns = [
     // Formato: João 3:16, Atos 2:38, etc.
-    /(\w+)\s+(\d+):(\d+)(?:-(\d+))?/i,
+    /(\S+)\s+(\d+):(\d+)(?:-(\d+))?/i,
     // Formato: 1 João 5:7, 1 Coríntios 15:3, etc.
-    /(\d+)\s+(\w+)\s+(\d+):(\d+)(?:-(\d+))?/i,
+    /(\d+)\s+(\S+)\s+(\d+):(\d+)(?:-(\d+))?/i,
     // Formato: Genesis 1:1, Matthew 28:19, etc.
-    /^(\w+)\s+(\d+):(\d+)(?:-(\d+))?$/i
+    /^(\S+)\s+(\d+):(\d+)(?:-(\d+))?$/i
   ]
   
   for (const pattern of patterns) {
     const match = cleanText.match(pattern)
     if (match) {
-      console.log('📖 Padrão encontrado:', match)
+      console.log(' Padrão encontrado:', match)
       
       let bookName, chapter, startVerse, endVerse
       
@@ -167,66 +52,98 @@ function findDirectReference(text: string): BibleVerse[] {
         endVerse = match[4] ? parseInt(match[4]) : startVerse
       }
       
-      console.log('🔍 Buscando:', { bookName, chapter, startVerse, endVerse })
+      console.log('🔍 Buscando via API externa:', { bookName, chapter, startVerse, endVerse })
       
       // Mapear nomes em português para inglês
-       const bookMapping: { [key: string]: string } = {
-         'joão': 'john',
-         'joao': 'john',
-         'atos': 'acts',
-         'romanos': 'romans',
-         'coríntios': 'corinthians',
-         'corintios': 'corinthians',
-         'efésios': 'ephesians',
-         'efesios': 'ephesians',
-         'filipenses': 'philippians',
-         'colossenses': 'colossians',
-         'mateus': 'matthew',
-         'marcos': 'mark',
-         'lucas': 'luke',
-         'gênesis': 'genesis',
-         'genesis': 'genesis',
-         'apocalipse': 'revelation',
-         'revelação': 'revelation',
-         // Adicionar mais variações
-         'ephesians': 'ephesians',
-         'ephesian': 'ephesians',
-         'hebreus': 'hebrews',
-         'hebrews': 'hebrews'
-       }
-       
-       const normalizedBookName = bookMapping[bookName.toLowerCase()] || bookName.toLowerCase()
-       console.log('📚 Nome do livro normalizado:', normalizedBookName)
-       
-       // Buscar versículos correspondentes
-       const matchingVerses = KING_JAMES_BIBLE.filter(verse => {
-         const verseBookName = verse.book.toLowerCase()
-         const bookMatches = verseBookName.includes(normalizedBookName) || 
-                            normalizedBookName.includes(verseBookName) ||
-                            verse.reference.toLowerCase().includes(normalizedBookName) ||
-                            // Busca mais flexível
-                            (normalizedBookName === 'ephesians' && verseBookName === 'ephesians') ||
-                            (normalizedBookName === 'acts' && verseBookName === 'acts') ||
-                            (normalizedBookName === 'john' && verseBookName === 'john')
-         
-         const chapterMatches = verse.chapter === chapter
-         const verseInRange = verse.verse >= startVerse && verse.verse <= endVerse
-         
-         console.log('🔍 Verificando:', { 
-           verse: verse.reference, 
-           verseBookName, 
-           normalizedBookName, 
-           bookMatches, 
-           chapterMatches, 
-           verseInRange 
-         })
-         
-         return bookMatches && chapterMatches && verseInRange
-       })
+      const bookMapping: { [key: string]: string } = {
+        'joão': 'john',
+        'joao': 'john',
+        'atos': 'acts',
+        'romanos': 'romans',
+        'coríntios': 'corinthians',
+        'corintios': 'corinthians',
+        'efésios': 'ephesians',
+        'efesios': 'ephesians',
+        'filipenses': 'philippians',
+        'colossenses': 'colossians',
+        'mateus': 'matthew',
+        'marcos': 'mark',
+        'lucas': 'luke',
+        'gênesis': 'genesis',
+        'apocalipse': 'revelation',
+        'timóteo': 'timothy',
+        'pedro': 'peter',
+        'salmos': 'psalms',
+        'provérbios': 'proverbs',
+        'isaías': 'isaiah',
+        'jeremias': 'jeremiah',
+        'ezequiel': 'ezekiel',
+        'daniel': 'daniel',
+        'oséias': 'hosea',
+        'joel': 'joel',
+        'amos': 'amos',
+        'jonas': 'jonah',
+        'miquéias': 'micah',
+        'naum': 'nahum',
+        'habacuque': 'habakkuk',
+        'sofonias': 'zephaniah',
+        'ageu': 'haggai',
+        'zacarias': 'zechariah',
+        'malaquias': 'malachi',
+        'levítico': 'leviticus',
+        'números': 'numbers',
+        'deuteronômio': 'deuteronomy',
+        'josué': 'joshua',
+        'juízes': 'judges',
+        'rute': 'ruth',
+        '1 samuel': '1 samuel',
+        '2 samuel': '2 samuel',
+        '1 reis': '1 kings',
+        '2 reis': '2 kings',
+        '1 crônicas': '1 chronicles',
+        '2 crônicas': '2 chronicles',
+        'esdras': 'ezra',
+        'neemias': 'nehemiah',
+        'ester': 'esther',
+        'jó': 'job',
+        'cânticos': 'song of solomon',
+        'lamentações': 'lamentations',
+        'obadias': 'obadiah'
+      }
       
-      if (matchingVerses.length > 0) {
-        console.log('✅ Versículos encontrados:', matchingVerses.length)
-        return matchingVerses
+      const normalizedBookName = bookMapping[bookName.toLowerCase()] || bookName.toLowerCase()
+      console.log('📚 Nome do livro normalizado:', normalizedBookName)
+      
+      // Buscar via API externa (Bible API - King James Version)
+      try {
+        const bibleReference = `${normalizedBookName} ${chapter}:${startVerse}`
+        const apiUrl = `https://bible-api.com/${encodeURIComponent(bibleReference)}?translation=kjv`
+        
+        console.log('🌐 Buscando na API:', apiUrl)
+        
+        const response = await fetch(apiUrl, {
+          signal: AbortSignal.timeout(10000) // 10 segundos timeout
+        })
+        
+        if (response.ok) {
+          const data = await response.json()
+          console.log('✅ Resposta da API:', data)
+          
+          if (data.verses && data.verses.length > 0) {
+            const verse = data.verses[0]
+            const bibleVerse: BibleVerse = {
+              book: normalizedBookName,
+              chapter: chapter,
+              verse: startVerse,
+              text: verse.text,
+              reference: verse.reference
+            }
+            console.log('✅ Versículo encontrado via API:', bibleVerse)
+            return [bibleVerse]
+          }
+        }
+      } catch (error) {
+        console.log('⚠️ Erro ao buscar na API externa:', error)
       }
     }
   }
@@ -245,7 +162,7 @@ export async function POST(req: NextRequest) {
     
     console.log('🔍 Buscando referências bíblicas para:', text.substring(0, 100) + '...')
     
-    const relevantVerses = findRelevantVerses(text)
+    const relevantVerses = await findDirectReference(text)
     
     console.log(`📖 Encontrados ${relevantVerses.length} versículos relevantes`)
     

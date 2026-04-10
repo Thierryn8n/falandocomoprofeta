@@ -11,7 +11,7 @@ export async function GET() {
   try {
     console.log('Fetching payment methods configuration...')
 
-    const { data: paymentMethods, error } = await getSupabaseAdmin()
+    const { data: paymentMethods, error } = await supabase
       .from('payment_methods_config')
       .select('*')
       .order('sort_order', { ascending: true })
@@ -50,7 +50,7 @@ export async function PUT(request: NextRequest) {
     }
 
     // Verificar se o método existe
-    const { data: existingMethod, error: fetchError } = await getSupabaseAdmin()
+    const { data: existingMethod, error: fetchError } = await supabase
       .from('payment_methods_config')
       .select('*')
       .eq('method_name', methodName)
@@ -76,7 +76,7 @@ export async function PUT(request: NextRequest) {
     }
 
     // Atualizar método de pagamento
-    const { data: updatedMethod, error: updateError } = await getSupabaseAdmin()
+    const { data: updatedMethod, error: updateError } = await supabase
       .from('payment_methods_config')
       .update(updateData)
       .eq('method_name', methodName)
