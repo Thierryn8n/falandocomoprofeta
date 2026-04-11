@@ -1130,7 +1130,7 @@ INSTRUÇÕES CRÍTICAS PARA ANÁLISE DE DOCUMENTOS:
 - Identifique as informações mais relevantes em TODOS os documentos para responder à pergunta específica
 
 ESTRUTURA OBRIGATÓRIA DA RESPOSTA:
-1. RESPOSTA LONGA E DETALHADA: Mínimo 3-4 parágrafos profundos explorando TODO o conteúdo dos documentos
+1. RESPOSTA CONCISA E PROFUNDA: 2-3 parágrafos bem estruturados explorando o conteúdo dos documentos
 2. Use todo o conhecimento dos documentos para criar uma resposta fluida, espiritual e completa
 3. INTEGRE versículos bíblicos no meio do texto naturalmente: "Como diz a Escritura em João 3:16..."
 4. Cite os sermões do Profeta Branham no corpo do texto: "Conforme ensinei em 'A Revelação de Jesus Cristo'..."
@@ -1172,7 +1172,7 @@ Que o Senhor te abençoe e te guarde. Amém.
 - Versículos citados: Romanos 11:33, Atos 4:12"
 
 IMPORTANTE: 
-- RESPOSTA DEVE SER LONGA E DETALHADA - MÁXIMO 500 palavras
+- RESPOSTA DEVE SER CONCISA E PROFUNDA - MÁXIMO 400 palavras (~20% menor)
 - INTEGRE versículos bíblicos no corpo do texto - não deixe só pro final!
 - Cite os sermões do Profeta Branham naturalmente no meio da resposta
 - Use TODOS os documentos relevantes fornecidos
@@ -1416,7 +1416,7 @@ Utilize EXCLUSIVAMENTE as informações dos documentos analisados E o contexto d
               temperature: 0.5,
               topK: 10,
               topP: 0.7,
-              maxOutputTokens: 8192,
+              maxOutputTokens: 4000,
             },
           }),
         },
