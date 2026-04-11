@@ -53,6 +53,16 @@ export function ChatInterface({ conversationId, onConversationUpdate, user, appC
   const [isRecordingActive, setIsRecordingActive] = useState(false)
   const [progress, setProgress] = useState(0)
 
+  // Estados para funcionalidade "Continuar Sermão"
+  const [canContinueSermon, setCanContinueSermon] = useState(false)
+  const [continueData, setContinueData] = useState<{
+    originalQuestion: string
+    previousResponse: string
+    relevantDocuments: any[]
+    bibleReferences: any[]
+  } | null>(null)
+  const [isContinuing, setIsContinuing] = useState(false)
+
   // Estados para o modal de compartilhamento
   const [shareModalOpen, setShareModalOpen] = useState(false)
   const [shareData, setShareData] = useState<{
@@ -387,6 +397,10 @@ export function ChatInterface({ conversationId, onConversationUpdate, user, appC
       return
     }
 
+    // Limpar estado de continuação ao enviar nova mensagem
+    setCanContinueSermon(false)
+    setContinueData(null)
+
     setIsLoading(true)
     setError(null)
     setIsSearchingMessages(true)
@@ -438,8 +452,24 @@ export function ChatInterface({ conversationId, onConversationUpdate, user, appC
       const data = await response.json()
       console.log('✅ Resposta da API recebida:', {
         hasMessage: !!data.message,
-        messageLength: data.message?.length || 0
+        messageLength: data.message?.length || 0,
+        canContinue: data.canContinue
       })
+
+      // Verificar se a resposta pode ser continuada
+      if (data.canContinue) {
+        console.log('➡️ Resposta pode ser continuada - ativando botão "Continuar Sermão"')
+        setCanContinueSermon(true)
+        setContinueData({
+          originalQuestion: textToSend,
+          previousResponse: data.message,
+          relevantDocuments: data.documentsUsed || [],
+          bibleReferences: data.bibleReferences || []
+        })
+      } else {
+        setCanContinueSermon(false)
+        setContinueData(null)
+      }
 
       const assistantMessage: Message = {
         id: crypto.randomUUID(), // ID único para mensagem do assistente
@@ -492,6 +522,78 @@ export function ChatInterface({ conversationId, onConversationUpdate, user, appC
     } finally {
       setIsLoading(false)
       setIsSearchingMessages(false)
+    }
+  }
+
+  // Função para continuar o sermão
+  const continueSermon = async () => {
+    if (!continueData) return
+
+    console.log('➡️ CONTINUANDO SERMAO...')
+    setIsContinuing(true)
+    setIsLoading(true)
+
+    try {
+      const response = await fetch('/api/chat/continue', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          originalQuestion: continueData.originalQuestion,
+          previousResponse: continueData.previousResponse,
+          userId: user?.id,
+          userName: profile?.name || user?.email?.split('@')[0] || 'irmão/irmã',
+          relevantDocuments: continueData.relevantDocuments,
+          bibleReferences: continueData.bibleReferences,
+        }),
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Erro ao continuar sermão')
+      }
+
+      const data = await response.json()
+      console.log('✅ Continuação recebida:', {
+        hasContinuation: !!data.continuation,
+        canContinue: data.canContinue
+      })
+
+      // Atualizar estado de continuação
+      if (data.canContinue) {
+        setCanContinueSermon(true)
+        setContinueData({
+          ...continueData,
+          previousResponse: continueData.previousResponse + '\n\n' + data.continuation
+        })
+      } else {
+        setCanContinueSermon(false)
+        setContinueData(null)
+      }
+
+      // Atualizar a última mensagem do assistente com a continuação
+      setMessages(prevMessages => {
+        const newMessages = [...prevMessages]
+        const lastAssistantIndex = newMessages.length - 1
+        
+        if (lastAssistantIndex >= 0 && newMessages[lastAssistantIndex].role === 'assistant') {
+          // Concatenar a continuação à mensagem existente
+          newMessages[lastAssistantIndex] = {
+            ...newMessages[lastAssistantIndex],
+            content: newMessages[lastAssistantIndex].content + '\n\n---\n\n**CONTINUAÇÃO DO SERMAO**\n\n' + data.continuation
+          }
+        }
+        
+        return newMessages
+      })
+
+    } catch (error) {
+      console.error('❌ Erro ao continuar sermão:', error)
+      setError('Erro ao continuar sermão. Tente novamente.')
+    } finally {
+      setIsContinuing(false)
+      setIsLoading(false)
     }
   }
 
@@ -1826,6 +1928,30 @@ export function ChatInterface({ conversationId, onConversationUpdate, user, appC
                                   <ChevronUp className="h-3 w-3 sm:h-4 sm:w-4 ml-1" />
                                 ) : (
                                   <ChevronDown className="h-3 w-3 sm:h-4 sm:w-4 ml-1" />
+                                )}
+                              </Button>
+                            )}
+                            
+                            {/* Botão Continuar Sermão - só aparece na última mensagem do assistente quando canContinueSermon é true */}
+                            {canContinueSermon && message.role === "assistant" && index === messages.length - 1 && (
+                              <Button
+                                variant="default"
+                                size="sm"
+                                onClick={continueSermon}
+                                disabled={isContinuing}
+                                className="h-7 px-3 sm:h-8 sm:px-4 text-xs sm:text-sm bg-amber-600 hover:bg-amber-700 text-white"
+                                title="Continuar o sermão"
+                              >
+                                {isContinuing ? (
+                                  <>
+                                    <Loader2 className="h-3 w-3 sm:h-4 sm:w-4 mr-1 animate-spin" />
+                                    Continuando...
+                                  </>
+                                ) : (
+                                  <>
+                                    <ChevronDown className="h-3 w-3 sm:h-4 sm:w-4 mr-1" />
+                                    Continuar Sermão
+                                  </>
                                 )}
                               </Button>
                             )}
