@@ -1516,21 +1516,21 @@ IMPORTANTE - LIMITE OBRIGATÓRIO:
     // Wikipedia context removed - using only database documents
 
     // Buscar referências bíblicas relevantes
-    console.log("📖 Buscando referências bíblicas...")
+    console.log("📖 Buscando referências bíblicas da King James...")
     let bibleReferences: any[] = []
     try {
-      // Nova API de Bíblia local
-      const bibleResponse = await fetch(
-        `${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/api/bible?q=${encodeURIComponent(lastUserMessage.content)}`,
-        { method: 'GET' }
-      )
+      const bibleResponse = await fetch(`${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/api/bible-references`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ text: lastUserMessage.content })
+      })
       
       if (bibleResponse.ok) {
         const bibleData = await bibleResponse.json()
-        bibleReferences = bibleData.results || []
+        bibleReferences = bibleData.verses || []
         console.log(`📖 Encontradas ${bibleReferences.length} referências bíblicas`)
-      } else if (bibleResponse.status === 404) {
-        console.log("⚠️ Nenhum versículo encontrado na busca")
       }
     } catch (bibleError) {
       console.error("❌ Erro ao buscar referências bíblicas:", bibleError)
