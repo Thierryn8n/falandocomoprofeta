@@ -193,19 +193,14 @@ function normalizeBookName(bookName: string): string | null {
   return bookNameToEnum[normalized] || null
 }
 
-// Buscar versículo no Supabase
+// Buscar versículo no Supabase - nomes em português diretamente
 async function getVerseFromSupabase(book: string, chapter: number, verse: number): Promise<BibleVerse | null> {
   try {
-    const bookEnum = normalizeBookName(book)
-    if (!bookEnum) {
-      console.log("❌ Livro não encontrado:", book)
-      return null
-    }
-
+    // O nome do livro já vem em português, buscar diretamente
     const { data, error } = await getSupabaseAdmin()
       .from("bible_verses")
       .select("*")
-      .eq("book", bookEnum)
+      .eq("book", book)
       .eq("chapter", chapter)
       .eq("verse", verse)
       .single()
@@ -217,41 +212,13 @@ async function getVerseFromSupabase(book: string, chapter: number, verse: number
 
     if (!data) return null
 
-    // Tipar explicitamente os dados
-    const verseData = data as { id: number; book: string; chapter: number; verse: number; text: string; testament: string }
+    // Tipar os dados explicitamente
+    const verseData = data as { id: number; book: string; chapter: number; verse: number; reference: string; text: string; testament: string }
 
-    // Converter nome do livro para português
-    const bookNamesPt: Record<string, string> = {
-      "genesis": "Gênesis", "exodo": "Êxodo", "levitico": "Levítico",
-      "numeros": "Números", "deuteronomio": "Deuteronômio",
-      "josue": "Josué", "juizes": "Juízes", "rute": "Rute",
-      "1_samuel": "1º Samuel", "2_samuel": "2º Samuel",
-      "1_reis": "1º Reis", "2_reis": "2º Reis",
-      "1_cronicas": "1º Crônicas", "2_cronicas": "2º Crônicas",
-      "esdras": "Esdras", "neemias": "Neemias", "ester": "Ester",
-      "jo": "Jó", "salmos": "Salmos", "proverbios": "Provérbios",
-      "eclesiastes": "Eclesiastes", "cantares": "Cantares",
-      "isaias": "Isaías", "jeremias": "Jeremias", "lamentacoes": "Lamentações",
-      "ezequiel": "Ezequiel", "daniel": "Daniel", "oseias": "Oséias",
-      "joel": "Joel", "amos": "Amós", "obadias": "Obadias",
-      "jonas": "Jonas", "miqueias": "Miquéias", "naum": "Naum",
-      "habacuque": "Habacuque", "sofonias": "Sofonias", "ageu": "Ageu",
-      "zacarias": "Zacarias", "malaquias": "Malaquias",
-      "mateus": "Mateus", "marcos": "Marcos", "lucas": "Lucas",
-      "joao": "João", "atos": "Atos", "romanos": "Romanos",
-      "1_corintios": "1º Coríntios", "2_corintios": "2º Coríntios",
-      "galatas": "Gálatas", "efesios": "Efésios", "filipenses": "Filipenses",
-      "colossenses": "Colossenses", "1_tessalonicenses": "1º Tessalonicenses",
-      "2_tessalonicenses": "2º Tessalonicenses", "1_timoteo": "1º Timóteo",
-      "2_timoteo": "2º Timóteo", "tito": "Tito", "filemom": "Filemom",
-      "hebreus": "Hebreus", "tiago": "Tiago", "1_pedro": "1º Pedro",
-      "2_pedro": "2º Pedro", "1_joao": "1º João", "2_joao": "2º João",
-      "3_joao": "3º João", "judas": "Judas", "apocalipse": "Apocalipse"
-    }
-
+    // Retornar direto - book já está em português
     return {
       ...verseData,
-      book_name_pt: bookNamesPt[verseData.book] || verseData.book
+      book_name_pt: verseData.book
     }
   } catch (error) {
     console.error("❌ Erro ao buscar versículo:", error)
