@@ -1,327 +1,396 @@
-import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@supabase/supabase-js'
+import { NextRequest, NextResponse } from "next/server"
+import { getSupabaseAdmin } from "@/lib/supabase"
 
-// Cliente Supabase para leitura pública
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
-const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-
-// Fallback local com versículos mais comuns (quando Supabase falha)
-const fallbackBibleVerses: Record<string, string> = {
-  'joao_3:16': 'Porque Deus amou o mundo de tal maneira que deu o seu Filho unigênito, para que todo aquele que nele crê não pereça, mas tenha a vida eterna.',
-  'joao_14:6': 'Disse-lhe Jesus: Eu sou o caminho, e a verdade, e a vida. Ninguém vem ao Pai senão por mim.',
-  'joao_1:1': 'No princípio era o Verbo, e o Verbo estava com Deus, e o Verbo era Deus.',
-  'joao_8:32': 'E conhecereis a verdade, e a verdade vos libertará.',
-  'joao_3:5': 'Jesus respondeu: Em verdade, em verdade te digo que aquele que não nascer da água e do Espírito, não pode entrar no reino de Deus.',
-  'romanos_6:23': 'Porque o salário do pecado é a morte, mas o dom gratuito de Deus é a vida eterna, por Cristo Jesus, nosso Senhor.',
-  'romanos_10:9': 'Se com a tua boca confessares ao Senhor Jesus, e em teu coração creres que Deus o ressuscitou dos mortos, serás salvo.',
-  'romanos_5:8': 'Mas Deus prova o seu amor para conosco, em que Cristo morreu por nós, sendo nós ainda pecadores.',
-  'efesios_2:8': 'Porque pela graça sois salvos, por meio da fé; e isso não vem de vós; é dom de Deus.',
-  'efesios_2:9': 'Não vem das obras, para que ninguém se glorie.',
-  'genesis_1:1': 'No princípio, criou Deus os céus e a terra.',
-  'genesis_1:27': 'E criou Deus o homem à sua imagem; à imagem de Deus o criou; macho e fêmea os criou.',
-  'salmos_23:1': 'O Senhor é o meu pastor; de nada terei falta.',
-  'salmos_23:4': 'Ainda que eu ande pelo vale da sombra da morte, não temerei mal algum, porque tu estás comigo; a tua vara e o teu cajado me consolam.',
-  'salmos_119:105': 'Lâmpada para os meus pés é a tua palavra, e luz para o meu caminho.',
-  'isaias_53:5': 'Mas ele foi ferido por causa das nossas transgressões, e moído por causa das nossas iniquidades; o castigo que nos traz a paz estava sobre ele, e pelas suas pisaduras fomos sarados.',
-  'isaias_7:14': 'Portanto o mesmo Senhor vos dará um sinal: Eis que uma virgem conceberá, e dará à luz um filho, e será o seu nome Emanuel.',
-  'isaias_9:6': 'Porque um menino nos nasceu, um filho se nos deu; e o principado está sobre os seus ombros; e o seu nome será: Maravilhoso Conselheiro, Deus Forte, Pai da Eternidade, Príncipe da Paz.',
-  'jeremias_29:11': 'Porque eu bem sei os pensamentos que penso a vosso respeito, diz o Senhor; pensamentos de paz, e não de mal, para vos dar o fim que esperais.',
-  'mateus_6:33': 'Mas buscai primeiro o reino de Deus, e a sua justiça, e todas estas coisas vos serão acrescentadas.',
-  'mateus_28:19': 'Portanto, ide, ensinai todas as nações, batizando-as em nome do Pai, e do Filho, e do Espírito Santo.',
-  'mateus_11:28': 'Vinde a mim, todos os que estais cansados e oprimidos, e eu vos aliviarei.',
-  'atos_2:38': 'E Pedro lhes disse: Arrependei-vos, e cada um de vós seja batizado em nome de Jesus Cristo para perdão dos pecados, e recebereis o dom do Espírito Santo.',
-  'atos_1:8': 'Mas recebereis a virtude do Espírito Santo, que há de vir sobre vós; e ser-me-eis testemunhas tanto em Jerusalém como em toda a Judéia e Samaria, e até aos confins da terra.',
-  '1corintios_13:13': 'Agora, pois, permanecem a fé, a esperança e o amor, estes três; mas o maior destes é o amor.',
-  '2corintios_5:17': 'Assim que, se alguém está em Cristo, nova criatura é; as coisas velhas já passaram; eis que tudo se fez novo.',
-  'filipenses_4:13': 'Posso todas as coisas em Cristo que me fortalece.',
-  'hebreus_11:1': 'Ora, a fé é o firme fundamento das coisas que se esperam, e a prova das coisas que se não veem.',
-  'hebreus_13:8': 'Jesus Cristo é o mesmo ontem, e hoje, e eternamente.',
-  '1joao_1:9': 'Se confessarmos os nossos pecados, ele é fiel e justo para nos perdoar os pecados, e nos purificar de toda injustiça.',
-  '1joao_4:8': 'Aquele que não ama não conhece a Deus; porque Deus é amor.',
-  'apocalipse_3:20': 'Eis que estou à porta e bato; se alguém ouvir a minha voz e abrir a porta, entrarei em sua casa e com ele cearei, e ele, comigo.',
-  'apocalipse_21:4': 'E Deus limpará de seus olhos toda a lágrima; e não haverá mais morte, nem pranto, nem clamor, nem dor; porque já as primeiras coisas são passadas.',
-  'colossenses_2:9': 'Porque nele habita corporalmente toda a plenitude da divindade.',
-  '1timoteo_2:5': 'Porque há um só Deus, e um só mediador entre Deus e os homens, o homem Cristo Jesus.',
-  'joao_10:30': 'Eu e o Pai somos um.',
-  'joao_20:28': 'Disse-lhe Tomé: Senhor meu, e Deus meu!',
-  'hebreus_1:8': 'Mas, quanto ao Filho, diz: O teu trono, ó Deus, é para todo o sempre; e cetro de equidade é o cetro do teu reino.',
-  '1joao_5:20': 'E sabemos que o Filho de Deus é vindo, e nos tem dado entendimento para conhecermos o que é verdadeiro; e no que é verdadeiro estamos, isto é, em seu Filho Jesus Cristo. Este é o verdadeiro Deus e a vida eterna.',
-  'romanios_9:5': 'Dos quais são os pais, e dos quais é a origem carnal de Cristo, o qual é sobre todos, Deus bendito eternamente. Amém.',
-  'tito_2:13': 'Aguardando a bem-aventurada esperança e o aparecimento da glória do grande Deus e nosso Salvador Jesus Cristo.',
-}
-
-// Mapeamento de nomes de livros para tabelas
-const bookNameMap: Record<string, string> = {
+// Mapeamento de nomes de livros para o enum do banco
+const bookNameToEnum: Record<string, string> = {
   // Gênesis
-  'genesis': 'genesis', 'gn': 'genesis',
+  "genesis": "genesis", "gênesis": "genesis", "gen": "genesis", "gn": "genesis",
   // Êxodo
-  'exodo': 'exodo', 'êxodo': 'exodo', 'ex': 'exodo',
+  "exodo": "exodo", "êxodo": "exodo", "ex": "exodo", "exo": "exodo",
   // Levítico
-  'levitico': 'levitico', 'levítico': 'levitico', 'lv': 'levitico',
+  "levitico": "levitico", "levítico": "levitico", "lev": "levitico", "lv": "levitico",
   // Números
-  'numeros': 'numeros', 'números': 'numeros', 'nm': 'numeros',
+  "numeros": "numeros", "números": "numeros", "num": "numeros", "nm": "numeros", "nu": "numeros",
   // Deuteronômio
-  'deuteronomio': 'deuteronomio', 'deuteronômio': 'deuteronomio', 'dt': 'deuteronomio',
+  "deuteronomio": "deuteronomio", "deuteronômio": "deuteronomio", "deut": "deuteronomio", "dt": "deuteronomio",
   // Josué
-  'josue': 'josue', 'josué': 'josue', 'js': 'josue',
+  "josue": "josue", "josué": "josue", "jos": "josue", "js": "josue",
   // Juízes
-  'juizes': 'juizes', 'juízes': 'juizes', 'jz': 'juizes',
+  "juizes": "juizes", "juízes": "juizes", "jz": "juizes", "jui": "juizes",
   // Rute
-  'rute': 'rute', 'rt': 'rute',
+  "rute": "rute", "ruth": "rute", "rt": "rute",
   // 1 Samuel
-  '1samuel': 'samuel_1', '1ºsamuel': 'samuel_1', '1 samuel': 'samuel_1', '1sm': 'samuel_1', '1 sm': 'samuel_1',
+  "1 samuel": "1_samuel", "1samuel": "1_samuel", "1 sam": "1_samuel", "1sam": "1_samuel", "1 sm": "1_samuel", "1sm": "1_samuel",
+  "i samuel": "1_samuel", "primeiro samuel": "1_samuel",
   // 2 Samuel
-  '2samuel': 'samuel_2', '2ºsamuel': 'samuel_2', '2 samuel': 'samuel_2', '2sm': 'samuel_2', '2 sm': 'samuel_2',
+  "2 samuel": "2_samuel", "2samuel": "2_samuel", "2 sam": "2_samuel", "2sam": "2_samuel", "2 sm": "2_samuel", "2sm": "2_samuel",
+  "ii samuel": "2_samuel", "segundo samuel": "2_samuel",
   // 1 Reis
-  '1reis': 'reis_1', '1ºreis': 'reis_1', '1 reis': 'reis_1', '1rs': 'reis_1', '1 rs': 'reis_1',
+  "1 reis": "1_reis", "1reis": "1_reis", "1 rs": "1_reis", "1rs": "1_reis",
+  "i reis": "1_reis", "primeiro reis": "1_reis",
   // 2 Reis
-  '2reis': 'reis_2', '2ºreis': 'reis_2', '2 reis': 'reis_2', '2rs': 'reis_2', '2 rs': 'reis_2',
+  "2 reis": "2_reis", "2reis": "2_reis", "2 rs": "2_reis", "2rs": "2_reis",
+  "ii reis": "2_reis", "segundo reis": "2_reis",
   // 1 Crônicas
-  '1cronicas': 'cronicas_1', '1ºcronicas': 'cronicas_1', '1 cronicas': 'cronicas_1', '1cr': 'cronicas_1', '1 cr': 'cronicas_1',
+  "1 cronicas": "1_cronicas", "1crônicas": "1_cronicas", "1 crônicas": "1_cronicas", "1cronicas": "1_cronicas",
+  "1 cr": "1_cronicas", "1cr": "1_cronicas", "i cronicas": "1_cronicas", "primeiro cronicas": "1_cronicas",
   // 2 Crônicas
-  '2cronicas': 'cronicas_2', '2ºcronicas': 'cronicas_2', '2 cronicas': 'cronicas_2', '2cr': 'cronicas_2', '2 cr': 'cronicas_2',
+  "2 cronicas": "2_cronicas", "2crônicas": "2_cronicas", "2 crônicas": "2_cronicas", "2cronicas": "2_cronicas",
+  "2 cr": "2_cronicas", "2cr": "2_cronicas", "ii cronicas": "2_cronicas", "segundo cronicas": "2_cronicas",
   // Esdras
-  'esdras': 'esdras', 'ed': 'esdras',
+  "esdras": "esdras", "esd": "esdras", "es": "esdras",
   // Neemias
-  'neemias': 'neemias', 'ne': 'neemias',
+  "neemias": "neemias", "nee": "neemias", "ne": "neemias",
   // Ester
-  'ester': 'ester', 'et': 'ester',
+  "ester": "ester", "est": "ester", "et": "ester",
   // Jó
-  'jo': 'jo', 'jó': 'jo',
+  "jo": "jo", "jó": "jo", "job": "jo",
   // Salmos
-  'salmos': 'salmos', 'sl': 'salmos',
+  "salmos": "salmos", "salmo": "salmos", "sl": "salmos", "ps": "salmos",
   // Provérbios
-  'proverbios': 'proverbios', 'provérbios': 'proverbios', 'pv': 'proverbios',
+  "proverbios": "proverbios", "provérbios": "proverbios", "prov": "proverbios", "pr": "proverbios", "pv": "proverbios",
   // Eclesiastes
-  'eclesiastes': 'eclesiastes', 'ec': 'eclesiastes',
+  "eclesiastes": "eclesiastes", "ecle": "eclesiastes", "ec": "eclesiastes",
   // Cantares
-  'cantares': 'cantares', 'ct': 'cantares',
+  "cantares": "cantares", "cantar": "cantares", "ct": "cantares", "canticos": "cantares", "cânticos": "cantares",
   // Isaías
-  'isaias': 'isaias', 'isaías': 'isaias', 'is': 'isaias',
+  "isaias": "isaias", "isaías": "isaias", "is": "isaias", "isa": "isaias",
   // Jeremias
-  'jeremias': 'jeremias', 'jr': 'jeremias',
+  "jeremias": "jeremias", "jer": "jeremias", "jr": "jeremias",
   // Lamentações
-  'lamentacoes': 'lamentacoes', 'lamentações': 'lamentacoes', 'lm': 'lamentacoes',
+  "lamentacoes": "lamentacoes", "lamentações": "lamentacoes", "lam": "lamentacoes", "lm": "lamentacoes",
   // Ezequiel
-  'ezequiel': 'ezequiel', 'ez': 'ezequiel',
+  "ezequiel": "ezequiel", "ez": "ezequiel", "ezq": "ezequiel", "eze": "ezequiel",
   // Daniel
-  'daniel': 'daniel', 'dn': 'daniel',
+  "daniel": "daniel", "dan": "daniel", "dn": "daniel",
   // Oséias
-  'oseias': 'oseias', 'os': 'oseias',
+  "oseias": "oseias", "oséias": "oseias", "os": "oseias", "ose": "oseias",
   // Joel
-  'joel': 'joel', 'jl': 'joel',
+  "joel": "joel", "jl": "joel",
   // Amós
-  'amos': 'amos', 'am': 'amos', 'amós': 'amos',
+  "amos": "amos", "amós": "amos", "am": "amos",
   // Obadias
-  'obadias': 'obadias', 'ob': 'obadias',
+  "obadias": "obadias", "obd": "obadias", "ob": "obadias",
   // Jonas
-  'jonas': 'jonas', 'jn': 'jonas',
+  "jonas": "jonas", "jon": "jonas", "jns": "jonas",
   // Miquéias
-  'miqueias': 'miqueias', 'mq': 'miqueias',
+  "miqueias": "miqueias", "miq": "miqueias", "mq": "miqueias",
   // Naum
-  'naum': 'naum', 'na': 'naum',
+  "naum": "naum", "na": "naum",
   // Habacuque
-  'habacuque': 'habacuque', 'hc': 'habacuque',
+  "habacuque": "habacuque", "hab": "habacuque", "hc": "habacuque",
   // Sofonias
-  'sofonias': 'sofonias', 'sofônias': 'sofonias', 'sf': 'sofonias',
+  "sofonias": "sofonias", "sofo": "sofonias", "sf": "sofonias",
   // Ageu
-  'ageu': 'ageu', 'ag': 'ageu',
+  "ageu": "ageu", "ag": "ageu",
   // Zacarias
-  'zacarias': 'zacarias', 'zc': 'zacarias',
+  "zacarias": "zacarias", "zac": "zacarias", "zc": "zacarias",
   // Malaquias
-  'malaquias': 'malaquias', 'ml': 'malaquias',
+  "malaquias": "malaquias", "mal": "malaquias", "ml": "malaquias",
   // Mateus
-  'mateus': 'mateus', 'mt': 'mateus',
+  "mateus": "mateus", "mat": "mateus", "mt": "mateus",
   // Marcos
-  'marcos': 'marcos', 'mc': 'marcos',
+  "marcos": "marcos", "mar": "marcos", "mc": "marcos", "mk": "marcos",
   // Lucas
-  'lucas': 'lucas', 'lc': 'lucas',
+  "lucas": "lucas", "luc": "lucas", "lc": "lucas", "lu": "lucas",
   // João (Evangelho)
-  'joao': 'joao', 'joão': 'joao',
+  "joao": "joao", "joão": "joao", " Evangelho de joao": "joao", "jn": "joao", "jo": "joao",
   // Atos
-  'atos': 'atos', 'at': 'atos',
+  "atos": "atos", "at": "atos", "act": "atos",
   // Romanos
-  'romanos': 'romanos', 'rm': 'romanos',
+  "romanos": "romanos", "rom": "romanos", "rm": "romanos", "ro": "romanos",
   // 1 Coríntios
-  '1corintios': 'corintios_1', '1ºcorintios': 'corintios_1', '1 corintios': 'corintios_1', '1co': 'corintios_1', '1 co': 'corintios_1',
+  "1 corintios": "1_corintios", "1corintios": "1_corintios", "1 cor": "1_corintios", "1cor": "1_corintios",
+  "1 co": "1_corintios", "1co": "1_corintios", "i corintios": "1_corintios", "primeiro corintios": "1_corintios",
   // 2 Coríntios
-  '2corintios': 'corintios_2', '2ºcorintios': 'corintios_2', '2 corintios': 'corintios_2', '2co': 'corintios_2', '2 co': 'corintios_2',
+  "2 corintios": "2_corintios", "2corintios": "2_corintios", "2 cor": "2_corintios", "2cor": "2_corintios",
+  "2 co": "2_corintios", "2co": "2_corintios", "ii corintios": "2_corintios", "segundo corintios": "2_corintios",
   // Gálatas
-  'galatas': 'galatas', 'gálatas': 'galatas', 'gl': 'galatas',
+  "galatas": "galatas", "gálatas": "galatas", "gal": "galatas", "gl": "galatas", "ga": "galatas",
   // Efésios
-  'efesios': 'efesios', 'efésios': 'efesios', 'ef': 'efesios', 'efe': 'efesios',
+  "efesios": "efesios", "efésios": "efesios", "ef": "efesios", "efe": "efesios",
   // Filipenses
-  'filipenses': 'filipenses', 'fp': 'filipenses',
+  "filipenses": "filipenses", "filip": "filipenses", "fp": "filipenses", "fl": "filipenses",
   // Colossenses
-  'colossenses': 'colossenses', 'cl': 'colossenses', 'clo': 'colossenses',
+  "colossenses": "colossenses", "col": "colossenses", "cl": "colossenses", "co": "colossenses",
   // 1 Tessalonicenses
-  '1tessalonicenses': 'tessalonicenses_1', '1ºtessalonicenses': 'tessalonicenses_1', '1 tessalonicenses': 'tessalonicenses_1', '1ts': 'tessalonicenses_1', '1 ts': 'tessalonicenses_1',
+  "1 tessalonicenses": "1_tessalonicenses", "1tessalonicenses": "1_tessalonicenses",
+  "1 tes": "1_tessalonicenses", "1tes": "1_tessalonicenses", "1 ts": "1_tessalonicenses", "1ts": "1_tessalonicenses",
+  "i tessalonicenses": "1_tessalonicenses", "primeiro tessalonicenses": "1_tessalonicenses",
   // 2 Tessalonicenses
-  '2tessalonicenses': 'tessalonicenses_2', '2ºtessalonicenses': 'tessalonicenses_2', '2 tessalonicenses': 'tessalonicenses_2', '2ts': 'tessalonicenses_2', '2 ts': 'tessalonicenses_2',
+  "2 tessalonicenses": "2_tessalonicenses", "2tessalonicenses": "2_tessalonicenses",
+  "2 tes": "2_tessalonicenses", "2tes": "2_tessalonicenses", "2 ts": "2_tessalonicenses", "2ts": "2_tessalonicenses",
+  "ii tessalonicenses": "2_tessalonicenses", "segundo tessalonicenses": "2_tessalonicenses",
   // 1 Timóteo
-  '1timoteo': 'timoteo_1', '1ºtimoteo': 'timoteo_1', '1 timoteo': 'timoteo_1', '1tm': 'timoteo_1', '1 tm': 'timoteo_1',
+  "1 timoteo": "1_timoteo", "1timoteo": "1_timoteo", "1 tim": "1_timoteo", "1tim": "1_timoteo",
+  "1 tm": "1_timoteo", "1tm": "1_timoteo", "1 ti": "1_timoteo", "1ti": "1_timoteo",
+  "i timoteo": "1_timoteo", "primeiro timoteo": "1_timoteo",
   // 2 Timóteo
-  '2timoteo': 'timoteo_2', '2ºtimoteo': 'timoteo_2', '2 timoteo': 'timoteo_2', '2tm': 'timoteo_2', '2 tm': 'timoteo_2',
+  "2 timoteo": "2_timoteo", "2timoteo": "2_timoteo", "2 tim": "2_timoteo", "2tim": "2_timoteo",
+  "2 tm": "2_timoteo", "2tm": "2_timoteo", "2 ti": "2_timoteo", "2ti": "2_timoteo",
+  "ii timoteo": "2_timoteo", "segundo timoteo": "2_timoteo",
   // Tito
-  'tito': 'tito', 'tt': 'tito', 'ti': 'tito',
+  "tito": "tito", "tt": "tito", "ti": "tito",
   // Filemom
-  'filemom': 'filemom', 'filemão': 'filemom', 'fm': 'filemom',
+  "filemom": "filemom", "filem": "filemom", "flm": "filemom", "fm": "filemom",
   // Hebreus
-  'hebreus': 'hebreus', 'hb': 'hebreus',
+  "hebreus": "hebreus", "heb": "hebreus", "hb": "hebreus",
   // Tiago
-  'tiago': 'tiago', 'tg': 'tiago', 'ti': 'tiago',
+  "tiago": "tiago", "tg": "tiago", "ti": "tiago", "james": "tiago",
   // 1 Pedro
-  '1pedro': 'pedro_1', '1ºpedro': 'pedro_1', '1 pedro': 'pedro_1', '1pe': 'pedro_1', '1 pe': 'pedro_1',
+  "1 pedro": "1_pedro", "1pedro": "1_pedro", "1 pe": "1_pedro", "1pe": "1_pedro", "1 pd": "1_pedro", "1pd": "1_pedro",
+  "i pedro": "1_pedro", "primeiro pedro": "1_pedro", "1 ped": "1_pedro",
   // 2 Pedro
-  '2pedro': 'pedro_2', '2ºpedro': 'pedro_2', '2 pedro': 'pedro_2', '2pe': 'pedro_2', '2 pe': 'pedro_2',
+  "2 pedro": "2_pedro", "2pedro": "2_pedro", "2 pe": "2_pedro", "2pe": "2_pedro", "2 pd": "2_pedro", "2pd": "2_pedro",
+  "ii pedro": "2_pedro", "segundo pedro": "2_pedro", "2 ped": "2_pedro",
   // 1 João
-  '1joao': 'joao_1', '1ºjoao': 'joao_1', '1 joao': 'joao_1', '1joão': 'joao_1', '1 joão': 'joao_1',
+  "1 joao": "1_joao", "1joao": "1_joao", "1 joão": "1_joao", "1joão": "1_joao",
+  "1 jo": "1_joao", "1jo": "1_joao", "1 jn": "1_joao", "1jn": "1_joao",
+  "i joao": "1_joao", "primeiro joao": "1_joao",
   // 2 João
-  '2joao': 'joao_2', '2ºjoao': 'joao_2', '2 joao': 'joao_2', '2joão': 'joao_2', '2 joão': 'joao_2',
+  "2 joao": "2_joao", "2joao": "2_joao", "2 joão": "2_joao", "2joão": "2_joao",
+  "2 jo": "2_joao", "2jo": "2_joao", "2 jn": "2_joao", "2jn": "2_joao",
+  "ii joao": "2_joao", "segundo joao": "2_joao",
   // 3 João
-  '3joao': 'joao_3', '3ºjoao': 'joao_3', '3 joao': 'joao_3', '3joão': 'joao_3', '3 joão': 'joao_3',
+  "3 joao": "3_joao", "3joao": "3_joao", "3 joão": "3_joao", "3joão": "3_joao",
+  "3 jo": "3_joao", "3jo": "3_joao", "3 jn": "3_joao", "3jn": "3_joao",
+  "iii joao": "3_joao", "terceiro joao": "3_joao",
   // Judas
-  'judas': 'judas', 'jd': 'judas',
+  "judas": "judas", "jud": "judas", "jd": "judas",
   // Apocalipse
-  'apocalipse': 'apocalipse', 'ap': 'apocalipse', 'apo': 'apocalipse',
+  "apocalipse": "apocalipse", "apoc": "apocalipse", "ap": "apocalipse", "revelacao": "apocalipse", "revelação": "apocalipse",
 }
 
-// Função para normalizar texto
-function normalizeBookName(name: string): string {
-  return name.toLowerCase()
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .replace(/[º°]/g, '')
-    .replace(/\s+/g, '')
+// Interface para versículo
+interface BibleVerse {
+  id: number
+  book: string
+  book_name_pt: string
+  chapter: number
+  verse: number
+  text: string
+  testament: string
+}
+
+// Interface para resultado de busca
+interface SearchResult {
+  book: string
+  chapter: number
+  verse: number
+  reference: string
+  text: string
+  found: boolean
+}
+
+// Normalizar nome do livro
+function normalizeBookName(bookName: string): string | null {
+  const normalized = bookName
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
     .trim()
+  
+  return bookNameToEnum[normalized] || null
 }
 
 // Buscar versículo no Supabase
-async function getVerseFromSupabase(book: string, chapter: number, verse: number): Promise<string | null> {
+async function getVerseFromSupabase(book: string, chapter: number, verse: number): Promise<BibleVerse | null> {
   try {
-    const normalizedBook = normalizeBookName(book)
-    const tableName = bookNameMap[normalizedBook]
-    
-    if (!tableName) {
-      console.log('❌ Livro não encontrado:', book, '->', normalizedBook)
+    const bookEnum = normalizeBookName(book)
+    if (!bookEnum) {
+      console.log("❌ Livro não encontrado:", book)
       return null
     }
-    
-    const supabase = createClient(supabaseUrl, supabaseKey)
-    
-    const { data, error } = await supabase
-      .from(tableName)
-      .select('texto')
-      .eq('capitulo', chapter)
-      .eq('versiculo', verse)
+
+    const { data, error } = await getSupabaseAdmin()
+      .from("bible_verses")
+      .select("*")
+      .eq("book", bookEnum)
+      .eq("chapter", chapter)
+      .eq("verse", verse)
       .single()
-    
+
     if (error) {
-      console.log('⚠️ Erro Supabase:', error.message)
+      console.error("❌ Erro ao buscar versículo:", error)
       return null
     }
-    
-    return data?.texto || null
-  } catch (err) {
-    console.error('💥 Erro ao buscar no Supabase:', err)
+
+    if (!data) return null
+
+    // Tipar explicitamente os dados
+    const verseData = data as { id: number; book: string; chapter: number; verse: number; text: string; testament: string }
+
+    // Converter nome do livro para português
+    const bookNamesPt: Record<string, string> = {
+      "genesis": "Gênesis", "exodo": "Êxodo", "levitico": "Levítico",
+      "numeros": "Números", "deuteronomio": "Deuteronômio",
+      "josue": "Josué", "juizes": "Juízes", "rute": "Rute",
+      "1_samuel": "1º Samuel", "2_samuel": "2º Samuel",
+      "1_reis": "1º Reis", "2_reis": "2º Reis",
+      "1_cronicas": "1º Crônicas", "2_cronicas": "2º Crônicas",
+      "esdras": "Esdras", "neemias": "Neemias", "ester": "Ester",
+      "jo": "Jó", "salmos": "Salmos", "proverbios": "Provérbios",
+      "eclesiastes": "Eclesiastes", "cantares": "Cantares",
+      "isaias": "Isaías", "jeremias": "Jeremias", "lamentacoes": "Lamentações",
+      "ezequiel": "Ezequiel", "daniel": "Daniel", "oseias": "Oséias",
+      "joel": "Joel", "amos": "Amós", "obadias": "Obadias",
+      "jonas": "Jonas", "miqueias": "Miquéias", "naum": "Naum",
+      "habacuque": "Habacuque", "sofonias": "Sofonias", "ageu": "Ageu",
+      "zacarias": "Zacarias", "malaquias": "Malaquias",
+      "mateus": "Mateus", "marcos": "Marcos", "lucas": "Lucas",
+      "joao": "João", "atos": "Atos", "romanos": "Romanos",
+      "1_corintios": "1º Coríntios", "2_corintios": "2º Coríntios",
+      "galatas": "Gálatas", "efesios": "Efésios", "filipenses": "Filipenses",
+      "colossenses": "Colossenses", "1_tessalonicenses": "1º Tessalonicenses",
+      "2_tessalonicenses": "2º Tessalonicenses", "1_timoteo": "1º Timóteo",
+      "2_timoteo": "2º Timóteo", "tito": "Tito", "filemom": "Filemom",
+      "hebreus": "Hebreus", "tiago": "Tiago", "1_pedro": "1º Pedro",
+      "2_pedro": "2º Pedro", "1_joao": "1º João", "2_joao": "2º João",
+      "3_joao": "3º João", "judas": "Judas", "apocalipse": "Apocalipse"
+    }
+
+    return {
+      ...verseData,
+      book_name_pt: bookNamesPt[verseData.book] || verseData.book
+    }
+  } catch (error) {
+    console.error("❌ Erro ao buscar versículo:", error)
     return null
   }
 }
 
-// Buscar no fallback local
-function getVerseFromFallback(book: string, chapter: number, verse: number): string | null {
-  const normalizedBook = normalizeBookName(book)
-  const tableName = bookNameMap[normalizedBook] || normalizedBook
-  const key = `${tableName}_${chapter}:${verse}`
-  return fallbackBibleVerses[key] || null
-}
+// GET - Buscar versículo específico
+export async function GET(request: NextRequest) {
+  const searchParams = request.nextUrl.searchParams
+  const book = searchParams.get("book")
+  const chapter = parseInt(searchParams.get("chapter") || "0")
+  const verse = parseInt(searchParams.get("verse") || "0")
+  const reference = searchParams.get("reference")
 
-// Endpoint principal POST
-export async function POST(request: NextRequest) {
+  console.log("📖 BIBLE API - Request:", { book, chapter, verse, reference })
+
   try {
-    const body = await request.json()
-    const { references } = body
-    
-    if (!references || !Array.isArray(references) || references.length === 0) {
-      return NextResponse.json(
-        { error: 'Nenhuma referência fornecida' },
-        { status: 400 }
-      )
+    // Se receber reference no formato "João 3:16"
+    if (reference && !book) {
+      const match = reference.match(/^(.+?)\s+(\d+):(\d+)$/i)
+      if (match) {
+        const [, bookName, chap, ver] = match
+        const verseData = await getVerseFromSupabase(bookName.trim(), parseInt(chap), parseInt(ver))
+        
+        if (verseData) {
+          return NextResponse.json({
+            found: true,
+            verse: verseData,
+            reference: `${verseData.book_name_pt} ${verseData.chapter}:${verseData.verse}`
+          })
+        } else {
+          return NextResponse.json({
+            found: false,
+            reference: reference,
+            error: "Versículo não encontrado"
+          }, { status: 404 })
+        }
+      }
     }
-    
-    console.log('📖 Buscando referências:', references)
-    
-    const results: Array<{
-      reference: string
-      found: boolean
-      text?: string
-      book?: string
-      chapter?: number
-      verse?: number
-      source?: string
-    }> = []
-    
-    for (const ref of references) {
-      // Parse referência (formato: "João 3:16" ou "Joao 3:16")
-      const match = ref.match(/^(.+?)\s*(\d+):(\d+)$/)
+
+    // Busca direta por book, chapter, verse
+    if (book && chapter > 0 && verse > 0) {
+      const verseData = await getVerseFromSupabase(book, chapter, verse)
       
-      if (!match) {
-        results.push({ reference: ref, found: false })
-        continue
-      }
-      
-      const [, book, chapter, verse] = match
-      
-      // Tentar Supabase primeiro
-      let text = await getVerseFromSupabase(book, parseInt(chapter), parseInt(verse))
-      let source = 'supabase'
-      
-      // Se não encontrou, tentar fallback
-      if (!text) {
-        text = getVerseFromFallback(book, parseInt(chapter), parseInt(verse))
-        source = 'fallback'
-      }
-      
-      if (text) {
-        results.push({
-          reference: ref,
+      if (verseData) {
+        return NextResponse.json({
           found: true,
-          text,
-          book: book.trim(),
-          chapter: parseInt(chapter),
-          verse: parseInt(verse),
-          source
+          verse: verseData,
+          reference: `${verseData.book_name_pt} ${verseData.chapter}:${verseData.verse}`
         })
       } else {
-        results.push({ reference: ref, found: false })
+        return NextResponse.json({
+          found: false,
+          reference: `${book} ${chapter}:${verse}`,
+          error: "Versículo não encontrado"
+        }, { status: 404 })
       }
     }
-    
-    const found = results.filter(r => r.found).length
-    console.log(`✅ ${found}/${references.length} referências encontradas`)
-    
+
     return NextResponse.json({
-      success: true,
-      found,
-      total: references.length,
-      verses: results
-    })
-    
+      error: "Parâmetros inválidos. Use: ?book=João&chapter=3&verse=16 ou ?reference=João%203:16"
+    }, { status: 400 })
+
   } catch (error) {
-    console.error('❌ Erro na API de referências:', error)
-    return NextResponse.json(
-      { error: 'Erro interno do servidor' },
-      { status: 500 }
-    )
+    console.error("❌ Bible API Error:", error)
+    return NextResponse.json({
+      error: "Erro interno ao buscar versículo"
+    }, { status: 500 })
   }
 }
 
-// Endpoint GET para teste
-export async function GET() {
-  return NextResponse.json({
-    status: 'API de Referências Bíblicas',
-    version: '2.0 - Supabase Edition',
-    books: 66,
-    message: 'Use POST com {references: ["João 3:16", "Romanos 6:23"]}'
-  })
+// POST - Buscar versículo por texto (formato do frontend: { text: "João 3:16" })
+export async function POST(request: NextRequest) {
+  try {
+    const body = await request.json()
+    const { text, references } = body
+
+    // Suportar ambos os formatos: { text: "João 3:16" } ou { references: ["João 3:16"] }
+    let refsToSearch: string[] = []
+    
+    if (text && typeof text === 'string') {
+      // Formato do frontend atual
+      refsToSearch = [text]
+    } else if (references && Array.isArray(references)) {
+      // Formato array de referências
+      refsToSearch = references
+    } else {
+      return NextResponse.json({
+        error: "Use { text: 'João 3:16' } ou { references: ['João 3:16', 'Mateus 1:1'] }"
+      }, { status: 400 })
+    }
+
+    console.log("📖 BIBLE API - Buscando", refsToSearch.length, "referências")
+
+    const results: SearchResult[] = []
+    const verses: any[] = []
+
+    for (const ref of refsToSearch) {
+      const match = ref.match(/^(.+?)\s+(\d+):(\d+)$/)
+      if (match) {
+        const [, bookName, chapter, verse] = match
+        const verseData = await getVerseFromSupabase(bookName.trim(), parseInt(chapter), parseInt(verse))
+        
+        if (verseData) {
+          const result = {
+            book: verseData.book_name_pt,
+            chapter: verseData.chapter,
+            verse: verseData.verse,
+            reference: `${verseData.book_name_pt} ${verseData.chapter}:${verseData.verse}`,
+            text: verseData.text,
+            found: true
+          }
+          results.push(result)
+          verses.push(result)
+        } else {
+          results.push({
+            book: bookName,
+            chapter: parseInt(chapter),
+            verse: parseInt(verse),
+            reference: ref,
+            text: "Versículo não encontrado na base de dados",
+            found: false
+          })
+        }
+      }
+    }
+
+    return NextResponse.json({
+      verses,
+      results,
+      found: results.filter(r => r.found).length,
+      total: results.length
+    })
+
+  } catch (error) {
+    console.error("❌ Bible API Error:", error)
+    return NextResponse.json({
+      error: "Erro interno ao buscar versículos"
+    }, { status: 500 })
+  }
 }
