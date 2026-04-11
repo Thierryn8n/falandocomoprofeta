@@ -1385,6 +1385,15 @@ ESTRUTURA OBRIGATÓRIA DA RESPOSTA:
 4. MANTENHA A CONTINUIDADE: Se o usuário fez perguntas relacionadas anteriormente, faça referência a elas naturalmente
 5. DEPOIS: Adicione uma seção separada no final com as referências específicas
 
+📏 **LIMITE DE PALAVRAS CRÍTICO**:
+- **MÁXIMO 400-500 palavras** na resposta principal (antes das referências)
+- Se o tema for profundo e precisar de mais desenvolvimento, termine a resposta com:
+  
+  "**[CONTINUA...]** Irmão/Irmã, este é um tema profundo que requer mais explicação. Deseja que eu continue este sermão?"
+  
+- Se couber em 400-500 palavras, finalize normalmente com uma bênção
+- NUNCA ultrapasse 500 palavras sem perguntar se quer continuar
+
 FORMATO OBRIGATÓRIO PARA REFERÊNCIAS (exatamente como mostrado) - SEJA MUITO DETALHADO:
 **Referências:**
 - [Título COMPLETO do Documento], parágrafos [TODOS os números específicos utilizados - ex: 1, 2, 5, 6, 11, 12, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40]
@@ -1590,6 +1599,12 @@ IMPORTANTE:
       console.log("📚 Documents analyzed and used:", relevantDocuments.length)
       console.log("📖 Wikipedia used:", false, "(disabled)")
 
+      // Detectar se a resposta pode continuar (contém [CONTINUA...])
+      const canContinue = aiResponse.includes("[CONTINUA...]") || aiResponse.includes("**[CONTINUA...]**")
+      if (canContinue) {
+        console.log("➡️ Resposta pode ser continuada - flag canContinue ativada")
+      }
+
       // Create the assistant message
       const assistantMessage: Message = {
         role: "assistant",
@@ -1632,6 +1647,7 @@ IMPORTANTE:
             documentsUsed: relevantDocuments.length,
             documentsUsedTitles: relevantDocuments.map((doc) => doc.title),
             wikipediaUsed: false,
+            canContinue: canContinue,
           })
         } else {
           console.error("❌ SAVE FAILED:", saveResult.error)
@@ -1644,6 +1660,7 @@ IMPORTANTE:
             documentsUsed: relevantDocuments.length,
             documentsUsedTitles: relevantDocuments.map((doc) => doc.title),
             wikipediaUsed: !!wikipediaInfo,
+            canContinue: canContinue,
           })
         }
       }
@@ -1657,6 +1674,7 @@ IMPORTANTE:
         documentsUsed: relevantDocuments.length,
         documentsUsedTitles: relevantDocuments.map((doc) => doc.title),
         wikipediaUsed: false,
+        canContinue: canContinue,
       })
     } catch (geminiError: any) {
       console.error("❌ Gemini API Error:", geminiError)
