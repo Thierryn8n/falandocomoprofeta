@@ -1,7 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { supabase, getSupabaseAdmin } from "@/lib/supabase"
 
-export const maxDuration = 600
+export const maxDuration = 300
 
 interface Message {
   role: "user" | "assistant"
