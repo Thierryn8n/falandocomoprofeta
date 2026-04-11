@@ -718,6 +718,22 @@ export function ChatInterface({ conversationId, onConversationUpdate, user, appC
         
         const finalMessages = [...messages, updatedUserMessage, assistantMessage]
         setMessages(finalMessages)
+
+        // Verificar se a resposta pode ser continuada (IGUAL AO TEXTO)
+        console.log('🔍 Verificando canContinue no áudio:', data.canContinue)
+        if (data.canContinue) {
+          console.log('➡️ Resposta de áudio pode ser continuada - ativando botão')
+          setCanContinueSermon(true)
+          setContinueData({
+            originalQuestion: data.transcription || '[Mensagem de áudio]',
+            previousResponse: data.message,
+            documentsUsed: data.documentsUsedTitles || [],
+            bibleReferences: data.bibleReferences || []
+          })
+        } else {
+          setCanContinueSermon(false)
+          setContinueData(null)
+        }
         
         // 🎯 TERCEIRO: Atualizar conversa com transcrição e resposta do assistente
         if (user?.id) {
