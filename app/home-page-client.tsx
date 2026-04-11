@@ -59,6 +59,19 @@ export default function HomePageClient() {
   const logo = getConfigValue("app_identity", {})?.logo || "/placeholder.svg?height=32&width=32&text=Logo"
   const favicon = getConfigValue("app_identity", {})?.favicon || "/placeholder.svg?height=16&width=16&text=F"
 
+  // Debug: Log config values
+  useEffect(() => {
+    console.log("[HomePage] App Config Values:", {
+      appName,
+      prophetName,
+      prophetAvatar,
+      logo,
+      favicon,
+      rawProphetProfile: getConfigValue("prophet_profile", {}),
+      rawAppIdentity: getConfigValue("app_identity", {})
+    })
+  }, [appName, prophetName, prophetAvatar, logo, favicon])
+
   const loadConversations = useCallback(async () => {
     if (!user) {
       setConversations([])

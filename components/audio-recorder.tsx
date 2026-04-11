@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
-import { Mic, MicOff, Loader2, Play, Pause } from 'lucide-react'
+import { Mic, MicOff, Loader2, Play, Pause, AlertCircle } from 'lucide-react'
 
 interface AudioRecorderProps {
   onAudioRecorded: (audioBlob: Blob) => void // Mudança: enviar blob em vez de texto
@@ -15,7 +15,8 @@ export default function AudioRecorder({ onAudioRecorded, onRecordingStateChange,
   const [isPlaying, setIsPlaying] = useState(false)
   const [audioUrl, setAudioUrl] = useState<string | null>(null)
   const [audioLevels, setAudioLevels] = useState<number[]>([])
-  
+  const [permissionError, setPermissionError] = useState<string | null>(null)
+
   const mediaRecorderRef = useRef<MediaRecorder | null>(null)
   const audioContextRef = useRef<AudioContext | null>(null)
   const analyserRef = useRef<AnalyserNode | null>(null)
@@ -56,13 +57,14 @@ export default function AudioRecorder({ onAudioRecorded, onRecordingStateChange,
 
   const startRecording = async () => {
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ 
+      setPermissionError(null)
+      const stream = await navigator.mediaDevices.getUserMedia({
         audio: {
           echoCancellation: true,
           noiseSuppression: true,
           autoGainControl: true,
           sampleRate: 44100
-        } 
+        }
       })
       
       // Configurar analise de audio para visualizacao
@@ -123,6 +125,13 @@ export default function AudioRecorder({ onAudioRecorded, onRecordingStateChange,
       analyzeAudio()
     } catch (error) {
       console.error('Erro ao iniciar gravacao:', error)
+      if (error instanceof DOMException && error.name === 'NotAllowedError') {
+        setPermissionError('Permissão do microfone negada. Clique no ícone 🔒 ao lado da URL e permita acesso ao microfone.')
+      } else if (error instanceof DOMException && error.name === 'NotFoundError') {
+        setPermissionError('Nenhum microfone encontrado. Verifique se seu dispositivo tem um microfone conectado.')
+      } else {
+        setPermissionError('Erro ao acessar o microfone. Verifique as permissões do navegador.')
+      }
     }
   }
 
@@ -306,14 +315,19 @@ export default function AudioRecorder({ onAudioRecorded, onRecordingStateChange,
   }
 
   return (
-    <Button
-      variant="outline"
-      size="icon"
-      onClick={startRecording}
-      disabled={disabled}
-      title="Gravar mensagem de voz"
-    >
-      <Mic className="h-4 w-4" />
-    </Button>
+    <div className="flex items-center space-x-2">
+      <Button
+        variant={permissionError ? "destructive" : "outline"}
+        size="icon"
+        onClick={startRecording}
+        disabled={disabled}
+        title={permissionError || "Gravar mensagem de voz"}
+      >
+        {permissionError ? <AlertCircle className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
+      </Button>
+      {permissionError && (
+        <span className="text-xs text-destructive max-w-[200px]">{permissionError}</span>
+      )}
+    </div>
   )
 }

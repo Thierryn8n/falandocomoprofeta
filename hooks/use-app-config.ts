@@ -31,9 +31,23 @@ export function useAppConfig() {
       setLoading(true)
       setError(null)
 
+      console.log("[useAppConfig] Fetching app_config...")
       const { data, error } = await supabase.from("app_config").select("*").order("created_at", { ascending: false })
 
-      if (error) throw error
+      if (error) {
+        console.error("[useAppConfig] Error fetching:", error)
+        throw error
+      }
+
+      console.log("[useAppConfig] Fetched configs:", data?.length || 0, "items")
+      console.log("[useAppConfig] Configs keys:", data?.map(c => c.key))
+      
+      // Check for prophet_profile
+      const prophetConfig = data?.find(c => c.key === "prophet_profile")
+      console.log("[useAppConfig] prophet_profile found:", prophetConfig ? "YES" : "NO")
+      if (prophetConfig) {
+        console.log("[useAppConfig] prophet_profile value:", prophetConfig.value)
+      }
 
       setConfigs(data || [])
       setLastFetch(now)

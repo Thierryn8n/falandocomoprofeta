@@ -22,7 +22,7 @@ import {
   Menu,
 } from "lucide-react"
 import { useState, useCallback } from "react"
-import { cn } from "@/lib/utils"
+import { cn, generateAvatarUrl } from "@/lib/utils"
 import { supabase } from "@/lib/supabase"
 import { toast } from "sonner"
 
@@ -151,7 +151,7 @@ export function ChatSidebar({
   return (
     <div
       className={cn(
-        "h-full flex flex-col bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-r border-border/40 transition-all duration-300 ease-in-out shadow-sm",
+        "h-screen flex flex-col bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-r border-border/40 transition-all duration-300 ease-in-out shadow-sm overflow-hidden",
         isOpen ? "w-80" : "w-16",
       )}
     >
@@ -169,7 +169,6 @@ export function ChatSidebar({
               </div>
               <div className="flex flex-col overflow-hidden">
                 <span className="font-semibold text-sm truncate">{appConfig.appName}</span>
-                <span className="text-xs text-muted-foreground truncate">Chat com IA</span>
               </div>
             </div>
             <Button
@@ -220,7 +219,7 @@ export function ChatSidebar({
             <CardContent className="p-3">
               <div className="flex items-center gap-3">
                 <Avatar className="h-8 w-8">
-                  <AvatarImage src={user.avatar_url || "/placeholder.svg"} />
+                  <AvatarImage src={user.avatar_url || generateAvatarUrl(user.name || "", user.email)} />
                   <AvatarFallback className="bg-primary/10 text-primary">
                     <User className="h-4 w-4" />
                   </AvatarFallback>
@@ -241,8 +240,8 @@ export function ChatSidebar({
       )}
 
       {/* Conversations List */}
-      <ScrollArea className="flex-1 px-2">
-        <div className="space-y-2 pb-4">
+      <ScrollArea className="flex-1 px-2 overflow-y-auto">
+        <div className="space-y-2 pb-4 w-full">
           {loadingConversations ? (
             <div className="space-y-2 p-2">
               {[...Array(5)].map((_, i) => (
@@ -255,11 +254,11 @@ export function ChatSidebar({
                 <Card
                   key={conversation.id}
                   className={cn(
-                    "cursor-pointer transition-all duration-200 hover:shadow-sm group",
+                    "cursor-pointer transition-all duration-200 hover:shadow-md group active:scale-98",
                     "border-border/40 hover:border-border/60",
                     currentConversation?.id === conversation.id
-                      ? "bg-accent/50 border-primary/50 shadow-sm"
-                      : "bg-card/30 hover:bg-accent/30",
+                      ? "bg-accent/50 border-primary/50 shadow-md"
+                      : "bg-card/30 hover:bg-accent/40",
                     !isOpen && "p-0 h-12 flex items-center justify-center mx-1",
                   )}
                   onClick={() => onSelectConversation(conversation)}
@@ -379,6 +378,7 @@ export function ChatSidebar({
         {user && (
           <Button
             variant="ghost"
+            onClick={() => router.push("/settings")}
             className={cn(
               "w-full justify-start gap-3 h-10 font-medium transition-all",
               "hover:bg-accent/50",

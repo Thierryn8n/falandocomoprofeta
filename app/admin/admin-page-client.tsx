@@ -37,7 +37,6 @@ export default function AdminPageClient() {
   const { getConfigValue, updateConfig, loading: configLoading } = useAppConfig()
   const { toast } = useToast()
 
-  // Debug logs
   useEffect(() => {
     console.log("Admin Page Debug:", {
       user: user?.email,
@@ -48,18 +47,30 @@ export default function AdminPageClient() {
   }, [user, profile, isAdmin, authLoading])
 
   useEffect(() => {
-    if (!authLoading) {
-      if (!user) {
-        console.log("No user found, redirecting to home")
-        window.location.href = "/"
-      } else if (!isAdmin) {
-        console.log("User is not admin, redirecting to home")
-        window.location.href = "/"
-      } else {
-        console.log("User is admin, allowing access")
-      }
+    // Esperar o carregamento de autenticação terminar antes de redirecionar
+    if (authLoading) {
+      return // Ainda carregando, não faz nada
     }
-  }, [user, isAdmin, authLoading])
+
+    if (!user) {
+      console.log("No user found, redirecting to home")
+      window.location.href = "/"
+      return
+    }
+
+    if (!isAdmin) {
+      console.log("User is not admin, current role:", profile?.role)
+      // Dar um tempo adicional para o profile carregar
+      const timer = setTimeout(() => {
+        if (!isAdmin) {
+          window.location.href = "/"
+        }
+      }, 1000)
+      return () => clearTimeout(timer)
+    }
+
+    console.log("User is admin, allowing access")
+  }, [user, isAdmin, authLoading, profile?.role])
 
   const handleConfigUpdate = async (category: string, newValues: Record<string, any>) => {
     try {

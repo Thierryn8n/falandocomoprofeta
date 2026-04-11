@@ -9,7 +9,8 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Card, CardContent } from "@/components/ui/card"
 import { Progress } from "@/components/ui/progress"
-import { Send, Loader2, AlertCircle, BookOpen, Copy, Share2, ChevronDown, ChevronUp, Book } from "lucide-react"
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog"
+import { Send, Loader2, AlertCircle, BookOpen, Copy, Share2, ChevronDown, ChevronUp, Book, MessageSquare, Image as ImageIcon, Instagram, X, Download, Link } from "lucide-react"
 import { supabase } from "@/lib/supabase"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import AudioRecorder from "@/components/audio-recorder"
@@ -19,6 +20,7 @@ import { useSubscription } from "@/hooks/use-tokens"
 import { useSupabaseAuth } from "@/hooks/use-supabase-auth"
 import { UpgradeModal } from "@/components/upgrade-modal"
 import { Crown, Zap } from "lucide-react"
+import { generateAvatarUrl } from "@/lib/utils"
 
 interface Message {
   id?: string // ID único da mensagem
@@ -50,6 +52,15 @@ export function ChatInterface({ conversationId, onConversationUpdate, user, appC
   const [verseTexts, setVerseTexts] = useState<{ [key: string]: string }>({})
   const [isRecordingActive, setIsRecordingActive] = useState(false)
   const [progress, setProgress] = useState(0)
+
+  // Estados para o modal de compartilhamento
+  const [shareModalOpen, setShareModalOpen] = useState(false)
+  const [shareData, setShareData] = useState<{
+    content: string
+    references: string[]
+    userQuestion?: string
+    imageUrls: string[]
+  } | null>(null)
 
   // Animar progresso durante o carregamento
   useEffect(() => {
@@ -727,363 +738,599 @@ export function ChatInterface({ conversationId, onConversationUpdate, user, appC
     }
   }
 
-  const shareMessage = async (content: string, references: string[], userQuestion?: string) => {
+  // Função para gerar múltiplas imagens divididas da mensagem
+  const generateShareImages = async (content: string, references: string[], userQuestion?: string): Promise<string[]> => {
     try {
-      // Formatação específica para WhatsApp
       const prophetName = appConfig.prophetName || "Profeta William Branham"
       const prophetAvatar = appConfig.prophetAvatar || ""
       
-      // Criar canvas para gerar a imagem
-      const canvas = document.createElement('canvas')
-      const ctx = canvas.getContext('2d')
-      if (!ctx) return
-      
-      // Configurações da imagem
+      // Configurações de layout
       const width = 800
-      const padding = 40
-      const lineHeight = 24
-      const titleHeight = 40
-      let currentY = padding
+      const padding = 50
+      const innerPadding = 30
+      const lineHeight = 30
       
-      // Configurar fonte
-      ctx.font = '16px Arial, sans-serif'
+      // Cores
+      const colors = {
+        background: '#ffffff',
+        cardBg: '#f8fafc',
+        border: '#e2e8f0',
+        questionBg: '#eff6ff',
+        questionBorder: '#3b82f6',
+        prophetBg: '#f0fdf4',
+        prophetBorder: '#10b981',
+        text: '#1e293b',
+        textMuted: '#64748b',
+        bibleQuote: '#7c3aed',
+        bibleBg: '#f5f3ff',
+        reference: '#475569'
+      }
+
+      const contentWidth = width - padding * 2 - innerPadding * 2
       
-      // Função para desenhar ícones
-      const drawIcon = async (type: 'question' | 'prophet' | 'book' | 'share', x: number, y: number, size: number = 20) => {
+      // Dividir o texto em duas partes (por enquanto - depois faremos múltiplas)
+      const contentParagraphs = content.split('\n').filter(p => p.trim())
+      const midPoint = Math.ceil(contentParagraphs.length / 2)
+      const contentPart1 = contentParagraphs.slice(0, midPoint).join('\n')
+      const contentPart2 = contentParagraphs.slice(midPoint).join('\n')
+
+      // Função para desenhar avatar
+      const drawProphetAvatar = async (ctx: CanvasRenderingContext2D, x: number, y: number, size: number = 45) => {
         ctx.save()
         
-        switch (type) {
-          case 'question':
-            // Desenhar ícone de pergunta com fundo colorido
-            ctx.fillStyle = '#3b82f6'
-            ctx.beginPath()
-            ctx.arc(x + size/2, y + size/2, size/2, 0, 2 * Math.PI)
-            ctx.fill()
-            ctx.fillStyle = '#ffffff'
-            ctx.font = `bold ${size-6}px Arial`
-            ctx.textAlign = 'center'
-            ctx.fillText('?', x + size/2, y + size/2 + 4)
-            break
-          case 'prophet':
-            // Desenhar avatar redondo do profeta com borda
-            if (prophetAvatar) {
-              try {
-                const img = new Image()
-                img.crossOrigin = 'anonymous'
-                await new Promise<void>((resolve, reject) => {
-                  img.onload = () => {
-                    ctx.save()
-                    // Desenhar borda
-                    ctx.strokeStyle = '#10b981'
-                    ctx.lineWidth = 3
-                    ctx.beginPath()
-                    ctx.arc(x + size/2, y + size/2, size/2 - 1, 0, 2 * Math.PI)
-                    ctx.stroke()
-                    // Desenhar imagem
-                    ctx.beginPath()
-                    ctx.arc(x + size/2, y + size/2, size/2 - 2, 0, 2 * Math.PI)
-                    ctx.clip()
-                    ctx.drawImage(img, x + 2, y + 2, size - 4, size - 4)
-                    ctx.restore()
-                    resolve()
-                  }
-                  img.onerror = () => {
-                    // Fallback: desenhar ícone de pessoa com fundo
-                    ctx.fillStyle = '#10b981'
-                    ctx.beginPath()
-                    ctx.arc(x + size/2, y + size/2, size/2, 0, 2 * Math.PI)
-                    ctx.fill()
-                    ctx.fillStyle = '#ffffff'
-                    ctx.beginPath()
-                    ctx.arc(x + size/2, y + size/3, size/6, 0, 2 * Math.PI)
-                    ctx.fill()
-                    ctx.beginPath()
-                    ctx.arc(x + size/2, y + size*0.75, size/3, 0, Math.PI, true)
-                    ctx.fill()
-                    resolve()
-                  }
-                  img.src = prophetAvatar
-                })
-              } catch (error) {
-                // Fallback: desenhar ícone de pessoa com fundo
-                ctx.fillStyle = '#10b981'
+        if (prophetAvatar) {
+          try {
+            const img = new Image()
+            img.crossOrigin = 'anonymous'
+            await new Promise<void>((resolve) => {
+              img.onload = () => {
                 ctx.beginPath()
                 ctx.arc(x + size/2, y + size/2, size/2, 0, 2 * Math.PI)
-                ctx.fill()
-                ctx.fillStyle = '#ffffff'
-                ctx.beginPath()
-                ctx.arc(x + size/2, y + size/3, size/6, 0, 2 * Math.PI)
-                ctx.fill()
-                ctx.beginPath()
-                ctx.arc(x + size/2, y + size*0.75, size/3, 0, Math.PI, true)
-                ctx.fill()
+                ctx.clip()
+                ctx.drawImage(img, x, y, size, size)
+                ctx.restore()
+                resolve()
               }
-            } else {
-              // Ícone de pessoa padrão com fundo
-              ctx.fillStyle = '#10b981'
-              ctx.beginPath()
-              ctx.arc(x + size/2, y + size/2, size/2, 0, 2 * Math.PI)
-              ctx.fill()
-              ctx.fillStyle = '#ffffff'
-              ctx.beginPath()
-              ctx.arc(x + size/2, y + size/3, size/6, 0, 2 * Math.PI)
-              ctx.fill()
-              ctx.beginPath()
-              ctx.arc(x + size/2, y + size*0.75, size/3, 0, Math.PI, true)
-              ctx.fill()
-            }
-            break
-          case 'book':
-            // Desenhar ícone de livro com fundo colorido
-            ctx.fillStyle = '#8b5cf6'
-            ctx.beginPath()
-            ctx.arc(x + size/2, y + size/2, size/2, 0, 2 * Math.PI)
-            ctx.fill()
-            ctx.fillStyle = '#ffffff'
-            ctx.fillRect(x + size/4, y + size/3, size/2, size/3)
-            ctx.strokeStyle = '#ffffff'
-            ctx.lineWidth = 1
-            ctx.strokeRect(x + size/4, y + size/3, size/2, size/3)
-            ctx.beginPath()
-            ctx.moveTo(x + size/4 + 2, y + size/3 + 4)
-            ctx.lineTo(x + size*3/4 - 2, y + size/3 + 4)
-            ctx.moveTo(x + size/4 + 2, y + size/3 + 8)
-            ctx.lineTo(x + size*3/4 - 2, y + size/3 + 8)
-            ctx.stroke()
-            break
-          case 'share':
-            // Desenhar ícone de compartilhar com fundo colorido
-            ctx.fillStyle = '#6b7280'
-            ctx.beginPath()
-            ctx.arc(x + size/2, y + size/2, size/2, 0, 2 * Math.PI)
-            ctx.fill()
-            ctx.fillStyle = '#ffffff'
-            ctx.beginPath()
-            ctx.moveTo(x + size/2, y + size/4)
-            ctx.lineTo(x + size*3/4, y + size/2)
-            ctx.lineTo(x + size/2 + 1, y + size/2)
-            ctx.lineTo(x + size/2 + 1, y + size*3/4)
-            ctx.lineTo(x + size/2 - 1, y + size*3/4)
-            ctx.lineTo(x + size/2 - 1, y + size/2)
-            ctx.lineTo(x + size/4, y + size/2)
-            ctx.closePath()
-            ctx.fill()
-            break
+              img.onerror = () => {
+                drawDefaultProphetIcon(ctx, x, y, size)
+                resolve()
+              }
+              img.src = prophetAvatar
+            })
+          } catch {
+            drawDefaultProphetIcon(ctx, x, y, size)
+          }
+        } else {
+          drawDefaultProphetIcon(ctx, x, y, size)
         }
-        ctx.restore()
+        
+        ctx.strokeStyle = colors.prophetBorder
+        ctx.lineWidth = 3
+        ctx.beginPath()
+        ctx.arc(x + size/2, y + size/2, size/2 + 2, 0, 2 * Math.PI)
+        ctx.stroke()
       }
       
-      // Função para quebrar texto em linhas
-      const wrapText = (text: string, maxWidth: number) => {
+      const drawDefaultProphetIcon = (ctx: CanvasRenderingContext2D, x: number, y: number, size: number) => {
+        ctx.fillStyle = colors.prophetBorder
+        ctx.beginPath()
+        ctx.arc(x + size/2, y + size/2, size/2, 0, 2 * Math.PI)
+        ctx.fill()
+        ctx.fillStyle = '#ffffff'
+        ctx.beginPath()
+        ctx.arc(x + size/2, y + size/3, size/6, 0, 2 * Math.PI)
+        ctx.fill()
+        ctx.beginPath()
+        ctx.arc(x + size/2, y + size*0.75, size/3, 0, Math.PI, true)
+        ctx.fill()
+      }
+      
+      // Limitador de 11 palavras por linha para melhor legibilidade
+      const MAX_WORDS_PER_LINE = 11
+      
+      const wrapText = (ctx: CanvasRenderingContext2D, text: string, maxWidth: number, limitWords: boolean = true) => {
         const words = text.split(' ')
-        const lines = []
-        let currentLine = words[0]
+        const lines: string[] = []
+        let currentLine = words[0] || ''
+        let wordCount = 1
         
         for (let i = 1; i < words.length; i++) {
           const word = words[i]
           const testLine = currentLine + ' ' + word
           const metrics = ctx.measureText(testLine)
-          if (metrics.width > maxWidth && currentLine !== '') {
+          const wouldExceedWidth = metrics.width > maxWidth && currentLine !== ''
+          const wouldExceedWords = limitWords && wordCount >= MAX_WORDS_PER_LINE
+          
+          if (wouldExceedWidth || wouldExceedWords) {
             lines.push(currentLine)
             currentLine = word
+            wordCount = 1
           } else {
             currentLine = testLine
+            wordCount++
           }
         }
         lines.push(currentLine)
         return lines
       }
-      
-      // Calcular altura necessária
-      let totalHeight = padding * 2
-      
-      // Título
-      if (userQuestion) {
-        const questionLines = wrapText(`Pergunta: ${userQuestion}`, width - padding * 2 - 30)
-        totalHeight += titleHeight + questionLines.length * lineHeight + 20
-      }
-      
-      // Nome do profeta
-      totalHeight += titleHeight + 20
-      
-      // Conteúdo da resposta
-      const contentLines = wrapText(content, width - padding * 2)
-      totalHeight += contentLines.length * lineHeight + 20
-      
-      // Referências
-      if (references.length > 0) {
-        totalHeight += titleHeight + 10
-        references.forEach((ref, index) => {
-          const refLines = wrapText(`${index + 1}. ${ref}`, width - padding * 2 - 30)
-          totalHeight += refLines.length * lineHeight
+
+      // Função para calcular altura total do texto (mesma lógica do draw)
+      const calculateTextHeight = (ctx: CanvasRenderingContext2D, text: string, maxWidth: number): number => {
+        const paragraphs = text.split('\n').filter(p => p.trim())
+        let totalLines = 0
+        paragraphs.forEach((paragraph) => {
+          const paraLines = wrapText(ctx, paragraph, maxWidth)
+          totalLines += paraLines.length
         })
-        totalHeight += 20
+        const paragraphSpacing = (paragraphs.length - 1) * 12
+        return totalLines * lineHeight + paragraphSpacing
       }
-      
-      // Assinatura
-      totalHeight += lineHeight + 20
-      
-      // Configurar canvas
-      canvas.width = width
-      canvas.height = totalHeight
-      
-      // Fundo com gradiente sutil
-      const gradient = ctx.createLinearGradient(0, 0, 0, totalHeight)
-      gradient.addColorStop(0, '#ffffff')
-      gradient.addColorStop(1, '#f8fafc')
-      ctx.fillStyle = gradient
-      ctx.fillRect(0, 0, width, totalHeight)
-      
-      // Adicionar sombra sutil nas bordas
-      ctx.shadowColor = 'rgba(0, 0, 0, 0.1)'
-      ctx.shadowBlur = 10
-      ctx.shadowOffsetX = 0
-      ctx.shadowOffsetY = 2
-      
-      // Resetar Y
-      currentY = padding
-      
-      // Desenhar pergunta se fornecida
-      if (userQuestion) {
-        // Desenhar ícone de pergunta
-        await drawIcon('question', padding, currentY, 24)
+
+      // Função auxiliar para desenhar texto com citações bíblicas (destaca apenas a referência, não a linha)
+      const drawTextWithQuotes = (ctx: CanvasRenderingContext2D, text: string, x: number, startY: number, maxWidth: number) => {
+        let currentY = startY
+        const paragraphs = text.split('\n').filter(p => p.trim())
+        const bibleRegex = /\*\*\d?\s*[A-Z][a-záàâãéèêíïóôõöúçñ]+\s+\d+:\d+(?:-\d+)?\*\*/g
         
-        ctx.fillStyle = '#2563eb'
-        ctx.font = 'bold 18px Arial, sans-serif'
-        ctx.textAlign = 'left'
-        ctx.fillText('Pergunta:', padding + 30, currentY + 20)
-        currentY += titleHeight
-        
-        ctx.fillStyle = '#374151'
-        ctx.font = '16px Arial, sans-serif'
-        const questionLines = wrapText(userQuestion, width - padding * 2 - 30)
-        questionLines.forEach(line => {
-          ctx.fillText(line, padding + 30, currentY)
-          currentY += lineHeight
-        })
-        currentY += 20
-      }
-      
-      // Desenhar avatar do profeta e nome
-      await drawIcon('prophet', padding, currentY, 24)
-      
-      ctx.fillStyle = '#059669'
-      ctx.font = 'bold 18px Arial, sans-serif'
-      ctx.textAlign = 'left'
-      ctx.fillText(`${prophetName}`, padding + 30, currentY + 20)
-      currentY += titleHeight + 20
-      
-      // Desenhar conteúdo da resposta
-      ctx.fillStyle = '#111827'
-      ctx.font = '16px Arial, sans-serif'
-      const responseLines = wrapText(content, width - padding * 2)
-      responseLines.forEach(line => {
-        ctx.fillText(line, padding, currentY)
-        currentY += lineHeight
-      })
-      currentY += 20
-      
-      // Desenhar referências se existirem
-      if (references.length > 0) {
-        // Desenhar ícone de livro
-        await drawIcon('book', padding, currentY, 24)
-        
-        ctx.fillStyle = '#7c3aed'
-        ctx.font = 'bold 18px Arial, sans-serif'
-        ctx.textAlign = 'left'
-        ctx.fillText('Referências e Fontes:', padding + 30, currentY + 20)
-        currentY += titleHeight + 10
-        
-        ctx.fillStyle = '#4b5563'
-        ctx.font = '14px Arial, sans-serif'
-        references.forEach((ref, index) => {
-          const refLines = wrapText(`${index + 1}. ${ref}`, width - padding * 2 - 30)
-          refLines.forEach(line => {
-            ctx.fillText(line, padding + 30, currentY)
+        paragraphs.forEach((paragraph) => {
+          const paraLines = wrapText(ctx, paragraph, maxWidth)
+          paraLines.forEach((line) => {
+            // Verificar se a linha tem citações bíblicas
+            const matches = line.match(bibleRegex)
+            
+            if (matches && matches.length > 0) {
+              // Desenhar fundo lilás apenas para as citações
+              ctx.fillStyle = colors.bibleBg
+              matches.forEach((match) => {
+                const beforeText = line.substring(0, line.indexOf(match))
+                const beforeWidth = ctx.measureText(beforeText).width
+                const matchWidth = ctx.measureText(match).width
+                ctx.fillRect(x + beforeWidth - 4, currentY - 18, matchWidth + 8, 26)
+              })
+              
+              // Desenhar a linha em partes
+              let currentX = x
+              let remainingText = line
+              
+              while (remainingText.length > 0) {
+                const nextMatch = remainingText.match(bibleRegex)
+                
+                if (nextMatch) {
+                  const matchIndex = remainingText.indexOf(nextMatch[0])
+                  const beforeText = remainingText.substring(0, matchIndex)
+                  const matchText = nextMatch[0]
+                  
+                  // Texto normal antes da citação
+                  if (beforeText) {
+                    ctx.fillStyle = colors.text
+                    ctx.font = '16px Arial, sans-serif'
+                    ctx.fillText(beforeText, currentX, currentY)
+                    currentX += ctx.measureText(beforeText).width
+                  }
+                  
+                  // Citação em roxo e negrito
+                  ctx.fillStyle = colors.bibleQuote
+                  ctx.font = 'bold 16px Arial, sans-serif'
+                  ctx.fillText(matchText, currentX, currentY)
+                  currentX += ctx.measureText(matchText).width
+                  
+                  remainingText = remainingText.substring(matchIndex + matchText.length)
+                } else {
+                  // Resto do texto normal
+                  ctx.fillStyle = colors.text
+                  ctx.font = '16px Arial, sans-serif'
+                  ctx.fillText(remainingText, currentX, currentY)
+                  break
+                }
+              }
+            } else {
+              // Linha sem citações - texto normal
+              ctx.fillStyle = colors.text
+              ctx.font = '16px Arial, sans-serif'
+              ctx.fillText(line, x, currentY)
+            }
             currentY += lineHeight
           })
+          currentY += 12 // Espaço entre parágrafos
         })
-        currentY += 20
+        
+        return currentY
       }
-      
-      // Desenhar assinatura
-      await drawIcon('share', padding, currentY, 16)
-      ctx.fillStyle = '#6b7280'
-      ctx.font = 'italic 14px Arial, sans-serif'
-      ctx.fillText(`Compartilhado via ${appConfig.appName || "Falando com o Profeta"}`, padding + 20, currentY + 12)
-      
-      // Converter canvas para blob
-      const blob = await new Promise<Blob>((resolve) => {
-        canvas.toBlob((blob) => {
-          resolve(blob!)
-        }, 'image/png', 0.9)
-      })
-      
-      // Criar arquivo para compartilhamento
-      const file = new File([blob], `mensagem-${prophetName.replace(/\s+/g, '-').toLowerCase()}.png`, {
-        type: 'image/png'
-      })
-      
-      // Tentar compartilhar usando Web Share API
-      if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
-        try {
-          await navigator.share({
-            title: `Mensagem do ${prophetName}`,
-            text: userQuestion ? `Pergunta: ${userQuestion}` : `Mensagem do ${prophetName}`,
-            files: [file]
-          })
-          return
-        } catch (err) {
-          console.error("Error sharing with Web Share API:", err)
+
+      // GERAR PRIMEIRA IMAGEM (Título + Metade do texto)
+      const generateImage1 = async (): Promise<string | null> => {
+        const canvas = document.createElement('canvas')
+        const ctx = canvas.getContext('2d')
+        if (!ctx) return null
+        
+        // Calcular altura
+        ctx.font = '16px Arial, sans-serif'
+        let totalHeight = padding * 2 + 50 // Header
+        
+        // Card pergunta
+        let questionHeight = 0
+        if (userQuestion) {
+          const qLines = wrapText(ctx, userQuestion, width - padding * 2 - innerPadding * 2 - 60)
+          questionHeight = 60 + qLines.length * lineHeight
+          totalHeight += questionHeight + 20
         }
+        
+        // Card resposta (parte 1) - usar função consistente de cálculo de altura
+        const textWidth = width - padding * 2 - innerPadding * 2
+        const textHeight1 = calculateTextHeight(ctx, contentPart1, textWidth)
+        const cardHeightCalc1 = 95 + textHeight1 + 25 // 95=header do card, 25=padding inferior
+        totalHeight += cardHeightCalc1 + 30
+        
+        // Indicador "Continua..." - maior espaço
+        totalHeight += 50
+        
+        canvas.width = width
+        canvas.height = totalHeight
+        
+        // Fundo
+        const bgGradient = ctx.createLinearGradient(0, 0, 0, totalHeight)
+        bgGradient.addColorStop(0, '#f1f5f9')
+        bgGradient.addColorStop(1, '#e2e8f0')
+        ctx.fillStyle = bgGradient
+        ctx.fillRect(0, 0, width, totalHeight)
+        
+        // Borda externa
+        ctx.strokeStyle = '#cbd5e1'
+        ctx.lineWidth = 1
+        ctx.strokeRect(10, 10, width - 20, totalHeight - 20)
+        
+        let currentY = padding
+        
+        // Header
+        ctx.fillStyle = colors.text
+        ctx.font = 'bold 22px Arial, sans-serif'
+        ctx.textAlign = 'center'
+        ctx.fillText(appConfig.appName || "Falando com o Profeta", width / 2, currentY + 18)
+        
+        ctx.strokeStyle = colors.prophetBorder
+        ctx.lineWidth = 2
+        ctx.beginPath()
+        ctx.moveTo(width / 2 - 60, currentY + 30)
+        ctx.lineTo(width / 2 + 60, currentY + 30)
+        ctx.stroke()
+        
+        currentY += 55
+        
+        // Card da pergunta
+        if (userQuestion) {
+          const cardX = padding
+          const cardY = currentY
+          const cardWidth = width - padding * 2
+          
+          ctx.fillStyle = colors.questionBg
+          ctx.fillRect(cardX, cardY, cardWidth, questionHeight)
+          ctx.strokeStyle = colors.questionBorder
+          ctx.lineWidth = 2
+          ctx.strokeRect(cardX, cardY, cardWidth, questionHeight)
+          
+          ctx.fillStyle = colors.questionBorder
+          ctx.fillRect(cardX, cardY, 5, questionHeight)
+          
+          // Ícone ?
+          ctx.fillStyle = colors.questionBorder
+          ctx.beginPath()
+          ctx.arc(cardX + innerPadding + 15, cardY + 30, 15, 0, 2 * Math.PI)
+          ctx.fill()
+          ctx.fillStyle = '#ffffff'
+          ctx.font = 'bold 18px Arial, sans-serif'
+          ctx.textAlign = 'center'
+          ctx.fillText('?', cardX + innerPadding + 15, cardY + 36)
+          
+          ctx.fillStyle = colors.text
+          ctx.font = 'bold 15px Arial, sans-serif'
+          ctx.textAlign = 'left'
+          ctx.fillText('PERGUNTA', cardX + innerPadding + 40, cardY + 22)
+          
+          const qLines = wrapText(ctx, userQuestion, cardWidth - innerPadding * 2 - 60)
+          ctx.font = '16px Arial, sans-serif'
+          qLines.forEach((line, index) => {
+            ctx.fillText(line, cardX + innerPadding + 40, cardY + 48 + index * lineHeight)
+          })
+          
+          currentY += questionHeight + 20
+        }
+        
+        // Card da resposta (parte 1) - usar mesma função de cálculo
+        const cardX = padding
+        const cardY = currentY
+        const cardWidth = width - padding * 2
+        const contentWidth = cardWidth - innerPadding * 2
+        const cardHeight = 95 + calculateTextHeight(ctx, contentPart1, contentWidth) + 25
+        
+        ctx.fillStyle = colors.background
+        ctx.fillRect(cardX, cardY, cardWidth, cardHeight)
+        ctx.strokeStyle = colors.border
+        ctx.lineWidth = 2
+        ctx.strokeRect(cardX, cardY, cardWidth, cardHeight)
+        
+        ctx.fillStyle = colors.prophetBorder
+        ctx.fillRect(cardX, cardY, 5, cardHeight)
+        
+        await drawProphetAvatar(ctx, cardX + innerPadding, cardY + 20, 45)
+        
+        ctx.fillStyle = colors.prophetBorder
+        ctx.font = 'bold 17px Arial, sans-serif'
+        ctx.textAlign = 'left'
+        ctx.fillText(prophetName.toUpperCase(), cardX + innerPadding + 55, cardY + 42)
+        
+        ctx.fillStyle = colors.textMuted
+        ctx.font = '13px Arial, sans-serif'
+        ctx.fillText('Respondendo em nome do Senhor', cardX + innerPadding + 55, cardY + 58)
+        
+        ctx.strokeStyle = colors.border
+        ctx.lineWidth = 1
+        ctx.beginPath()
+        ctx.moveTo(cardX + innerPadding, cardY + 75)
+        ctx.lineTo(cardX + cardWidth - innerPadding, cardY + 75)
+        ctx.stroke()
+        
+        // Desenhar texto parte 1
+        drawTextWithQuotes(ctx, contentPart1, cardX + innerPadding, cardY + 95, cardWidth - innerPadding * 2)
+        
+        // Indicador "Continua na próxima imagem..." - maior e mais visível
+        ctx.fillStyle = colors.textMuted
+        ctx.font = 'italic bold 16px Arial, sans-serif'
+        ctx.textAlign = 'center'
+        ctx.fillText('◆◆◆  CONTINUA NA PRÓXIMA IMAGEM  ◆◆◆', width / 2, cardY + cardHeight - 20)
+        
+        return canvas.toDataURL('image/png', 0.95)
       }
-      
-      // Fallback: criar mensagem de texto simples para WhatsApp
-      let shareText = ""
-      if (userQuestion) {
-        shareText += `🤔 Pergunta: ${userQuestion}\n\n`
+
+      // GERAR SEGUNDA IMAGEM (Restante do texto + Referências)
+      const generateImage2 = async (): Promise<string | null> => {
+        const canvas = document.createElement('canvas')
+        const ctx = canvas.getContext('2d')
+        if (!ctx) return null
+        
+        // Calcular altura
+        ctx.font = '16px Arial, sans-serif'
+        let totalHeight = padding * 2 + 50 // Header
+        
+        // Card resposta (parte 2) - usar função consistente
+        const textWidth2 = width - padding * 2 - innerPadding * 2
+        const textHeight2 = calculateTextHeight(ctx, contentPart2, textWidth2)
+        const contentHeight = 95 + textHeight2 + 25
+        totalHeight += contentHeight + 20
+        
+        // Referências
+        if (references.length > 0) {
+          totalHeight += 50 + references.length * 28
+        }
+        
+        // Footer
+        totalHeight += 50
+        
+        canvas.width = width
+        canvas.height = totalHeight
+        
+        // Fundo
+        const bgGradient = ctx.createLinearGradient(0, 0, 0, totalHeight)
+        bgGradient.addColorStop(0, '#f1f5f9')
+        bgGradient.addColorStop(1, '#e2e8f0')
+        ctx.fillStyle = bgGradient
+        ctx.fillRect(0, 0, width, totalHeight)
+        
+        // Borda externa
+        ctx.strokeStyle = '#cbd5e1'
+        ctx.lineWidth = 1
+        ctx.strokeRect(10, 10, width - 20, totalHeight - 20)
+        
+        let currentY = padding
+        
+        // Header (mesmo estilo)
+        ctx.fillStyle = colors.text
+        ctx.font = 'bold 22px Arial, sans-serif'
+        ctx.textAlign = 'center'
+        ctx.fillText(appConfig.appName || "Falando com o Profeta", width / 2, currentY + 18)
+        
+        ctx.strokeStyle = colors.prophetBorder
+        ctx.lineWidth = 2
+        ctx.beginPath()
+        ctx.moveTo(width / 2 - 60, currentY + 30)
+        ctx.lineTo(width / 2 + 60, currentY + 30)
+        ctx.stroke()
+        
+        currentY += 55
+        
+        // Indicador "Continuação" - maior e mais visível
+        ctx.fillStyle = colors.textMuted
+        ctx.font = 'italic bold 16px Arial, sans-serif'
+        ctx.fillText('◆◆◆  CONTINUAÇÃO  ◆◆◆', width / 2, currentY)
+        currentY += 30
+        
+        // Card da resposta (parte 2) - usar mesma função
+        const cardX = padding
+        const cardY = currentY
+        const cardWidth = width - padding * 2
+        const contentWidth2 = cardWidth - innerPadding * 2
+        let cardHeight = 95 + calculateTextHeight(ctx, contentPart2, contentWidth2) + 25
+        if (references.length > 0) {
+          cardHeight += 50 + references.length * 28
+        }
+        
+        ctx.fillStyle = colors.background
+        ctx.fillRect(cardX, cardY, cardWidth, cardHeight)
+        ctx.strokeStyle = colors.border
+        ctx.lineWidth = 2
+        ctx.strokeRect(cardX, cardY, cardWidth, cardHeight)
+        
+        ctx.fillStyle = colors.prophetBorder
+        ctx.fillRect(cardX, cardY, 5, cardHeight)
+        
+        await drawProphetAvatar(ctx, cardX + innerPadding, cardY + 20, 45)
+        
+        ctx.fillStyle = colors.prophetBorder
+        ctx.font = 'bold 17px Arial, sans-serif'
+        ctx.textAlign = 'left'
+        ctx.fillText(prophetName.toUpperCase(), cardX + innerPadding + 55, cardY + 42)
+        
+        ctx.fillStyle = colors.textMuted
+        ctx.font = '13px Arial, sans-serif'
+        ctx.fillText('Respondendo em nome do Senhor', cardX + innerPadding + 55, cardY + 58)
+        
+        ctx.strokeStyle = colors.border
+        ctx.lineWidth = 1
+        ctx.beginPath()
+        ctx.moveTo(cardX + innerPadding, cardY + 75)
+        ctx.lineTo(cardX + cardWidth - innerPadding, cardY + 75)
+        ctx.stroke()
+        
+        // Desenhar texto parte 2
+        let textY = drawTextWithQuotes(ctx, contentPart2, cardX + innerPadding, cardY + 95, cardWidth - innerPadding * 2)
+        
+        // Referências
+        if (references.length > 0) {
+          textY += 15
+          
+          ctx.fillStyle = colors.textMuted
+          ctx.font = 'bold 13px Arial, sans-serif'
+          ctx.fillText('REFERÊNCIAS:', cardX + innerPadding, textY)
+          textY += 25
+          
+          ctx.fillStyle = colors.reference
+          ctx.font = '14px Arial, sans-serif'
+          references.forEach((ref, index) => {
+            ctx.fillText(`${index + 1}. ${ref}`, cardX + innerPadding + 15, textY)
+            textY += 26
+          })
+        }
+        
+        currentY += cardHeight + 20
+        
+        // Footer
+        ctx.fillStyle = colors.textMuted
+        ctx.font = 'italic 14px Arial, sans-serif'
+        ctx.textAlign = 'center'
+        ctx.fillText(`Compartilhado via ${appConfig.appName || "Falando com o Profeta"}`, width / 2, currentY + 20)
+        ctx.font = '12px Arial, sans-serif'
+        ctx.fillText(new Date().toLocaleDateString('pt-BR'), width / 2, currentY + 38)
+        
+        return canvas.toDataURL('image/png', 0.95)
       }
-      shareText += `👤 ${prophetName} ➡️\n\n${content}\n\n`
-      if (references.length > 0) {
-        shareText += `📚 Referências:\n`
-        references.forEach((ref, index) => {
-          shareText += `${index + 1}. ${ref}\n`
-        })
-        shareText += `\n`
-      }
-      shareText += `📱 Compartilhado via ${appConfig.appName || "Falando com o Profeta"}`
+
+      // Gerar ambas as imagens
+      const [image1, image2] = await Promise.all([generateImage1(), generateImage2()])
       
-      // Abrir WhatsApp com texto (sem baixar imagem)
-      const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(shareText)}`
-      window.open(whatsappUrl, '_blank')
+      const images: string[] = []
+      if (image1) images.push(image1)
+      if (image2) images.push(image2)
       
+      return images
     } catch (error) {
-      console.error("Erro ao gerar imagem:", error)
-      
-      // Fallback completo: compartilhamento de texto original
-      const prophetName = appConfig.prophetName || "Profeta William Branham"
-      let shareText = ""
-      
-      if (userQuestion) {
-        shareText += `🤔 *Pergunta:*\n${userQuestion}\n\n`
-      }
-      
-      shareText += `👤 *${prophetName}* ➡️\n\n`
-      shareText += `${content}\n\n`
-      
-      if (references.length > 0) {
-        shareText += `📚 *Referências e Fontes:*\n`
-        references.forEach((ref, index) => {
-          shareText += `${index + 1}. ${ref}\n`
-        })
-        shareText += `\n`
-      }
-      
-      shareText += `📱 _Compartilhado via ${appConfig.appName || "Falando com o Profeta"}_`
-      
-      const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(shareText)}`
-      window.open(whatsappUrl, '_blank')
+      console.error("Erro ao gerar imagens:", error)
+      return []
     }
+  }
+
+  // Função legada para compatibilidade (retorna apenas primeira imagem)
+  const generateShareImage = async (content: string, references: string[], userQuestion?: string): Promise<string | null> => {
+    const images = await generateShareImages(content, references, userQuestion)
+    return images[0] || null
+  }
+
+  // Abrir modal de compartilhamento
+  const openShareModal = async (content: string, references: string[], userQuestion?: string) => {
+    const imageUrls = await generateShareImages(content, references, userQuestion)
+    setShareData({ content, references, userQuestion, imageUrls })
+    setShareModalOpen(true)
+  }
+
+  // Compartilhar como texto
+  const shareAsText = () => {
+    if (!shareData) return
+    
+    const prophetName = appConfig.prophetName || "Profeta William Branham"
+    let shareText = ""
+    
+    if (shareData.userQuestion) {
+      shareText += `🤔 *Pergunta:*\n${shareData.userQuestion}\n\n`
+    }
+    
+    shareText += `👤 *${prophetName}*\n\n`
+    shareText += `${shareData.content}\n\n`
+    
+    if (shareData.references.length > 0) {
+      shareText += `📚 *Referências:*\n`
+      shareData.references.forEach((ref, index) => {
+        shareText += `${index + 1}. ${ref}\n`
+      })
+      shareText += `\n`
+    }
+    
+    shareText += `📱 _Compartilhado via ${appConfig.appName || "Falando com o Profeta"}_`
+    
+    const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(shareText)}`
+    window.open(whatsappUrl, '_blank')
+    setShareModalOpen(false)
+  }
+
+  // Gerar nome do arquivo baseado na pergunta
+  const generateFileName = (): string => {
+    const date = new Date().toISOString().split('T')[0]
+    if (shareData?.userQuestion) {
+      // Pegar os primeiros 30 caracteres da pergunta e limpar caracteres especiais
+      const cleanQuestion = shareData.userQuestion
+        .slice(0, 30)
+        .replace(/[^a-zA-Z0-9áàâãéèêíïóôõöúçñÁÀÂÃÉÈÊÍÏÓÔÕÖÚÇÑ\s]/g, '')
+        .replace(/\s+/g, '_')
+      return `${cleanQuestion}_${date}.png`
+    }
+    return `mensagem_profeta_${date}.png`
+  }
+
+  // Compartilhar como imagem (baixa todas as imagens)
+  const shareAsImage = async () => {
+    if (!shareData?.imageUrls || shareData.imageUrls.length === 0) return
+    
+    try {
+      const baseFileName = generateFileName().replace('.png', '')
+      
+      // Baixar todas as imagens em sequência
+      for (let i = 0; i < shareData.imageUrls.length; i++) {
+        if (i > 0) {
+          await new Promise(resolve => setTimeout(resolve, 500))
+        }
+        const link = document.createElement('a')
+        link.href = shareData.imageUrls[i]
+        link.download = `${baseFileName}_parte${i + 1}.png`
+        link.click()
+      }
+      
+      setShareModalOpen(false)
+    } catch (error) {
+      console.error("Erro ao baixar imagens:", error)
+    }
+  }
+
+  // Compartilhar nos stories do WhatsApp (baixa todas as imagens)
+  const shareAsStory = () => {
+    if (!shareData?.imageUrls || shareData.imageUrls.length === 0) return
+    
+    const baseFileName = generateFileName().replace('.png', '')
+    
+    // Baixar todas as imagens
+    shareData.imageUrls.forEach((url, index) => {
+      setTimeout(() => {
+        const link = document.createElement('a')
+        link.href = url
+        link.download = `${baseFileName}_story_parte${index + 1}.png`
+        link.click()
+      }, index * 500)
+    })
+    
+    // Mostrar instruções
+    alert(`Baixadas ${shareData.imageUrls.length} imagens! Adicione todas aos seus stories em sequência.`)
+    setShareModalOpen(false)
+  }
+
+  // Função legada para compatibilidade
+  const shareMessage = async (content: string, references: string[], userQuestion?: string) => {
+    await openShareModal(content, references, userQuestion)
   }
 
   const toggleReferences = (index: number) => {
@@ -1240,75 +1487,59 @@ export function ChatInterface({ conversationId, onConversationUpdate, user, appC
     // Process inline Bible verses in content
     let processedContent = cleanContent
     
-    // Padrões mais abrangentes para capturar diferentes formatos de versículos
+    // Função para extrair apenas a referência bíblica (livro capítulo:versículo) de um texto
+    const extractBibleReference = (text: string): string | null => {
+      // Remover asteriscos e parênteses
+      const cleanText = text.replace(/\*\*/g, '').replace(/[()]/g, '').trim()
+      
+      // Padrão para capturar referências bíblicas: livro capítulo:versículo ou número livro capítulo:versículo
+      const patterns = [
+        // Formato: 1 Timóteo 2:9-10 ou Timóteo 2:9
+        /(\d+\s+)?([\wáàâãéèêíïóôõöúçñÁÀÂÃÉÈÊÍÏÓÔÕÖÚÇÑ]+)\s+(\d+):(\d+(?:-\d+)?)/i,
+      ]
+      
+      for (const pattern of patterns) {
+        const match = cleanText.match(pattern)
+        if (match) {
+          const numero = match[1] ? match[1].trim() : ''
+          const livro = match[2]
+          const capitulo = match[3]
+          const versiculo = match[4]
+          
+          if (numero) {
+            return `${numero} ${livro} ${capitulo}:${versiculo}`
+          }
+          return `${livro} ${capitulo}:${versiculo}`
+        }
+      }
+      
+      return null
+    }
+    
+    // Padrões para detectar versículos no texto
     const versePatterns = [
-      // Padrão genérico para capturar qualquer formato de capítulo:versículo (primeiro para capturar o mais amplo)
-      /(\d+\s+\w+\s+\d+:\d+(?:-\d+)?)/g,
-      /(\w+\s+\d+:\d+(?:-\d+)?)/g,
-      /(\d+:\d+(?:-\d+)?)/g,
-      // NOVO: Formato com asteriscos: **1 Timóteo 2:9-10**
-      /(\*\*\d+\s+\w+\s+\d+:\d+(?:-\d+)?\*\*)/g,
-      /(\*\*\w+\s+\d+:\d+(?:-\d+)?\*\*)/g,
-      // Formato: 2:17-18: "texto"
-      /(\d+:\d+(?:-\d+)?:\s*"[^"]+?")/g,
-      // Formato: Em 1 Timóteo 2:12, está escrito: "texto"
-      /(Em\s+\d+\s+\w+\s+\d+:\d+(?:-\d+)?,\s*está\s+escrito:\s*"[^"]+?")/gi,
-      // Formato: 1 Timóteo 2:12: "texto"
-      /(\d+\s+\w+\s+\d+:\d+(?:-\d+)?:\s*"[^"]+?")/g,
-      // Formato: Atos 2:17-18: "texto"
-      /(\w+\s+\d+:\d+(?:-\d+)?:\s*"[^"]+?")/g,
-      // Formato: como vemos em Atos 2:17-18: "texto"
-      /(como\s+vemos\s+em\s+\w+\s+\d+:\d+(?:-\d+)?:\s*"[^"]+?")/gi,
-      // Formato genérico: "texto" (livro capítulo:versículo)
-      /("[^"]+?"\s*\([^)]*\d+:\d+(?:-\d+)?[^)]*\))/g,
-      // Formato: A Bíblia nos ensina sobre... Em 1 Timóteo 2:12, está escrito: "texto"
-      /(A\s+Bíblia\s+nos\s+ensina[^"]*Em\s+\d+\s+\w+\s+\d+:\d+(?:-\d+)?,\s*está\s+escrito:\s*"[^"]+?")/gi,
-      // Formato: Paulo, inspirado pelo Espírito, nos dá essa instrução
-      /(Paulo,\s+inspirado\s+pelo\s+Espírito,\s+nos\s+dá\s+essa\s+instrução[^"]*"[^"]+?")/gi,
-      // Formato: como está escrito em... "texto"
-      /(como\s+está\s+escrito\s+em[^"]*"[^"]+?")/gi,
-      // Formato: A Palavra diz em... "texto"
-      /(A\s+Palavra\s+diz\s+em[^"]*"[^"]+?")/gi,
-      // Formato: nas Escrituras lemos... "texto"
-      /(nas\s+Escrituras\s+lemos[^"]*"[^"]+?")/gi,
-      // Formato: o Senhor disse... "texto"
-      /(o\s+Senhor\s+disse[^"]*"[^"]+?")/gi,
-      // Formato: As Escrituras, em 1 Timóteo 2:12, nos dizem: "texto"
-      /(As\s+Escrituras,\s+em\s+\d+\s+\w+\s+\d+:\d+(?:-\d+)?,\s+nos\s+dizem:\s*"[^"]+?")/gi,
-      // Formato: E em 1 Coríntios 14:34-35, a Palavra nos adverte: "texto"
-      /(E\s+em\s+\d+\s+\w+\s+\d+:\d+(?:-\d+)?,\s+a\s+Palavra\s+nos\s+adverte:\s*"[^"]+?")/gi,
-      // Formato: Como já conversamos antes, a Bíblia nos apresenta uma ordem divina
-      /(Como\s+já\s+conversamos\s+antes,\s+a\s+Bíblia\s+nos\s+apresenta[^"]*"[^"]+?")/gi,
-      // Formato: onde o homem é o cabeça e a mulher deve estar em submissão
-      /(onde\s+o\s+homem\s+é\s+o\s+cabeça\s+e\s+a\s+mulher\s+deve\s+estar\s+em\s+submissão[^"]*"[^"]+?")/gi,
-      // Formato: mas estejam sujeitas, como também ordena a lei
-      /(mas\s+estejam\s+sujeitas,\s+como\s+também\s+ordena\s+a\s+lei[^"]*"[^"]+?")/gi,
-      // Formato: E, se querem aprender alguma coisa, interroguem em casa
-      /(E,\s+se\s+querem\s+aprender\s+alguma\s+coisa,\s+interroguem\s+em\s+casa[^"]*"[^"]+?")/gi,
-      // Formato: porque é vergonhoso que as mulheres falem na igreja
-      /(porque\s+é\s+vergonhoso\s+que\s+as\s+mulheres\s+falem\s+na\s+igreja[^"]*"[^"]+?")/gi,
-      // NOVO: Formato apenas referência: (Efésios 2:8-9), Atos 2:38, etc.
-      /(\([^)]*\w+\s+\d+:\d+(?:-\d+)?[^)]*\))/g,
-      /(\w+\s+\d+:\d+(?:-\d+)?(?=[\s.,;!?]|$))/g
+      // Formato com asteriscos: **1 Timóteo 2:9-10** ou **João 3:16**
+      /\*\*(?:\d+\s+)?[\wáàâãéèêíïóôõöúçñÁÀÂÃÉÈÊÍÏÓÔÕÖÚÇÑ]+\s+\d+:\d+(?:-\d+)?\*\*/g,
+      // Formato com parênteses: (Efésios 2:8-9) ou (1 Timóteo 2:9)
+      /\((?:\d+\s+)?[\wáàâãéèêíïóôõöúçñÁÀÂÃÉÈÊÍÏÓÔÕÖÚÇÑ]+\s+\d+:\d+(?:-\d+)?\)/g,
     ]
     
     let verseCounter = 0
-    const versesToFetch: { id: string, text: string }[] = []
+    const versesToFetch: { id: string, text: string, reference: string }[] = []
     
     versePatterns.forEach(pattern => {
       processedContent = processedContent.replace(pattern, (match) => {
-        // Usar um ID baseado no índice da mensagem e contador para ser consistente
-         const verseId = `verse_${messageIndex}_${verseCounter++}`
-         
-         // Remover asteriscos do texto do versículo
-         const cleanVerseText = match.replace(/\*\*/g, '')
-         
-         // Se não tem texto (aspas), adicionar à lista para buscar
-         if (!cleanVerseText.includes('"')) {
-           versesToFetch.push({ id: verseId, text: cleanVerseText })
-         }
-         
-        return `{{VERSE:${verseId}:${cleanVerseText}}}`
+        const reference = extractBibleReference(match)
+        if (!reference) return match
+        
+        // Criar ID limpo baseado apenas no índice da mensagem e contador
+        const verseId = `verse_${messageIndex}_${verseCounter++}`
+        
+        // Adicionar à lista para buscar se ainda não temos o texto
+        versesToFetch.push({ id: verseId, text: reference, reference })
+        
+        // Retornar marcador com a referência (sem texto extra)
+        return `{{VERSE:${verseId}:${reference}}}`
       })
     })
     
@@ -1413,11 +1644,11 @@ export function ChatInterface({ conversationId, onConversationUpdate, user, appC
                 <div className={`flex ${message.role === "user" ? "flex-row-reverse" : "flex-row"} items-start space-x-2 max-w-[85%] sm:max-w-[80%] md:max-w-[75%]`}>
                   <Avatar className="w-7 h-7 sm:w-8 sm:h-8 flex-shrink-0">
                     <AvatarImage 
-                      src={message.role === "user" ? (profile?.avatar_url || "/default-avatar.png") : appConfig.prophetAvatar} 
+                      src={message.role === "user" ? (profile?.avatar_url || generateAvatarUrl(profile?.name || "", profile?.email)) : appConfig.prophetAvatar} 
                       alt={message.role === "user" ? (profile?.name || "User") : appConfig.prophetName}
-                      onLoad={() => console.log(`✅ Avatar loaded for ${message.role}:`, message.role === "user" ? (profile?.avatar_url || "/default-avatar.png") : appConfig.prophetAvatar)}
+                      onLoad={() => console.log(`✅ Avatar loaded for ${message.role}:`, message.role === "user" ? (profile?.avatar_url || "generated") : appConfig.prophetAvatar)}
                       onError={() => 
-                        console.error(`❌ Failed to load avatar for ${message.role}:`, message.role === "user" ? (profile?.avatar_url || "/default-avatar.png") : appConfig.prophetAvatar)
+                        console.error(`❌ Failed to load avatar for ${message.role}:`, message.role === "user" ? (profile?.avatar_url || "generated") : appConfig.prophetAvatar)
                       }
                     />
                     <AvatarFallback className="text-xs">{message.role === "user" ? "U" : "WB"}</AvatarFallback>
@@ -1462,62 +1693,56 @@ export function ChatInterface({ conversationId, onConversationUpdate, user, appC
                                         console.log('Toggle clicked for verse:', verseId, 'Current state:', isExpanded)
                                           console.log('Verse text:', verseText)
                                           
-                                          // Algoritmo direto para buscar versículo sem depender da IA
+                                          // Algoritmo para buscar versículo - API primeiro, depois base local
                                           if (!verseText.includes('"') && !verseTexts[verseId]) {
                                             console.log('🔍 Buscando versículo automaticamente:', verseText)
                                             
-                                            // Buscar diretamente na base de dados local
+                                            // Buscar PRIMEIRO na API (fonte mais completa)
+                                            console.log('🌐 Buscando na API da Bíblia...')
+                                            try {
+                                              const response = await fetch('/api/bible-references', {
+                                                method: 'POST',
+                                                headers: {
+                                                  'Content-Type': 'application/json',
+                                                },
+                                                body: JSON.stringify({ text: verseText })
+                                              })
+                                              
+                                              if (response.ok) {
+                                                const data = await response.json()
+                                                if (data.verses && data.verses.length > 0) {
+                                                  const foundVerse = data.verses[0]
+                                                  const fullVerseText = `${foundVerse.reference} - "${foundVerse.text}"`
+                                                  console.log('✅ Versículo encontrado na API:', foundVerse.reference)
+                                                  setVerseTexts(prev => ({
+                                                    ...prev,
+                                                    [verseId]: fullVerseText
+                                                  }))
+                                                  return // Sai da função se encontrou na API
+                                                }
+                                              }
+                                            } catch (error) {
+                                              console.error('❌ Erro na API, tentando base local:', error)
+                                            }
+                                            
+                                            // Fallback para base local apenas se API falhou
+                                            console.log('🔄 Fallback: Buscando na base local...')
                                             const foundVerse = findBibleVerseDirectly(verseText)
                                             if (foundVerse) {
-                                              console.log('✅ Versículo encontrado diretamente:', foundVerse)
+                                              console.log('✅ Versículo encontrado na base local:', foundVerse)
                                               setVerseTexts(prev => ({
                                                 ...prev,
                                                 [verseId]: `${foundVerse.reference} - "${foundVerse.text}"`
                                               }))
                                             } else {
-                                              // Fallback para API apenas se não encontrar diretamente
-                                              console.log('🔍 Fallback: Buscando na API...')
-                                              try {
-                                                const response = await fetch('/api/bible-references', {
-                                                  method: 'POST',
-                                                  headers: {
-                                                    'Content-Type': 'application/json',
-                                                  },
-                                                  body: JSON.stringify({ text: verseText })
-                                                })
-                                                
-                                                if (response.ok) {
-                                                  const data = await response.json()
-                                                  if (data.verses && data.verses.length > 0) {
-                                                    const foundVerse = data.verses[0]
-                                                    const fullVerseText = `${foundVerse.reference} - "${foundVerse.text}"`
-                                                    setVerseTexts(prev => ({
-                                                      ...prev,
-                                                      [verseId]: fullVerseText
-                                                    }))
-                                                  } else {
-                                                    // Se não encontrou na API, explicar que não é um versículo válido
-                                                    setVerseTexts(prev => ({
-                                                      ...prev,
-                                                      [verseId]: `"${verseText}" - Esta referência não foi encontrada como um versículo bíblico válido.`
-                                                    }))
-                                                  }
-                                                } else {
-                                                  // Se a API retornou erro, explicar que não é um versículo válido
-                                                  setVerseTexts(prev => ({
-                                                    ...prev,
-                                                    [verseId]: `"${verseText}" - Esta referência não foi encontrada como um versículo bíblico válido.`
-                                                  }))
-                                                }
-                                              } catch (error) {
-                                                console.error('❌ Erro ao buscar versículo:', error)
-                                                // Se não encontrou na API, explicar que não é um versículo válido
-                                                setVerseTexts(prev => ({
-                                                  ...prev,
-                                                  [verseId]: `"${verseText}" - Esta referência não foi encontrada como um versículo bíblico válido.`
-                                                }))
-                                              }
+                                              // Se não encontrou nem na API nem na base local
+                                              console.log('❌ Versículo não encontrado em nenhuma fonte')
+                                              setVerseTexts(prev => ({
+                                                ...prev,
+                                                [verseId]: `"${verseText}" - Esta referência não foi encontrada como um versículo bíblico válido.`
+                                              }))
                                             }
+                                          }
                                         
                                         setExpandedVerses(prev => {
                                           const newState = {
@@ -1532,45 +1757,7 @@ export function ChatInterface({ conversationId, onConversationUpdate, user, appC
                                     >
                                       <Book className="h-3 w-3" />
                                       <span className="text-xs font-medium">
-                                        {(() => {
-                                          // Extrair referência de diferentes formatos
-                                          if (verseText.includes('Em ') && verseText.includes('está escrito:')) {
-                                            const match = verseText.match(/Em\s+(\d+\s+\w+\s+\d+:\d+(?:-\d+)?)/i)
-                                            return match ? match[1] : 'Versículo'
-                                          } else if (verseText.includes('A Bíblia nos ensina')) {
-                                            const match = verseText.match(/Em\s+(\d+\s+\w+\s+\d+:\d+(?:-\d+)?)/i)
-                                            return match ? match[1] : 'Versículo'
-                                          } else if (verseText.match(/^\d+\s+\w+\s+\d+:\d+/)) {
-                                            const match = verseText.match(/^(\d+\s+\w+\s+\d+:\d+(?:-\d+)?)/i)
-                                            return match ? match[1] : 'Versículo'
-                                          } else if (verseText.match(/^\w+\s+\d+:\d+/)) {
-                                            const match = verseText.match(/^(\w+\s+\d+:\d+(?:-\d+)?)/i)
-                                            return match ? match[1] : 'Versículo'
-                                          } else if (verseText.match(/como\s+vemos\s+em/i)) {
-                                            const match = verseText.match(/como\s+vemos\s+em\s+(\w+\s+\d+:\d+(?:-\d+)?)/i)
-                                            return match ? match[1] : 'Versículo'
-                                          } else if (verseText.includes('(') && verseText.includes(')')) {
-                                            const match = verseText.match(/\(([^)]*\d+:\d+(?:-\d+)?[^)]*)\)/)
-                                            return match ? match[1] : verseText.replace(/[()]/g, '')
-                                          } else if (verseText.includes('Paulo, inspirado')) {
-                                            return 'Paulo - Escritura'
-                                          } else if (verseText.includes('como está escrito')) {
-                                            const match = verseText.match(/(\w+\s+\d+:\d+(?:-\d+)?)/)
-                                            return match ? match[1] : 'Escritura'
-                                          } else if (verseText.includes('A Palavra diz')) {
-                                            const match = verseText.match(/(\w+\s+\d+:\d+(?:-\d+)?)/)
-                                            return match ? match[1] : 'A Palavra'
-                                          } else if (verseText.includes('nas Escrituras')) {
-                                            const match = verseText.match(/(\w+\s+\d+:\d+(?:-\d+)?)/)
-                                            return match ? match[1] : 'Escrituras'
-                                          } else if (verseText.includes('o Senhor disse')) {
-                                            const match = verseText.match(/(\w+\s+\d+:\d+(?:-\d+)?)/)
-                                            return match ? match[1] : 'O Senhor'
-                                          } else {
-                                            const match = verseText.match(/(\w+\s+\d+:\d+(?:-\d+)?)/)
-                                            return match ? match[1] : verseText.trim()
-                                          }
-                                        })()}
+                                        {verseText}
                                       </span>
                                       {isExpanded ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
                                     </Button>
@@ -1604,16 +1791,17 @@ export function ChatInterface({ conversationId, onConversationUpdate, user, appC
                             <Button
                               variant="ghost"
                               size="sm"
-                              onClick={() => {
+                              onClick={async () => {
                                 // Para mensagens do assistente, encontrar a pergunta anterior do usuário
                                 let userQuestion = undefined
                                 if (message.role === "assistant" && index > 0) {
                                   const previousMessage = messages[index - 1]
                                   if (previousMessage.role === "user") {
-                                    userQuestion = previousMessage.content
+                                    const { cleanContent: userCleanContent } = await processMessageContent(previousMessage.content)
+                                    userQuestion = userCleanContent
                                   }
                                 }
-                                shareMessage(cleanContent, allReferences, userQuestion)
+                                await shareMessage(cleanContent, allReferences, userQuestion)
                               }}
                               className="h-7 w-7 sm:h-8 sm:w-8 p-0"
                               title="Compartilhar no WhatsApp"
@@ -1888,6 +2076,125 @@ export function ChatInterface({ conversationId, onConversationUpdate, user, appC
         isOpen={showUpgradeModal} 
         onClose={() => setShowUpgradeModal(false)} 
       />
+
+      {/* Modal de Compartilhamento Compacto */}
+      <Dialog open={shareModalOpen} onOpenChange={setShareModalOpen}>
+        <DialogContent className="sm:max-w-sm p-4 max-h-[90vh] overflow-y-auto">
+          <DialogHeader className="pb-2">
+            <DialogTitle className="flex items-center gap-2 text-base">
+              <Share2 className="w-4 h-4" />
+              Compartilhar
+            </DialogTitle>
+            <DialogDescription className="text-xs">
+              Escolha o formato
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="grid gap-2 py-2">
+            {/* Opção: Compartilhar como Texto */}
+            <Button
+              onClick={shareAsText}
+              variant="outline"
+              size="sm"
+              className="flex items-center justify-start gap-2 h-auto py-2 px-3 hover:bg-slate-100 dark:hover:bg-slate-800"
+            >
+              <div className="w-8 h-8 rounded-full bg-green-100 dark:bg-green-900 flex items-center justify-center flex-shrink-0">
+                <MessageSquare className="w-4 h-4 text-green-600 dark:text-green-400" />
+              </div>
+              <div className="text-left">
+                <div className="font-medium text-sm text-slate-900 dark:text-slate-100">
+                  Como Texto
+                </div>
+                <div className="text-xs text-slate-500 dark:text-slate-400">
+                  Formato WhatsApp
+                </div>
+              </div>
+            </Button>
+
+            {/* Opção: Compartilhar como Imagem */}
+            <Button
+              onClick={shareAsImage}
+              variant="outline"
+              size="sm"
+              className="flex items-center justify-start gap-2 h-auto py-2 px-3 hover:bg-slate-100 dark:hover:bg-slate-800"
+            >
+              <div className="w-8 h-8 rounded-full bg-blue-100 dark:bg-blue-900 flex items-center justify-center flex-shrink-0">
+                <ImageIcon className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+              </div>
+              <div className="text-left">
+                <div className="font-medium text-sm text-slate-900 dark:text-slate-100">
+                  Como Imagem
+                </div>
+                <div className="text-xs text-slate-500 dark:text-slate-400">
+                  Card visual
+                </div>
+              </div>
+            </Button>
+
+            {/* Opção: Compartilhar nos Stories */}
+            <Button
+              onClick={shareAsStory}
+              variant="outline"
+              size="sm"
+              className="flex items-center justify-start gap-2 h-auto py-2 px-3 hover:bg-slate-100 dark:hover:bg-slate-800"
+            >
+              <div className="w-8 h-8 rounded-full bg-purple-100 dark:bg-purple-900 flex items-center justify-center flex-shrink-0">
+                <Instagram className="w-4 h-4 text-purple-600 dark:text-purple-400" />
+              </div>
+              <div className="text-left">
+                <div className="font-medium text-sm text-slate-900 dark:text-slate-100">
+                  Stories
+                </div>
+                <div className="text-xs text-slate-500 dark:text-slate-400">
+                  WhatsApp Stories
+                </div>
+              </div>
+            </Button>
+          </div>
+
+          {/* Preview das imagens (se disponíveis) - compacto */}
+          {shareData?.imageUrls && shareData.imageUrls.length > 0 && (
+            <div className="border rounded-lg p-2 bg-slate-50 dark:bg-slate-900">
+              <div className="text-xs text-slate-500 mb-2 flex items-center gap-1">
+                <ImageIcon className="w-3 h-3" />
+                Preview ({shareData.imageUrls.length} {shareData.imageUrls.length === 1 ? 'imagem' : 'imagens'})
+              </div>
+              <div className={`grid ${shareData.imageUrls.length > 1 ? 'grid-cols-2 gap-2' : 'grid-cols-1'} max-h-40 overflow-y-auto`}>
+                {shareData.imageUrls.map((url, index) => (
+                  <img
+                    key={index}
+                    src={url}
+                    alt={`Preview parte ${index + 1}`}
+                    className="w-full rounded max-h-32 object-contain border border-slate-200"
+                  />
+                ))}
+              </div>
+            </div>
+          )}
+
+          <DialogFooter className="flex gap-2 pt-2">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setShareModalOpen(false)}
+              className="flex-1"
+            >
+              <X className="w-3 h-3 mr-1" />
+              Cancelar
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => shareAsImage()}
+              disabled={!shareData?.imageUrls || shareData.imageUrls.length === 0}
+              className="flex-1"
+            >
+              <Download className="w-3 h-3 mr-1" />
+              Salvar {shareData?.imageUrls && shareData.imageUrls.length > 1 ? `(${shareData.imageUrls.length} imgs)` : ''}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

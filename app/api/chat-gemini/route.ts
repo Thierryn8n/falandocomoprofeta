@@ -106,15 +106,17 @@ export async function POST(req: NextRequest) {
 
       console.log("Processando áudio com Gemini API...")
 
-      // Primeiro, fazer speech-to-text
+      console.log(" Enviando áudio para transcrição...")
+      console.log(" Tipo do arquivo:", audioFile.type)
+      console.log(" Tamanho base64:", base64Audio.length)
+
       const transcriptionResponse = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`,
         {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
           },
-          signal: AbortSignal.timeout(120000), // 120 segundos timeout
           body: JSON.stringify({
             contents: [
               {
@@ -133,20 +135,23 @@ export async function POST(req: NextRequest) {
             ],
             generationConfig: {
               temperature: 0.1,
-              maxOutputTokens: 4000,
+              maxOutputTokens: 1000,
             },
           }),
         }
       )
 
       if (!transcriptionResponse.ok) {
-        console.error("Erro na transcrição:", await transcriptionResponse.text())
-        return NextResponse.json({ error: "Erro ao transcrever áudio" }, { status: 500 })
+        const errorText = await transcriptionResponse.text()
+        console.error(" Erro na transcrição:", errorText)
+        console.error(" Status:", transcriptionResponse.status)
+        return NextResponse.json({ error: "Erro ao transcrever áudio: " + errorText }, { status: 500 })
       }
 
       const transcriptionData = await transcriptionResponse.json()
       const transcribedText = transcriptionData.candidates?.[0]?.content?.parts?.[0]?.text
 
+      // FILTRAR HERESIA NA TRANSCRIÇÃO ANTES DE PROCESSAR
       if (!transcribedText) {
         return NextResponse.json({ error: "Não foi possível transcrever o áudio" }, { status: 500 })
       }
@@ -285,7 +290,7 @@ PERGUNTA DO USUÁRIO: ${transcribedText}`
 
 // Agora, gerar resposta como Profeta Branham com contexto
 const chatResponse = await fetch(
-  `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
+  `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`,
   {
     method: "POST",
     headers: {
@@ -300,8 +305,8 @@ const chatResponse = await fetch(
         },
       ],
       generationConfig: {
-        temperature: 0.5,
-        maxOutputTokens: 8192,
+        temperature: 0.2,
+        maxOutputTokens: 2000,
       },
     }),
   }
@@ -503,7 +508,7 @@ PERGUNTA DO USUÁRIO: ${textMessage}` }],
       })
 
       const response = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`,
         {
           method: "POST",
           headers: {
@@ -576,8 +581,10 @@ PERGUNTA DO USUÁRIO: ${textMessage}` }],
         transcription: textMessage
       })
     }
-  } catch (error) {
-    console.error("Erro na API do Gemini:", error)
-    return NextResponse.json({ error: "Erro interno do servidor" }, { status: 500 })
+  } catch (error: any) {
+    console.error("❌ Erro na API do Gemini:", error)
+    console.error("📋 Stack trace:", error?.stack)
+    console.error("📋 Error message:", error?.message)
+    return NextResponse.json({ error: "Erro interno do servidor: " + (error?.message || "Unknown") }, { status: 500 })
   }
 }

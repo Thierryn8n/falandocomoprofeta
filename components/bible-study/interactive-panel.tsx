@@ -2,6 +2,8 @@
 
 import { useState, useRef, useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
+import { Button } from '@/components/ui/button'
+import { Book, ChevronUp, ChevronDown } from 'lucide-react'
 
 interface StudyCard {
   id: string
@@ -34,6 +36,10 @@ export default function InteractivePanel({ panel }: { panel: any }) {
   const [isConnecting, setIsConnecting] = useState(false)
   const [connectingFrom, setConnectingFrom] = useState<string | null>(null)
   const canvasRef = useRef<HTMLDivElement>(null)
+
+  // Estados para referências bíblicas expandidas
+  const [expandedVerses, setExpandedVerses] = useState<{ [key: string]: boolean }>({})
+  const [verseTexts, setVerseTexts] = useState<{ [key: string]: string }>({})
 
   useEffect(() => {
     loadPanelData()
@@ -174,6 +180,127 @@ export default function InteractivePanel({ panel }: { panel: any }) {
     return colors[type as keyof typeof colors] || '#ffffff'
   }
 
+  // Função para extrair referência bíblica do texto
+  const extractBibleReference = (text: string): string | null => {
+    const cleanText = text.replace(/\*\*/g, '').trim()
+    // Padrão para referências bíblicas: livro capítulo:versículo
+    const pattern = /(\d+\s+)?([\wáàâãéèêíïóôõöúçñÁÀÂÃÉÈÊÍÏÓÔÕÖÚÇÑ]+)\s+(\d+):(\d+(?:-\d+)?)/i
+    const match = cleanText.match(pattern)
+    if (match) {
+      const numero = match[1] ? match[1].trim() : ''
+      const livro = match[2]
+      const capitulo = match[3]
+      const versiculo = match[4]
+      if (numero) {
+        return `${numero} ${livro} ${capitulo}:${versiculo}`
+      }
+      return `${livro} ${capitulo}:${versiculo}`
+    }
+    return null
+  }
+
+  // Função para processar conteúdo e detectar referências bíblicas
+  const processContent = (content: string, cardId: string): { processedContent: string; verses: { id: string; reference: string }[] } => {
+    const versePattern = /\*\*(?:\d+\s+)?[\wáàâãéèêíïóôõöúçñÁÀÂÃÉÈÊÍÏÓÔÕÖÚÇÑ]+\s+\d+:\d+(?:-\d+)?\*\*/g
+    let verseCounter = 0
+    const verses: { id: string; reference: string }[] = []
+
+    const processedContent = content.replace(versePattern, (match) => {
+      const reference = extractBibleReference(match)
+      if (!reference) return match
+
+      const verseId = `verse_${cardId}_${verseCounter++}`
+      verses.push({ id: verseId, reference })
+
+      return `{{VERSE:${verseId}:${reference}}}`
+    })
+
+    return { processedContent, verses }
+  }
+
+  // Função para buscar versículo na API
+  const fetchVerse = async (verseId: string, verseText: string) => {
+    try {
+      const response = await fetch('/api/bible-references', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text: verseText })
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        if (data.verses && data.verses.length > 0) {
+          const foundVerse = data.verses[0]
+          const fullVerseText = `${foundVerse.reference} - "${foundVerse.text}"`
+          setVerseTexts(prev => ({ ...prev, [verseId]: fullVerseText }))
+        } else {
+          setVerseTexts(prev => ({
+            ...prev,
+            [verseId]: `"${verseText}" - Esta referência não foi encontrada como um versículo bíblico válido.`
+          }))
+        }
+      }
+    } catch (error) {
+      console.error('Erro ao buscar versículo:', error)
+    }
+  }
+
+  // Toggle de expandir versículo
+  const toggleVerse = async (verseId: string, verseText: string) => {
+    const isExpanded = expandedVerses[verseId]
+
+    if (!isExpanded && !verseTexts[verseId]) {
+      // Buscar o texto do versículo se ainda não temos
+      await fetchVerse(verseId, verseText)
+    }
+
+    setExpandedVerses(prev => ({ ...prev, [verseId]: !prev[verseId] }))
+  }
+
+  // Componente para renderizar conteúdo com referências bíblicas
+  const renderContentWithVerses = (content: string, cardId: string) => {
+    const { processedContent } = processContent(content, cardId)
+
+    return (
+      <>
+        {processedContent.split(/(\{\{VERSE:[^}]+\}\})/).map((part: string, partIndex: number) => {
+          if (part.startsWith('{{VERSE:')) {
+            const match = part.match(/\{\{VERSE:([^:]+):(.+)\}\}/)
+            if (match) {
+              const [, verseId, verseText] = match
+              const isExpanded = expandedVerses[verseId]
+
+              return (
+                <span key={partIndex} className="inline-block">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      toggleVerse(verseId, verseText)
+                    }}
+                    className="inline-flex items-center gap-1 h-auto p-1 text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded mx-0.5"
+                  >
+                    <Book className="h-3 w-3" />
+                    <span className="text-xs font-medium">{verseText}</span>
+                    {isExpanded ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+                  </Button>
+                  {isExpanded && (
+                    <div className="block w-full mt-1 p-2 bg-blue-50 border-l-4 border-blue-400 rounded-r text-xs italic shadow-sm">
+                      <div className="font-medium text-blue-800 mb-0.5">📖 Escritura:</div>
+                      <div className="text-blue-700">{verseTexts[verseId] || 'Carregando...'}</div>
+                    </div>
+                  )}
+                </span>
+              )
+            }
+          }
+          return <span key={partIndex}>{part}</span>
+        })}
+      </>
+    )
+  }
+
   const renderConnection = (connection: CardConnection) => {
     const fromCard = cards.find(c => c.id === connection.from_card_id)
     const toCard = cards.find(c => c.id === connection.to_card_id)
@@ -257,7 +384,7 @@ export default function InteractivePanel({ panel }: { panel: any }) {
               )}
             </div>
             <div className="text-xs text-gray-600 flex-1 overflow-hidden">
-              <div className="line-clamp-3">{card.content}</div>
+              <div className="line-clamp-3">{renderContentWithVerses(card.content, card.id)}</div>
               {card.bible_reference && (
                 <div className="mt-2 text-amber-700 font-medium">
                   📖 {card.bible_reference}
