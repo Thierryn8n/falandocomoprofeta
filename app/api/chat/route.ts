@@ -883,42 +883,242 @@ async function getApiKey(provider: string): Promise<string | null> {
   }
 }
 
+// =====================================================
+// FUNÇÃO DE TRANSCRIÇÃO DE ÁUDIO (do chat-gemini)
+// =====================================================
+
+async function uploadAudioToGemini(audioBuffer: Buffer, geminiApiKey: string): Promise<string | null> {
+  try {
+    console.log("📤 Uploading audio to Gemini...")
+    console.log("📊 Audio buffer size:", audioBuffer.length, "bytes")
+
+    const uploadUrl = `https://generativelanguage.googleapis.com/upload/v1beta/files?key=${geminiApiKey}`
+
+    const uploadResponse = await fetch(uploadUrl, {
+      method: "POST",
+      headers: {
+        "X-Goog-Upload-Command": "start, upload, finalize",
+        "X-Goog-Upload-Header-Content-Length": audioBuffer.length.toString(),
+        "X-Goog-Upload-Header-Content-Type": "audio/wav",
+        "Content-Type": "audio/wav",
+      },
+      body: new Uint8Array(audioBuffer),
+    })
+
+    if (!uploadResponse.ok) {
+      const errorText = await uploadResponse.text()
+      console.error("❌ Gemini upload error:", uploadResponse.status, errorText)
+      return null
+    }
+
+    const uploadData = await uploadResponse.json()
+    const fileUri = uploadData.file?.uri
+
+    if (!fileUri) {
+      console.error("❌ No file URI in upload response")
+      return null
+    }
+
+    console.log("✅ Audio uploaded successfully:", fileUri)
+    return fileUri
+  } catch (error) {
+    console.error("💥 Error uploading audio:", error)
+    return null
+  }
+}
+
+async function transcribeAudioWithGemini(fileUri: string, geminiApiKey: string): Promise<string | null> {
+  try {
+    console.log("🎯 Transcribing audio with Gemini...")
+
+    const transcribeResponse = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiApiKey}`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          contents: [
+            {
+              role: "user",
+              parts: [
+                {
+                  fileData: {
+                    mimeType: "audio/wav",
+                    fileUri: fileUri,
+                  },
+                },
+                {
+                  text: "Transcreva este áudio para texto em português do Brasil. Retorne APENAS a transcrição, sem comentários adicionais.",
+                },
+              ],
+            },
+          ],
+          generationConfig: {
+            temperature: 0.1,
+            maxOutputTokens: 1000,
+          },
+        }),
+      }
+    )
+
+    if (!transcribeResponse.ok) {
+      const errorText = await transcribeResponse.text()
+      console.error("❌ Gemini transcription error:", transcribeResponse.status, errorText)
+      return null
+    }
+
+    const transcribeData = await transcribeResponse.json()
+    const transcription = transcribeData.candidates?.[0]?.content?.parts?.[0]?.text
+
+    if (!transcription) {
+      console.error("❌ No transcription in response")
+      return null
+    }
+
+    console.log("✅ Transcription completed:", transcription.substring(0, 100) + "...")
+    return transcription.trim()
+  } catch (error) {
+    console.error("💥 Error transcribing audio:", error)
+    return null
+  }
+}
+
+async function processAudioMessage(audioBuffer: Buffer, geminiApiKey: string): Promise<string | null> {
+  console.log("🎤 Processing audio message...")
+
+  // Upload audio to Gemini
+  const fileUri = await uploadAudioToGemini(audioBuffer, geminiApiKey)
+  if (!fileUri) {
+    console.error("❌ Failed to upload audio")
+    return null
+  }
+
+  // Transcribe audio
+  const transcription = await transcribeAudioWithGemini(fileUri, geminiApiKey)
+  if (!transcription) {
+    console.error("❌ Failed to transcribe audio")
+    return null
+  }
+
+  console.log("✅ Audio processed successfully:", transcription.substring(0, 100) + "...")
+  return transcription
+}
+
+// =====================================================
+// FUNÇÃO PRINCIPAL POST - ACEITA TEXTO E ÁUDIO
+// =====================================================
+
 export async function POST(request: NextRequest) {
   console.log("🚀 CHAT API CALLED")
   console.log("🌍 Environment:", process.env.NODE_ENV)
   console.log("🔧 Vercel Environment:", process.env.VERCEL_ENV)
 
+  // Detectar tipo de conteúdo (JSON para texto, FormData para áudio)
+  const contentType = request.headers.get("content-type") || ""
+  console.log("📋 Content-Type:", contentType)
+
+  let messages: Message[] = []
+  let conversationId: string | undefined = undefined
+  let userId: string | undefined = undefined
+  let audioTranscription: string | null = null
+  let userName: string = "irmão/irmã"
+
   try {
-    // Verificar se há conteúdo no body antes de tentar fazer parse
-    const text = await request.text()
-    console.log("📄 Raw request text:", text.substring(0, 200) + (text.length > 200 ? "..." : ""))
-    
-    if (!text || text.trim() === '') {
-      console.log("❌ Request body está vazio")
-      return NextResponse.json(
-        { error: "Request body is empty" },
-        { status: 400 }
-      )
+    // ==========================================
+    // PROCESSAR FORMData (ÁUDIO)
+    // ==========================================
+    if (contentType.includes("multipart/form-data")) {
+      console.log("🎤 PROCESSING AUDIO REQUEST")
+      
+      const formData = await request.formData()
+      const audioFile = formData.get("audio") as File | null
+      userName = (formData.get("userName") as string) || "irmão/irmã"
+      userId = (formData.get("userId") as string) || undefined
+      conversationId = (formData.get("conversationId") as string) || undefined
+      
+      if (!audioFile) {
+        console.error("❌ No audio file provided")
+        return NextResponse.json({ error: "No audio file provided" }, { status: 400 })
+      }
+
+      console.log("📊 Audio file received:", {
+        name: audioFile.name,
+        type: audioFile.type,
+        size: audioFile.size,
+      })
+
+      // Converter File para Buffer
+      const arrayBuffer = await audioFile.arrayBuffer()
+      const audioBuffer = Buffer.from(arrayBuffer)
+
+      // Obter chave da API Gemini
+      const geminiApiKey = process.env.GEMINI_API_KEY
+      
+      if (!geminiApiKey) {
+        console.error("❌ GEMINI_API_KEY not configured")
+        return NextResponse.json({ error: "GEMINI_API_KEY not configured" }, { status: 500 })
+      }
+
+      // Processar áudio (upload + transcrição)
+      audioTranscription = await processAudioMessage(audioBuffer, geminiApiKey)
+      
+      if (!audioTranscription) {
+        console.error("❌ Failed to transcribe audio")
+        return NextResponse.json({ error: "Failed to transcribe audio" }, { status: 500 })
+      }
+
+      console.log("✅ Audio transcribed:", audioTranscription)
+
+      // Criar mensagens com a transcrição
+      messages = [
+        {
+          role: "user",
+          content: audioTranscription,
+          timestamp: new Date().toISOString(),
+        },
+      ]
+    }
+    // ==========================================
+    // PROCESSAR JSON (TEXTO)
+    // ==========================================
+    else {
+      console.log("💬 PROCESSING TEXT REQUEST")
+      
+      const text = await request.text()
+      console.log("📄 Raw request text:", text.substring(0, 200) + (text.length > 200 ? "..." : ""))
+      
+      if (!text || text.trim() === '') {
+        console.log("❌ Request body está vazio")
+        return NextResponse.json(
+          { error: "Request body is empty" },
+          { status: 400 }
+        )
+      }
+
+      let body: ChatRequest
+      try {
+        body = JSON.parse(text)
+      } catch (parseError) {
+        console.log("💥 JSON Parse Error:", parseError)
+        console.log("📄 Problematic text:", text)
+        return NextResponse.json(
+          { error: "Invalid JSON in request body" },
+          { status: 400 }
+        )
+      }
+
+      messages = body.messages || []
+      conversationId = body.conversationId
+      userId = body.userId
     }
 
-    let body: ChatRequest
-    try {
-      body = JSON.parse(text)
-    } catch (parseError) {
-      console.log("💥 JSON Parse Error:", parseError)
-      console.log("📄 Problematic text:", text)
-      return NextResponse.json(
-        { error: "Invalid JSON in request body" },
-        { status: 400 }
-      )
-    }
-
-    const { messages, conversationId, userId } = body
-
-    console.log("📝 Request body:", {
+    console.log("📝 Request processed:", {
       messagesCount: messages?.length || 0,
       userId,
       conversationId,
+      isAudio: !!audioTranscription,
       messages: messages?.map((m) => ({ role: m.role, contentLength: m.content?.length || 0 })),
     })
 
@@ -1648,6 +1848,7 @@ IMPORTANTE:
             documentsUsedTitles: relevantDocuments.map((doc) => doc.title),
             wikipediaUsed: false,
             canContinue: canContinue,
+            transcription: audioTranscription,
           })
         } else {
           console.error("❌ SAVE FAILED:", saveResult.error)
@@ -1661,6 +1862,7 @@ IMPORTANTE:
             documentsUsedTitles: relevantDocuments.map((doc) => doc.title),
             wikipediaUsed: !!wikipediaInfo,
             canContinue: canContinue,
+            transcription: audioTranscription,
           })
         }
       }
@@ -1675,6 +1877,7 @@ IMPORTANTE:
         documentsUsedTitles: relevantDocuments.map((doc) => doc.title),
         wikipediaUsed: false,
         canContinue: canContinue,
+        transcription: audioTranscription,
       })
     } catch (geminiError: any) {
       console.error("❌ Gemini API Error:", geminiError)

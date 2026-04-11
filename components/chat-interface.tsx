@@ -627,8 +627,8 @@ export function ChatInterface({ conversationId, onConversationUpdate, user, appC
 
       console.log('🔄 Enviando áudio para processamento...')
       
-      // 🎯 PRIMEIRO: Processar áudio com Gemini (upload + transcrição + resposta)
-      const response = await fetch('/api/chat-gemini', {
+      // 🎯 PRIMEIRO: Processar áudio com API Chat unificada
+      const response = await fetch('/api/chat', {
         method: 'POST',
         body: formData,
       })
@@ -641,15 +641,14 @@ export function ChatInterface({ conversationId, onConversationUpdate, user, appC
 
       const data = await response.json()
       console.log('✅ Resposta da API recebida:', {
-        hasResponse: !!data.response,
+        hasMessage: !!data.message,
         hasTranscription: !!data.transcription,
-        hasAudioPath: !!data.audioStoragePath,
-        isBlocked: !!data.blocked
+        isBlocked: !!data.heresyDetected
       })
 
       // Verificar se o conteúdo foi bloqueado por heresia
-      if (data.blocked) {
-        console.log('🚫 Conteúdo de áudio bloqueado por heresia:', data.reason)
+      if (data.heresyDetected) {
+        console.log('🚫 Conteúdo de áudio bloqueado por heresia:', data.heresyType)
         
         // Atualizar mensagem do usuário com transcrição bloqueada
         const blockedUserMessage: Message = {
@@ -664,7 +663,7 @@ export function ChatInterface({ conversationId, onConversationUpdate, user, appC
         const blockedAssistantMessage: Message = {
           id: crypto.randomUUID(),
           role: 'assistant',
-          content: data.response, // Mensagem de bloqueio já formatada
+          content: data.message, // Mensagem de bloqueio já formatada
           timestamp: new Date().toISOString(),
         }
         
@@ -683,7 +682,7 @@ export function ChatInterface({ conversationId, onConversationUpdate, user, appC
                 user_id: user.id,
                 conversation_id: conversationId,
                 messages: blockedMessages,
-                audio_url: data.audioStoragePath,
+                audio_url: null, // Áudio é processado separadamente agora
               }),
             })
             
@@ -698,40 +697,8 @@ export function ChatInterface({ conversationId, onConversationUpdate, user, appC
         return // Parar processamento aqui
       }
 
-      // 🎯 SEGUNDO: Salvar conversa com áudio já processado e salvo
-      console.log('🔍 Debug - user?.id:', user?.id)
-      console.log('🔍 Debug - conversationId:', conversationId)
-      console.log('🔍 Debug - Condição (user?.id && conversationId):', !!(user?.id && conversationId))
-      
-      if (user?.id) {
-        try {
-          console.log('💾 Salvando mensagem de áudio com path do storage...')
-          const immediateResponse = await fetch("/api/conversations", {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-              user_id: user.id,
-              conversation_id: conversationId, // Pode ser null para criar nova conversa
-              messages: initialMessages,
-              audio_url: data.audioStoragePath, // Usar o path do áudio já salvo
-            }),
-          })
-
-          const immediateData = await immediateResponse.json()
-          console.log('📊 Resposta do salvamento:', immediateData)
-          
-          if (immediateData.success && onConversationUpdate) {
-            onConversationUpdate()
-          }
-          console.log('✅ Mensagem de áudio salva com path do storage!')
-        } catch (saveError) {
-          console.error('❌ Erro ao salvar mensagem de áudio:', saveError)
-        }
-      }
-      
-      if (data.response) {
+      // 🎯 SEGUNDO: Processar resposta normal (não bloqueada)
+      if (data.message) {
         // Atualizar mensagem do usuário com transcrição, mantendo audioUrl e ID
         const updatedUserMessage: Message = {
           id: userMessageId, // Usar o mesmo ID da mensagem original
@@ -739,14 +706,13 @@ export function ChatInterface({ conversationId, onConversationUpdate, user, appC
           content: data.transcription || '[Mensagem de áudio]',
           timestamp: new Date().toISOString(),
           audioUrl: audioUrl, // Manter URL do áudio para reprodução
-          audioStoragePath: data.audioStoragePath, // ← Salvar path do storage
           transcription: data.transcription // ← Salvar transcrição
         }
         
         const assistantMessage: Message = {
           id: crypto.randomUUID(), // ID único para a mensagem do assistente
           role: 'assistant',
-          content: data.response,
+          content: data.message,
           timestamp: new Date().toISOString(),
         }
         
@@ -756,36 +722,7 @@ export function ChatInterface({ conversationId, onConversationUpdate, user, appC
         // 🎯 TERCEIRO: Atualizar conversa com transcrição e resposta do assistente
         if (user?.id) {
           try {
-            // Salvar informações do áudio na tabela message_attachments se o áudio foi salvo
-            if (data.audioStoragePath) {
-              console.log('📎 Salvando attachment do áudio...')
-              console.log('🆔 Message ID para attachment:', userMessageId)
-              console.log('📊 Dados do attachment:', {
-                message_id: userMessageId,
-                file_name: data.audioFileName || 'audio.wav',
-                file_type: data.audioFileType || 'audio/wav',
-                file_size: data.audioFileSize || audioBlob.size,
-                storage_path: data.audioStoragePath
-              })
-              
-              const { error: attachmentError } = await supabase
-                .from('message_attachments')
-                .insert({
-                  message_id: userMessageId, // Usar o ID da mensagem do usuário
-                  file_name: data.audioFileName || 'audio.wav',
-                  file_type: data.audioFileType || 'audio/wav',
-                  file_size: data.audioFileSize || audioBlob.size,
-                  storage_path: data.audioStoragePath
-                })
-              
-              if (attachmentError) {
-                console.error('❌ Erro ao salvar attachment do áudio:', attachmentError)
-              } else {
-                console.log('✅ Attachment do áudio salvo com sucesso')
-              }
-            }
-            
-            console.log('💾 Salvando conversa final com transcrição e resposta...')
+            console.log(' Salvando conversa final com transcrição e resposta...')
             const finalResponse = await fetch("/api/conversations", {
               method: "POST",
               headers: {
@@ -795,7 +732,7 @@ export function ChatInterface({ conversationId, onConversationUpdate, user, appC
                 user_id: user.id,
                 conversation_id: conversationId,
                 messages: finalMessages,
-                audio_url: data.audioStoragePath, // Usar o path do áudio já salvo
+                audio_url: null, // Áudio processado separadamente agora
               }),
             })
 
