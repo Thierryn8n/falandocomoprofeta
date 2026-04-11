@@ -1364,15 +1364,25 @@ Utilize EXCLUSIVAMENTE as informações dos documentos analisados E o contexto d
     try {
       console.log("🤖 Calling Gemini API with enhanced document analysis...")
       console.log("🔗 Using model: gemini-2.5-flash")
+      console.log("📚 Construindo histórico de conversa com", messages.length - 1, "mensagens anteriores")
 
-      // Build the complete prompt with comprehensive context
-      const completePrompt = `${systemPrompt}${conversationHistory}${contextInfo}\n\nPERGUNTA ESPECÍFICA DO USUÁRIO: ${lastUserMessage.content}\n\nCom base na análise completa de TODOS os documentos da base de dados fornecidos acima E no histórico da conversa atual, responda como o Profeta William Branham mantendo a continuidade e contexto da conversa. 
+      // Construir o conteúdo do sistema com documentos e instruções
+      const systemContent = `${systemPrompt}\n\n${contextInfo}\n\nINSTRUÇÕES CRÍTICAS - LEIA COM ATENÇÃO:
 
-ESTRUTURA OBRIGATÓRIA:
-1. PRIMEIRO: Resposta natural, coerente e contextual baseada em TUDO que leu E no contexto da conversa
-2. Use todo o conhecimento dos documentos E o histórico da conversa para criar uma resposta fluida e espiritual
-3. MANTENHA A CONTINUIDADE: Se o usuário fez perguntas relacionadas anteriormente, faça referência a elas naturalmente
-4. NÃO cite fontes no meio da resposta - mantenha o fluxo natural da conversa
+⚠️ **ATENÇÃO MÁXIMA**: Esta é a pergunta ATUAL que você DEVE responder:
+
+**PERGUNTA ATUAL: "${lastUserMessage.content}"**
+
+❌ **NÃO** responda a nenhuma outra pergunta do histórico anterior
+❌ **NÃO** se confunda com mensagens antigas da conversa
+✅ **RESPONDA APENAS** à pergunta atual acima
+✅ **CONSIDERE** o histórico da conversa para manter continuidade e contexto
+
+ESTRUTURA OBRIGATÓRIA DA RESPOSTA:
+1. Resposta natural, coerente e contextual baseada nos documentos E no histórico da conversa
+2. Use todo o conhecimento dos documentos para criar uma resposta fluida e espiritual
+3. **IMPORTANTE: Cite versículos bíblicos DURANTE a resposta, não apenas no final. Integre as escrituras naturalmente em seus ensinamentos.**
+4. MANTENHA A CONTINUIDADE: Se o usuário fez perguntas relacionadas anteriormente, faça referência a elas naturalmente
 5. DEPOIS: Adicione uma seção separada no final com as referências específicas
 
 FORMATO OBRIGATÓRIO PARA REFERÊNCIAS (exatamente como mostrado) - SEJA MUITO DETALHADO:
@@ -1382,16 +1392,46 @@ FORMATO OBRIGATÓRIO PARA REFERÊNCIAS (exatamente como mostrado) - SEJA MUITO D
 
 **Fontes da base de dados utilizadas para esta resposta:**
 - "[TÍTULO COMPLETO DO DOCUMENTO]" (Relevância: [pontuação numérica exata])
-- "[TÍTULO COMPLETO DO DOCUMENTO]" (Relevância: [pontuação numérica exata])
 
 IMPORTANTE: 
 - Liste TODOS os parágrafos específicos que você consultou de cada documento
 - Use EXATAMENTE as pontuações de relevância fornecidas nos documentos acima
-- Seja MUITO detalhado nas referências para mostrar transparência total
-- Liste os documentos em ordem decrescente de relevância
-- Analise quais mensagens/documentos tiveram mais relevância para sua resposta
+- Seja MUITO detalhado nas referências para mostrar transparência total`;
 
-Utilize EXCLUSIVAMENTE as informações dos documentos analisados E o contexto da conversa atual. SEMPRE cite o TÍTULO COMPLETO do documento e TODOS OS NÚMEROS ESPECÍFICOS DOS PARÁGRAFOS consultados.`
+      // Construir array de conteúdos no formato chat multi-turn (igual chat-gemini)
+      const contents: any[] = [
+        {
+          role: "user",
+          parts: [{ text: systemContent }],
+        }
+      ]
+
+      // Adicionar mensagens anteriores do histórico (exceto a última mensagem do usuário que será adicionada separadamente)
+      const previousMessages = messages.slice(0, -1)
+      console.log("📝 Adicionando", previousMessages.length, "mensagens anteriores ao contexto")
+      
+      previousMessages.forEach((message: Message, index: number) => {
+        if (message.role === "user") {
+          contents.push({
+            role: "user",
+            parts: [{ text: message.content }],
+          })
+          console.log(`  [${index + 1}] Usuário: ${message.content.substring(0, 50)}...`)
+        } else if (message.role === "assistant") {
+          contents.push({
+            role: "model",
+            parts: [{ text: message.content }],
+          })
+          console.log(`  [${index + 1}] Profeta: ${message.content.substring(0, 50)}...`)
+        }
+      })
+
+      // Adicionar a pergunta atual do usuário
+      contents.push({
+        role: "user",
+        parts: [{ text: `PERGUNTA ATUAL DO USUÁRIO: ${lastUserMessage.content}\n\nResponda como o Profeta William Branham, considerando todo o contexto acima.` }],
+      })
+      console.log(`  [ATUAL] Usuário: ${lastUserMessage.content.substring(0, 50)}...`)
 
       // Call Gemini API with the CORRECT MODEL: gemini-2.5-flash
       const response = await fetch(
@@ -1403,15 +1443,7 @@ Utilize EXCLUSIVAMENTE as informações dos documentos analisados E o contexto d
           },
           signal: AbortSignal.timeout(300000), // 300 segundos timeout
           body: JSON.stringify({
-            contents: [
-              {
-                parts: [
-                  {
-                    text: completePrompt,
-                  },
-                ],
-              },
-            ],
+            contents: contents,
             generationConfig: {
               temperature: 0.5,
               topK: 10,
