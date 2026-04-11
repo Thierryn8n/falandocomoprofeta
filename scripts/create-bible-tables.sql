@@ -4,788 +4,245 @@
 -- =============================================================================
 
 -- =============================================================================
--- ANTIGO TESTAMENTO - 39 LIVROS
+-- TABELA DE ÍNDICE DOS LIVROS (METADADOS)
 -- =============================================================================
-
--- PENTATEUCO (5 livros)
-CREATE TABLE IF NOT EXISTS genesis (
+CREATE TABLE IF NOT EXISTS bible_books (
     id SERIAL PRIMARY KEY,
-    capitulo INTEGER NOT NULL,
-    versiculo INTEGER NOT NULL,
-    texto TEXT NOT NULL,
-    UNIQUE(capitulo, versiculo)
+    nome VARCHAR(100) NOT NULL UNIQUE,
+    nome_normalizado VARCHAR(100) NOT NULL UNIQUE,
+    abreviacao VARCHAR(10) NOT NULL,
+    testament VARCHAR(20) NOT NULL CHECK (testament IN ('antigo', 'novo')),
+    categoria VARCHAR(50) NOT NULL,
+    total_capitulos INTEGER NOT NULL,
+    total_versiculos INTEGER DEFAULT 0,
+    ordem INTEGER NOT NULL UNIQUE,
+    tabela_nome VARCHAR(50) NOT NULL UNIQUE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE TABLE IF NOT EXISTS exodo (
-    id SERIAL PRIMARY KEY,
-    capitulo INTEGER NOT NULL,
-    versiculo INTEGER NOT NULL,
-    texto TEXT NOT NULL,
-    UNIQUE(capitulo, versiculo)
-);
-
-CREATE TABLE IF NOT EXISTS levitico (
-    id SERIAL PRIMARY KEY,
-    capitulo INTEGER NOT NULL,
-    versiculo INTEGER NOT NULL,
-    texto TEXT NOT NULL,
-    UNIQUE(capitulo, versiculo)
-);
-
-CREATE TABLE IF NOT EXISTS numeros (
-    id SERIAL PRIMARY KEY,
-    capitulo INTEGER NOT NULL,
-    versiculo INTEGER NOT NULL,
-    texto TEXT NOT NULL,
-    UNIQUE(capitulo, versiculo)
-);
-
-CREATE TABLE IF NOT EXISTS deuteronomio (
-    id SERIAL PRIMARY KEY,
-    capitulo INTEGER NOT NULL,
-    versiculo INTEGER NOT NULL,
-    texto TEXT NOT NULL,
-    UNIQUE(capitulo, versiculo)
-);
-
--- LIVROS HISTÓRICOS (12 livros)
-CREATE TABLE IF NOT EXISTS josue (
-    id SERIAL PRIMARY KEY,
-    capitulo INTEGER NOT NULL,
-    versiculo INTEGER NOT NULL,
-    texto TEXT NOT NULL,
-    UNIQUE(capitulo, versiculo)
-);
-
-CREATE TABLE IF NOT EXISTS juizes (
-    id SERIAL PRIMARY KEY,
-    capitulo INTEGER NOT NULL,
-    versiculo INTEGER NOT NULL,
-    texto TEXT NOT NULL,
-    UNIQUE(capitulo, versiculo)
-);
-
-CREATE TABLE IF NOT EXISTS rute (
-    id SERIAL PRIMARY KEY,
-    capitulo INTEGER NOT NULL,
-    versiculo INTEGER NOT NULL,
-    texto TEXT NOT NULL,
-    UNIQUE(capitulo, versiculo)
-);
-
-CREATE TABLE IF NOT EXISTS primeiro_samuel (
-    id SERIAL PRIMARY KEY,
-    capitulo INTEGER NOT NULL,
-    versiculo INTEGER NOT NULL,
-    texto TEXT NOT NULL,
-    UNIQUE(capitulo, versiculo)
-);
-
-CREATE TABLE IF NOT EXISTS segundo_samuel (
-    id SERIAL PRIMARY KEY,
-    capitulo INTEGER NOT NULL,
-    versiculo INTEGER NOT NULL,
-    texto TEXT NOT NULL,
-    UNIQUE(capitulo, versiculo)
-);
-
-CREATE TABLE IF NOT EXISTS primeiro_reis (
-    id SERIAL PRIMARY KEY,
-    capitulo INTEGER NOT NULL,
-    versiculo INTEGER NOT NULL,
-    texto TEXT NOT NULL,
-    UNIQUE(capitulo, versiculo)
-);
-
-CREATE TABLE IF NOT EXISTS segundo_reis (
-    id SERIAL PRIMARY KEY,
-    capitulo INTEGER NOT NULL,
-    versiculo INTEGER NOT NULL,
-    texto TEXT NOT NULL,
-    UNIQUE(capitulo, versiculo)
-);
-
-CREATE TABLE IF NOT EXISTS primeiro_cronicas (
-    id SERIAL PRIMARY KEY,
-    capitulo INTEGER NOT NULL,
-    versiculo INTEGER NOT NULL,
-    texto TEXT NOT NULL,
-    UNIQUE(capitulo, versiculo)
-);
-
-CREATE TABLE IF NOT EXISTS segundo_cronicas (
-    id SERIAL PRIMARY KEY,
-    capitulo INTEGER NOT NULL,
-    versiculo INTEGER NOT NULL,
-    texto TEXT NOT NULL,
-    UNIQUE(capitulo, versiculo)
-);
-
-CREATE TABLE IF NOT EXISTS esdras (
-    id SERIAL PRIMARY KEY,
-    capitulo INTEGER NOT NULL,
-    versiculo INTEGER NOT NULL,
-    texto TEXT NOT NULL,
-    UNIQUE(capitulo, versiculo)
-);
-
-CREATE TABLE IF NOT EXISTS neemias (
-    id SERIAL PRIMARY KEY,
-    capitulo INTEGER NOT NULL,
-    versiculo INTEGER NOT NULL,
-    texto TEXT NOT NULL,
-    UNIQUE(capitulo, versiculo)
-);
-
-CREATE TABLE IF NOT EXISTS ester (
-    id SERIAL PRIMARY KEY,
-    capitulo INTEGER NOT NULL,
-    versiculo INTEGER NOT NULL,
-    texto TEXT NOT NULL,
-    UNIQUE(capitulo, versiculo)
-);
-
--- LIVROS POÉTICOS (5 livros)
-CREATE TABLE IF NOT EXISTS jo (
-    id SERIAL PRIMARY KEY,
-    capitulo INTEGER NOT NULL,
-    versiculo INTEGER NOT NULL,
-    texto TEXT NOT NULL,
-    UNIQUE(capitulo, versiculo)
-);
-
-CREATE TABLE IF NOT EXISTS salmos (
-    id SERIAL PRIMARY KEY,
-    capitulo INTEGER NOT NULL,
-    versiculo INTEGER NOT NULL,
-    texto TEXT NOT NULL,
-    UNIQUE(capitulo, versiculo)
-);
-
-CREATE TABLE IF NOT EXISTS proverbios (
-    id SERIAL PRIMARY KEY,
-    capitulo INTEGER NOT NULL,
-    versiculo INTEGER NOT NULL,
-    texto TEXT NOT NULL,
-    UNIQUE(capitulo, versiculo)
-);
-
-CREATE TABLE IF NOT EXISTS eclesiastes (
-    id SERIAL PRIMARY KEY,
-    capitulo INTEGER NOT NULL,
-    versiculo INTEGER NOT NULL,
-    texto TEXT NOT NULL,
-    UNIQUE(capitulo, versiculo)
-);
-
-CREATE TABLE IF NOT EXISTS cantares (
-    id SERIAL PRIMARY KEY,
-    capitulo INTEGER NOT NULL,
-    versiculo INTEGER NOT NULL,
-    texto TEXT NOT NULL,
-    UNIQUE(capitulo, versiculo)
-);
-
--- PROFETAS MAIORES (5 livros)
-CREATE TABLE IF NOT EXISTS isaias (
-    id SERIAL PRIMARY KEY,
-    capitulo INTEGER NOT NULL,
-    versiculo INTEGER NOT NULL,
-    texto TEXT NOT NULL,
-    UNIQUE(capitulo, versiculo)
-);
-
-CREATE TABLE IF NOT EXISTS jeremias (
-    id SERIAL PRIMARY KEY,
-    capitulo INTEGER NOT NULL,
-    versiculo INTEGER NOT NULL,
-    texto TEXT NOT NULL,
-    UNIQUE(capitulo, versiculo)
-);
-
-CREATE TABLE IF NOT EXISTS lamentacoes (
-    id SERIAL PRIMARY KEY,
-    capitulo INTEGER NOT NULL,
-    versiculo INTEGER NOT NULL,
-    texto TEXT NOT NULL,
-    UNIQUE(capitulo, versiculo)
-);
-
-CREATE TABLE IF NOT EXISTS ezequiel (
-    id SERIAL PRIMARY KEY,
-    capitulo INTEGER NOT NULL,
-    versiculo INTEGER NOT NULL,
-    texto TEXT NOT NULL,
-    UNIQUE(capitulo, versiculo)
-);
-
-CREATE TABLE IF NOT EXISTS daniel (
-    id SERIAL PRIMARY KEY,
-    capitulo INTEGER NOT NULL,
-    versiculo INTEGER NOT NULL,
-    texto TEXT NOT NULL,
-    UNIQUE(capitulo, versiculo)
-);
-
--- PROFETAS MENORES (12 livros)
-CREATE TABLE IF NOT EXISTS oseias (
-    id SERIAL PRIMARY KEY,
-    capitulo INTEGER NOT NULL,
-    versiculo INTEGER NOT NULL,
-    texto TEXT NOT NULL,
-    UNIQUE(capitulo, versiculo)
-);
-
-CREATE TABLE IF NOT EXISTS joel (
-    id SERIAL PRIMARY KEY,
-    capitulo INTEGER NOT NULL,
-    versiculo INTEGER NOT NULL,
-    texto TEXT NOT NULL,
-    UNIQUE(capitulo, versiculo)
-);
-
-CREATE TABLE IF NOT EXISTS amos (
-    id SERIAL PRIMARY KEY,
-    capitulo INTEGER NOT NULL,
-    versiculo INTEGER NOT NULL,
-    texto TEXT NOT NULL,
-    UNIQUE(capitulo, versiculo)
-);
-
-CREATE TABLE IF NOT EXISTS obadias (
-    id SERIAL PRIMARY KEY,
-    capitulo INTEGER NOT NULL,
-    versiculo INTEGER NOT NULL,
-    texto TEXT NOT NULL,
-    UNIQUE(capitulo, versiculo)
-);
-
-CREATE TABLE IF NOT EXISTS jonas (
-    id SERIAL PRIMARY KEY,
-    capitulo INTEGER NOT NULL,
-    versiculo INTEGER NOT NULL,
-    texto TEXT NOT NULL,
-    UNIQUE(capitulo, versiculo)
-);
-
-CREATE TABLE IF NOT EXISTS miqueias (
-    id SERIAL PRIMARY KEY,
-    capitulo INTEGER NOT NULL,
-    versiculo INTEGER NOT NULL,
-    texto TEXT NOT NULL,
-    UNIQUE(capitulo, versiculo)
-);
-
-CREATE TABLE IF NOT EXISTS naum (
-    id SERIAL PRIMARY KEY,
-    capitulo INTEGER NOT NULL,
-    versiculo INTEGER NOT NULL,
-    texto TEXT NOT NULL,
-    UNIQUE(capitulo, versiculo)
-);
-
-CREATE TABLE IF NOT EXISTS habacuque (
-    id SERIAL PRIMARY KEY,
-    capitulo INTEGER NOT NULL,
-    versiculo INTEGER NOT NULL,
-    texto TEXT NOT NULL,
-    UNIQUE(capitulo, versiculo)
-);
-
-CREATE TABLE IF NOT EXISTS sofonias (
-    id SERIAL PRIMARY KEY,
-    capitulo INTEGER NOT NULL,
-    versiculo INTEGER NOT NULL,
-    texto TEXT NOT NULL,
-    UNIQUE(capitulo, versiculo)
-);
-
-CREATE TABLE IF NOT EXISTS ageu (
-    id SERIAL PRIMARY KEY,
-    capitulo INTEGER NOT NULL,
-    versiculo INTEGER NOT NULL,
-    texto TEXT NOT NULL,
-    UNIQUE(capitulo, versiculo)
-);
-
-CREATE TABLE IF NOT EXISTS zacarias (
-    id SERIAL PRIMARY KEY,
-    capitulo INTEGER NOT NULL,
-    versiculo INTEGER NOT NULL,
-    texto TEXT NOT NULL,
-    UNIQUE(capitulo, versiculo)
-);
-
-CREATE TABLE IF NOT EXISTS malaquias (
-    id SERIAL PRIMARY KEY,
-    capitulo INTEGER NOT NULL,
-    versiculo INTEGER NOT NULL,
-    texto TEXT NOT NULL,
-    UNIQUE(capitulo, versiculo)
-);
+-- Inserir metadados dos 66 livros
+INSERT INTO bible_books (nome, nome_normalizado, abreviacao, testament, categoria, total_capitulos, ordem, tabela_nome) VALUES
+-- ANTIGO TESTAMENTO - Pentateuco (5)
+('Gênesis', 'genesis', 'Gn', 'antigo', 'pentateuco', 50, 1, 'genesis'),
+('Êxodo', 'exodo', 'Ex', 'antigo', 'pentateuco', 40, 2, 'exodo'),
+('Levítico', 'levitico', 'Lv', 'antigo', 'pentateuco', 27, 3, 'levitico'),
+('Números', 'numeros', 'Nm', 'antigo', 'pentateuco', 36, 4, 'numeros'),
+('Deuteronômio', 'deuteronomio', 'Dt', 'antigo', 'pentateuco', 34, 5, 'deuteronomio'),
+-- Históricos (12)
+('Josué', 'josue', 'Js', 'antigo', 'historicos', 24, 6, 'josue'),
+('Juízes', 'juizes', 'Jz', 'antigo', 'historicos', 21, 7, 'juizes'),
+('Rute', 'rute', 'Rt', 'antigo', 'historicos', 4, 8, 'rute'),
+('1º Samuel', '1samuel', '1Sm', 'antigo', 'historicos', 31, 9, 'samuel_1'),
+('2º Samuel', '2samuel', '2Sm', 'antigo', 'historicos', 24, 10, 'samuel_2'),
+('1º Reis', '1reis', '1Rs', 'antigo', 'historicos', 22, 11, 'reis_1'),
+('2º Reis', '2reis', '2Rs', 'antigo', 'historicos', 25, 12, 'reis_2'),
+('1º Crônicas', '1cronicas', '1Cr', 'antigo', 'historicos', 29, 13, 'cronicas_1'),
+('2º Crônicas', '2cronicas', '2Cr', 'antigo', 'historicos', 36, 14, 'cronicas_2'),
+('Esdras', 'esdras', 'Ed', 'antigo', 'historicos', 10, 15, 'esdras'),
+('Neemias', 'neemias', 'Ne', 'antigo', 'historicos', 13, 16, 'neemias'),
+('Ester', 'ester', 'Et', 'antigo', 'historicos', 10, 17, 'ester'),
+-- Poéticos (5)
+('Jó', 'jo', 'Jó', 'antigo', 'poeticos', 42, 18, 'jo'),
+('Salmos', 'salmos', 'Sl', 'antigo', 'poeticos', 150, 19, 'salmos'),
+('Provérbios', 'proverbios', 'Pv', 'antigo', 'poeticos', 31, 20, 'proverbios'),
+('Eclesiastes', 'eclesiastes', 'Ec', 'antigo', 'poeticos', 12, 21, 'eclesiastes'),
+('Cantares', 'cantares', 'Ct', 'antigo', 'poeticos', 8, 22, 'cantares'),
+-- Profetas Maiores (5)
+('Isaías', 'isaias', 'Is', 'antigo', 'profetas_maiores', 66, 23, 'isaias'),
+('Jeremias', 'jeremias', 'Jr', 'antigo', 'profetas_maiores', 52, 24, 'jeremias'),
+('Lamentações', 'lamentacoes', 'Lm', 'antigo', 'profetas_maiores', 5, 25, 'lamentacoes'),
+('Ezequiel', 'ezequiel', 'Ez', 'antigo', 'profetas_maiores', 48, 26, 'ezequiel'),
+('Daniel', 'daniel', 'Dn', 'antigo', 'profetas_maiores', 12, 27, 'daniel'),
+-- Profetas Menores (12)
+('Oséias', 'oseias', 'Os', 'antigo', 'profetas_menores', 14, 28, 'oseias'),
+('Joel', 'joel', 'Jl', 'antigo', 'profetas_menores', 3, 29, 'joel'),
+('Amós', 'amos', 'Am', 'antigo', 'profetas_menores', 9, 30, 'amos'),
+('Obadias', 'obadias', 'Ob', 'antigo', 'profetas_menores', 1, 31, 'obadias'),
+('Jonas', 'jonas', 'Jn', 'antigo', 'profetas_menores', 4, 32, 'jonas'),
+('Miquéias', 'miqueias', 'Mq', 'antigo', 'profetas_menores', 7, 33, 'miqueias'),
+('Naum', 'naum', 'Na', 'antigo', 'profetas_menores', 3, 34, 'naum'),
+('Habacuque', 'habacuque', 'Hc', 'antigo', 'profetas_menores', 3, 35, 'habacuque'),
+('Sofonias', 'sofonias', 'Sf', 'antigo', 'profetas_menores', 3, 36, 'sofonias'),
+('Ageu', 'ageu', 'Ag', 'antigo', 'profetas_menores', 2, 37, 'ageu'),
+('Zacarias', 'zacarias', 'Zc', 'antigo', 'profetas_menores', 14, 38, 'zacarias'),
+('Malaquias', 'malaquias', 'Ml', 'antigo', 'profetas_menores', 4, 39, 'malaquias'),
+-- NOVO TESTAMENTO - Evangelhos (4)
+('Mateus', 'mateus', 'Mt', 'novo', 'evangelhos', 28, 40, 'mateus'),
+('Marcos', 'marcos', 'Mc', 'novo', 'evangelhos', 16, 41, 'marcos'),
+('Lucas', 'lucas', 'Lc', 'novo', 'evangelhos', 24, 42, 'lucas'),
+('João', 'joao', 'Jo', 'novo', 'evangelhos', 21, 43, 'joao'),
+-- História (1)
+('Atos', 'atos', 'At', 'novo', 'historia', 28, 44, 'atos'),
+-- Epístolas Paulinas (13)
+('Romanos', 'romanos', 'Rm', 'novo', 'epistolas_paulinas', 16, 45, 'romanos'),
+('1º Coríntios', '1corintios', '1Co', 'novo', 'epistolas_paulinas', 16, 46, 'corintios_1'),
+('2º Coríntios', '2corintios', '2Co', 'novo', 'epistolas_paulinas', 13, 47, 'corintios_2'),
+('Gálatas', 'galatas', 'Gl', 'novo', 'epistolas_paulinas', 6, 48, 'galatas'),
+('Efésios', 'efesios', 'Ef', 'novo', 'epistolas_paulinas', 6, 49, 'efesios'),
+('Filipenses', 'filipenses', 'Fp', 'novo', 'epistolas_paulinas', 4, 50, 'filipenses'),
+('Colossenses', 'colossenses', 'Cl', 'novo', 'epistolas_paulinas', 4, 51, 'colossenses'),
+('1º Tessalonicenses', '1tessalonicenses', '1Ts', 'novo', 'epistolas_paulinas', 5, 52, 'tessalonicenses_1'),
+('2º Tessalonicenses', '2tessalonicenses', '2Ts', 'novo', 'epistolas_paulinas', 3, 53, 'tessalonicenses_2'),
+('1º Timóteo', '1timoteo', '1Tm', 'novo', 'epistolas_paulinas', 6, 54, 'timoteo_1'),
+('2º Timóteo', '2timoteo', '2Tm', 'novo', 'epistolas_paulinas', 4, 55, 'timoteo_2'),
+('Tito', 'tito', 'Tt', 'novo', 'epistolas_paulinas', 3, 56, 'tito'),
+('Filemom', 'filemom', 'Fm', 'novo', 'epistolas_paulinas', 1, 57, 'filemom'),
+-- Epístolas Gerais (8)
+('Hebreus', 'hebreus', 'Hb', 'novo', 'epistolas_gerais', 13, 58, 'hebreus'),
+('Tiago', 'tiago', 'Tg', 'novo', 'epistolas_gerais', 5, 59, 'tiago'),
+('1º Pedro', '1pedro', '1Pe', 'novo', 'epistolas_gerais', 5, 60, 'pedro_1'),
+('2º Pedro', '2pedro', '2Pe', 'novo', 'epistolas_gerais', 3, 61, 'pedro_2'),
+('1º João', '1joao', '1Jo', 'novo', 'epistolas_gerais', 5, 62, 'joao_1'),
+('2º João', '2joao', '2Jo', 'novo', 'epistolas_gerais', 1, 63, 'joao_2'),
+('3º João', '3joao', '3Jo', 'novo', 'epistolas_gerais', 1, 64, 'joao_3'),
+('Judas', 'judas', 'Jd', 'novo', 'epistolas_gerais', 1, 65, 'judas'),
+-- Profético (1)
+('Apocalipse', 'apocalipse', 'Ap', 'novo', 'profetico', 22, 66, 'apocalipse');
 
 -- =============================================================================
--- NOVO TESTAMENTO - 27 LIVROS
+-- FUNÇÃO PARA CRIAR TABELAS DINAMICAMENTE
 -- =============================================================================
-
--- EVANGELHOS (4 livros)
-CREATE TABLE IF NOT EXISTS mateus (
-    id SERIAL PRIMARY KEY,
-    capitulo INTEGER NOT NULL,
-    versiculo INTEGER NOT NULL,
-    texto TEXT NOT NULL,
-    UNIQUE(capitulo, versiculo)
-);
-
-CREATE TABLE IF NOT EXISTS marcos (
-    id SERIAL PRIMARY KEY,
-    capitulo INTEGER NOT NULL,
-    versiculo INTEGER NOT NULL,
-    texto TEXT NOT NULL,
-    UNIQUE(capitulo, versiculo)
-);
-
-CREATE TABLE IF NOT EXISTS lucas (
-    id SERIAL PRIMARY KEY,
-    capitulo INTEGER NOT NULL,
-    versiculo INTEGER NOT NULL,
-    texto TEXT NOT NULL,
-    UNIQUE(capitulo, versiculo)
-);
-
-CREATE TABLE IF NOT EXISTS joao (
-    id SERIAL PRIMARY KEY,
-    capitulo INTEGER NOT NULL,
-    versiculo INTEGER NOT NULL,
-    texto TEXT NOT NULL,
-    UNIQUE(capitulo, versiculo)
-);
-
--- HISTÓRIA (1 livro)
-CREATE TABLE IF NOT EXISTS atos (
-    id SERIAL PRIMARY KEY,
-    capitulo INTEGER NOT NULL,
-    versiculo INTEGER NOT NULL,
-    texto TEXT NOT NULL,
-    UNIQUE(capitulo, versiculo)
-);
-
--- EPISTOLAS PAULINAS (13 livros)
-CREATE TABLE IF NOT EXISTS romanos (
-    id SERIAL PRIMARY KEY,
-    capitulo INTEGER NOT NULL,
-    versiculo INTEGER NOT NULL,
-    texto TEXT NOT NULL,
-    UNIQUE(capitulo, versiculo)
-);
-
-CREATE TABLE IF NOT EXISTS primeiro_corintios (
-    id SERIAL PRIMARY KEY,
-    capitulo INTEGER NOT NULL,
-    versiculo INTEGER NOT NULL,
-    texto TEXT NOT NULL,
-    UNIQUE(capitulo, versiculo)
-);
-
-CREATE TABLE IF NOT EXISTS segundo_corintios (
-    id SERIAL PRIMARY KEY,
-    capitulo INTEGER NOT NULL,
-    versiculo INTEGER NOT NULL,
-    texto TEXT NOT NULL,
-    UNIQUE(capitulo, versiculo)
-);
-
-CREATE TABLE IF NOT EXISTS galatas (
-    id SERIAL PRIMARY KEY,
-    capitulo INTEGER NOT NULL,
-    versiculo INTEGER NOT NULL,
-    texto TEXT NOT NULL,
-    UNIQUE(capitulo, versiculo)
-);
-
-CREATE TABLE IF NOT EXISTS efesios (
-    id SERIAL PRIMARY KEY,
-    capitulo INTEGER NOT NULL,
-    versiculo INTEGER NOT NULL,
-    texto TEXT NOT NULL,
-    UNIQUE(capitulo, versiculo)
-);
-
-CREATE TABLE IF NOT EXISTS filipenses (
-    id SERIAL PRIMARY KEY,
-    capitulo INTEGER NOT NULL,
-    versiculo INTEGER NOT NULL,
-    texto TEXT NOT NULL,
-    UNIQUE(capitulo, versiculo)
-);
-
-CREATE TABLE IF NOT EXISTS colossenses (
-    id SERIAL PRIMARY KEY,
-    capitulo INTEGER NOT NULL,
-    versiculo INTEGER NOT NULL,
-    texto TEXT NOT NULL,
-    UNIQUE(capitulo, versiculo)
-);
-
-CREATE TABLE IF NOT EXISTS primeiro_tessalonicenses (
-    id SERIAL PRIMARY KEY,
-    capitulo INTEGER NOT NULL,
-    versiculo INTEGER NOT NULL,
-    texto TEXT NOT NULL,
-    UNIQUE(capitulo, versiculo)
-);
-
-CREATE TABLE IF NOT EXISTS segundo_tessalonicenses (
-    id SERIAL PRIMARY KEY,
-    capitulo INTEGER NOT NULL,
-    versiculo INTEGER NOT NULL,
-    texto TEXT NOT NULL,
-    UNIQUE(capitulo, versiculo)
-);
-
-CREATE TABLE IF NOT EXISTS primeiro_timoteo (
-    id SERIAL PRIMARY KEY,
-    capitulo INTEGER NOT NULL,
-    versiculo INTEGER NOT NULL,
-    texto TEXT NOT NULL,
-    UNIQUE(capitulo, versiculo)
-);
-
-CREATE TABLE IF NOT EXISTS segundo_timoteo (
-    id SERIAL PRIMARY KEY,
-    capitulo INTEGER NOT NULL,
-    versiculo INTEGER NOT NULL,
-    texto TEXT NOT NULL,
-    UNIQUE(capitulo, versiculo)
-);
-
-CREATE TABLE IF NOT EXISTS tito (
-    id SERIAL PRIMARY KEY,
-    capitulo INTEGER NOT NULL,
-    versiculo INTEGER NOT NULL,
-    texto TEXT NOT NULL,
-    UNIQUE(capitulo, versiculo)
-);
-
-CREATE TABLE IF NOT EXISTS filemom (
-    id SERIAL PRIMARY KEY,
-    capitulo INTEGER NOT NULL,
-    versiculo INTEGER NOT NULL,
-    texto TEXT NOT NULL,
-    UNIQUE(capitulo, versiculo)
-);
-
--- EPISTOLAS GERAIS (8 livros)
-CREATE TABLE IF NOT EXISTS hebreus (
-    id SERIAL PRIMARY KEY,
-    capitulo INTEGER NOT NULL,
-    versiculo INTEGER NOT NULL,
-    texto TEXT NOT NULL,
-    UNIQUE(capitulo, versiculo)
-);
-
-CREATE TABLE IF NOT EXISTS tiago (
-    id SERIAL PRIMARY KEY,
-    capitulo INTEGER NOT NULL,
-    versiculo INTEGER NOT NULL,
-    texto TEXT NOT NULL,
-    UNIQUE(capitulo, versiculo)
-);
-
-CREATE TABLE IF NOT EXISTS primeiro_pedro (
-    id SERIAL PRIMARY KEY,
-    capitulo INTEGER NOT NULL,
-    versiculo INTEGER NOT NULL,
-    texto TEXT NOT NULL,
-    UNIQUE(capitulo, versiculo)
-);
-
-CREATE TABLE IF NOT EXISTS segundo_pedro (
-    id SERIAL PRIMARY KEY,
-    capitulo INTEGER NOT NULL,
-    versiculo INTEGER NOT NULL,
-    texto TEXT NOT NULL,
-    UNIQUE(capitulo, versiculo)
-);
-
-CREATE TABLE IF NOT EXISTS primeiro_joao (
-    id SERIAL PRIMARY KEY,
-    capitulo INTEGER NOT NULL,
-    versiculo INTEGER NOT NULL,
-    texto TEXT NOT NULL,
-    UNIQUE(capitulo, versiculo)
-);
-
-CREATE TABLE IF NOT EXISTS segundo_joao (
-    id SERIAL PRIMARY KEY,
-    capitulo INTEGER NOT NULL,
-    versiculo INTEGER NOT NULL,
-    texto TEXT NOT NULL,
-    UNIQUE(capitulo, versiculo)
-);
-
-CREATE TABLE IF NOT EXISTS terceiro_joao (
-    id SERIAL PRIMARY KEY,
-    capitulo INTEGER NOT NULL,
-    versiculo INTEGER NOT NULL,
-    texto TEXT NOT NULL,
-    UNIQUE(capitulo, versiculo)
-);
-
-CREATE TABLE IF NOT EXISTS judas (
-    id SERIAL PRIMARY KEY,
-    capitulo INTEGER NOT NULL,
-    versiculo INTEGER NOT NULL,
-    texto TEXT NOT NULL,
-    UNIQUE(capitulo, versiculo)
-);
-
--- PROFÉTICO (1 livro)
-CREATE TABLE IF NOT EXISTS apocalipse (
-    id SERIAL PRIMARY KEY,
-    capitulo INTEGER NOT NULL,
-    versiculo INTEGER NOT NULL,
-    texto TEXT NOT NULL,
-    UNIQUE(capitulo, versiculo)
-);
+CREATE OR REPLACE FUNCTION create_bible_book_table(table_name TEXT)
+RETURNS VOID AS $$
+BEGIN
+    EXECUTE format('
+        CREATE TABLE IF NOT EXISTS %I (
+            id SERIAL PRIMARY KEY,
+            capitulo INTEGER NOT NULL,
+            versiculo INTEGER NOT NULL,
+            texto TEXT NOT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            UNIQUE(capitulo, versiculo)
+        );
+        
+        CREATE INDEX IF NOT EXISTS %I ON %I(capitulo, versiculo);
+        
+        ALTER TABLE %I ENABLE ROW LEVEL SECURITY;
+        
+        CREATE POLICY "Leitura pública de %I" ON %I FOR SELECT TO PUBLIC USING (true);
+    ', table_name, 
+       'idx_' || table_name || '_cap_vers',
+       table_name,
+       table_name,
+       table_name,
+       table_name);
+END;
+$$ LANGUAGE plpgsql;
 
 -- =============================================================================
--- ÍNDICE PARA BUSCA RÁPIDA
+-- CRIAR TODAS AS 66 TABELAS DOS LIVROS
 -- =============================================================================
-
--- Criar índices para melhor performance na busca
-CREATE INDEX IF NOT EXISTS idx_genesis_capitulo_versiculo ON genesis(capitulo, versiculo);
-CREATE INDEX IF NOT EXISTS idx_exodo_capitulo_versiculo ON exodo(capitulo, versiculo);
-CREATE INDEX IF NOT EXISTS idx_levitico_capitulo_versiculo ON levitico(capitulo, versiculo);
-CREATE INDEX IF NOT EXISTS idx_numeros_capitulo_versiculo ON numeros(capitulo, versiculo);
-CREATE INDEX IF NOT EXISTS idx_deuteronomio_capitulo_versiculo ON deuteronomio(capitulo, versiculo);
-CREATE INDEX IF NOT EXISTS idx_salmos_capitulo_versiculo ON salmos(capitulo, versiculo);
-CREATE INDEX IF NOT EXISTS idx_isaias_capitulo_versiculo ON isaias(capitulo, versiculo);
-CREATE INDEX IF NOT EXISTS idx_jeremias_capitulo_versiculo ON jeremias(capitulo, versiculo);
-CREATE INDEX IF NOT EXISTS idx_mateus_capitulo_versiculo ON mateus(capitulo, versiculo);
-CREATE INDEX IF NOT EXISTS idx_marcos_capitulo_versiculo ON marcos(capitulo, versiculo);
-CREATE INDEX IF NOT EXISTS idx_lucas_capitulo_versiculo ON lucas(capitulo, versiculo);
-CREATE INDEX IF NOT EXISTS idx_joao_capitulo_versiculo ON joao(capitulo, versiculo);
-CREATE INDEX IF NOT EXISTS idx_atos_capitulo_versiculo ON atos(capitulo, versiculo);
-CREATE INDEX IF NOT EXISTS idx_romanos_capitulo_versiculo ON romanos(capitulo, versiculo);
-CREATE INDEX IF NOT EXISTS idx_hebreus_capitulo_versiculo ON hebreus(capitulo, versiculo);
-CREATE INDEX IF NOT EXISTS idx_apocalipse_capitulo_versiculo ON apocalipse(capitulo, versiculo);
+DO $$
+DECLARE
+    book_record RECORD;
+BEGIN
+    FOR book_record IN SELECT tabela_nome FROM bible_books ORDER BY ordem LOOP
+        PERFORM create_bible_book_table(book_record.tabela_nome);
+    END LOOP;
+END $$;
 
 -- =============================================================================
--- COMENTÁRIOS DESCRITIVOS
+-- VIEW PARA BUSCAR VERSÍCULOS EM TODAS AS TABELAS
 -- =============================================================================
-
-COMMENT ON TABLE genesis IS 'Gênesis - O livro da criação e origens';
-COMMENT ON TABLE exodo IS 'Êxodo - A saída do Egito';
-COMMENT ON TABLE levitico IS 'Levítico - Leis e sacrifícios';
-COMMENT ON TABLE numeros IS 'Números - Peregrinação no deserto';
-COMMENT ON TABLE deuteronomio IS 'Deuteronômio - Segunda lei';
-COMMENT ON TABLE josue IS 'Josué - Conquista de Canaã';
-COMMENT ON TABLE juizes IS 'Juízes - Período dos juízes';
-COMMENT ON TABLE rute IS 'Rute - História de amor e redenção';
-COMMENT ON TABLE primeiro_samuel IS '1º Samuel - Reis Saul e Davi';
-COMMENT ON TABLE segundo_samuel IS '2º Samuel - Reinado de Davi';
-COMMENT ON TABLE primeiro_reis IS '1º Reis - Reinado de Salomão e divisão';
-COMMENT ON TABLE segundo_reis IS '2º Reis - Reis de Israel e Judá';
-COMMENT ON TABLE primeiro_cronicas IS '1º Crônicas - Genealogias e história';
-COMMENT ON TABLE segundo_cronicas IS '2º Crônicas - História de Judá';
-COMMENT ON TABLE esdras IS 'Esdras - Retorno do cativeiro';
-COMMENT ON TABLE neemias IS 'Neemias - Reconstrução dos muros';
-COMMENT ON TABLE ester IS 'Ester - Providência em Persia';
-COMMENT ON TABLE jo IS 'Jó - Sofrimento e justiça';
-COMMENT ON TABLE salmos IS 'Salmos - Hinos e orações';
-COMMENT ON TABLE proverbios IS 'Provérbios - Sabedoria prática';
-COMMENT ON TABLE eclesiastes IS 'Eclesiastes - Reflexões sobre a vida';
-COMMENT ON TABLE cantares IS 'Cantares - Poema de amor';
-COMMENT ON TABLE isaias IS 'Isaías - Profecias messiânicas';
-COMMENT ON TABLE jeremias IS 'Jeremias - Profecias de juízo';
-COMMENT ON TABLE lamentacoes IS 'Lamentações - Luto pela queda de Jerusalém';
-COMMENT ON TABLE ezequiel IS 'Ezequiel - Visões e profecias';
-COMMENT ON TABLE daniel IS 'Daniel - Profecias apocalípticas';
-COMMENT ON TABLE oseias IS 'Oséias - Amor fiel de Deus';
-COMMENT ON TABLE joel IS 'Joel - O dia do Senhor';
-COMMENT ON TABLE amos IS 'Amós - Justiça social';
-COMMENT ON TABLE obadias IS 'Obadias - Contra Edom';
-COMMENT ON TABLE jonas IS 'Jonas - Misericórdia divina';
-COMMENT ON TABLE miqueias IS 'Miquéias - Justiça e salvação';
-COMMENT ON TABLE naum IS 'Naum - Queda de Nínive';
-COMMENT ON TABLE habacuque IS 'Habacuque - Fé em tempos difíceis';
-COMMENT ON TABLE sofonias IS 'Sofonias - Juízo e restauração';
-COMMENT ON TABLE ageu IS 'Ageu - Reconstrução do templo';
-COMMENT ON TABLE zacarias IS 'Zacarias - Esperança messiânica';
-COMMENT ON TABLE malaquias IS 'Malaquias - Preparo para o Messias';
-COMMENT ON TABLE mateus IS 'Mateus - Jesus, o Messias Rei';
-COMMENT ON TABLE marcos IS 'Marcos - Jesus, o Servo';
-COMMENT ON TABLE lucas IS 'Lucas - Jesus, o Salvador de todos';
-COMMENT ON TABLE joao IS 'João - Jesus, o Filho de Deus';
-COMMENT ON TABLE atos IS 'Atos - História da igreja primitiva';
-COMMENT ON TABLE romanos IS 'Romanos - Justificação pela fé';
-COMMENT ON TABLE primeiro_corintios IS '1º Coríntios - Problemas na igreja';
-COMMENT ON TABLE segundo_corintios IS '2º Coríntios - Ministério apostólico';
-COMMENT ON TABLE galatas IS 'Gálatas - Liberdade na graça';
-COMMENT ON TABLE efesios IS 'Efésios - Unidade em Cristo';
-COMMENT ON TABLE filipenses IS 'Filipenses - Alegria no sofrimento';
-COMMENT ON TABLE colossenses IS 'Colossenses - Supremacia de Cristo';
-COMMENT ON TABLE primeiro_tessalonicenses IS '1º Tessalonicenses - Segunda vinda';
-COMMENT ON TABLE segundo_tessalonicenses IS '2º Tessalonicenses - Consolo e esperança';
-COMMENT ON TABLE primeiro_timoteo IS '1º Timóteo - Liderança na igreja';
-COMMENT ON TABLE segundo_timoteo IS '2º Timóteo - Fidelidade ao ministério';
-COMMENT ON TABLE tito IS 'Tito - Ordenação de anciãos';
-COMMENT ON TABLE filemom IS 'Filemom - Perdão e reconciliação';
-COMMENT ON TABLE hebreus IS 'Hebreus - Superioridade de Cristo';
-COMMENT ON TABLE tiago IS 'Tiago - Fé prática';
-COMMENT ON TABLE primeiro_pedro IS '1º Pedro - Esperança no sofrimento';
-COMMENT ON TABLE segundo_pedro IS '2º Pedro - Crescimento na graça';
-COMMENT ON TABLE primeiro_joao IS '1º João - Comunhão com Deus';
-COMMENT ON TABLE segundo_joao IS '2º João - Caminhar na verdade';
-COMMENT ON TABLE terceiro_joao IS '3º João - Hospitalidade cristã';
-COMMENT ON TABLE judas IS 'Judas - Contenda pela fé';
-COMMENT ON TABLE apocalipse IS 'Apocalipse - Revelação de Jesus Cristo';
-
--- =============================================================================
--- PERMISSÕES RLSEnableRowLevelSecurity()
--- =============================================================================
-
--- Habilitar RLS em todas as tabelas
-ALTER TABLE genesis ENABLE ROW LEVEL SECURITY;
-ALTER TABLE exodo ENABLE ROW LEVEL SECURITY;
-ALTER TABLE levitico ENABLE ROW LEVEL SECURITY;
-ALTER TABLE numeros ENABLE ROW LEVEL SECURITY;
-ALTER TABLE deuteronomio ENABLE ROW LEVEL SECURITY;
-ALTER TABLE josue ENABLE ROW LEVEL SECURITY;
-ALTER TABLE juizes ENABLE ROW LEVEL SECURITY;
-ALTER TABLE rute ENABLE ROW LEVEL SECURITY;
-ALTER TABLE primeiro_samuel ENABLE ROW LEVEL SECURITY;
-ALTER TABLE segundo_samuel ENABLE ROW LEVEL SECURITY;
-ALTER TABLE primeiro_reis ENABLE ROW LEVEL SECURITY;
-ALTER TABLE segundo_reis ENABLE ROW LEVEL SECURITY;
-ALTER TABLE primeiro_cronicas ENABLE ROW LEVEL SECURITY;
-ALTER TABLE segundo_cronicas ENABLE ROW LEVEL SECURITY;
-ALTER TABLE esdras ENABLE ROW LEVEL SECURITY;
-ALTER TABLE neemias ENABLE ROW LEVEL SECURITY;
-ALTER TABLE ester ENABLE ROW LEVEL SECURITY;
-ALTER TABLE jo ENABLE ROW LEVEL SECURITY;
-ALTER TABLE salmos ENABLE ROW LEVEL SECURITY;
-ALTER TABLE proverbios ENABLE ROW LEVEL SECURITY;
-ALTER TABLE eclesiastes ENABLE ROW LEVEL SECURITY;
-ALTER TABLE cantares ENABLE ROW LEVEL SECURITY;
-ALTER TABLE isaias ENABLE ROW LEVEL SECURITY;
-ALTER TABLE jeremias ENABLE ROW LEVEL SECURITY;
-ALTER TABLE lamentacoes ENABLE ROW LEVEL SECURITY;
-ALTER TABLE ezequiel ENABLE ROW LEVEL SECURITY;
-ALTER TABLE daniel ENABLE ROW LEVEL SECURITY;
-ALTER TABLE oseias ENABLE ROW LEVEL SECURITY;
-ALTER TABLE joel ENABLE ROW LEVEL SECURITY;
-ALTER TABLE amos ENABLE ROW LEVEL SECURITY;
-ALTER TABLE obadias ENABLE ROW LEVEL SECURITY;
-ALTER TABLE jonas ENABLE ROW LEVEL SECURITY;
-ALTER TABLE miqueias ENABLE ROW LEVEL SECURITY;
-ALTER TABLE naum ENABLE ROW LEVEL SECURITY;
-ALTER TABLE habacuque ENABLE ROW LEVEL SECURITY;
-ALTER TABLE sofonias ENABLE ROW LEVEL SECURITY;
-ALTER TABLE ageu ENABLE ROW LEVEL SECURITY;
-ALTER TABLE zacarias ENABLE ROW LEVEL SECURITY;
-ALTER TABLE malaquias ENABLE ROW LEVEL SECURITY;
-ALTER TABLE mateus ENABLE ROW LEVEL SECURITY;
-ALTER TABLE marcos ENABLE ROW LEVEL SECURITY;
-ALTER TABLE lucas ENABLE ROW LEVEL SECURITY;
-ALTER TABLE joao ENABLE ROW LEVEL SECURITY;
-ALTER TABLE atos ENABLE ROW LEVEL SECURITY;
-ALTER TABLE romanos ENABLE ROW LEVEL SECURITY;
-ALTER TABLE primeiro_corintios ENABLE ROW LEVEL SECURITY;
-ALTER TABLE segundo_corintios ENABLE ROW LEVEL SECURITY;
-ALTER TABLE galatas ENABLE ROW LEVEL SECURITY;
-ALTER TABLE efesios ENABLE ROW LEVEL SECURITY;
-ALTER TABLE filipenses ENABLE ROW LEVEL SECURITY;
-ALTER TABLE colossenses ENABLE ROW LEVEL SECURITY;
-ALTER TABLE primeiro_tessalonicenses ENABLE ROW LEVEL SECURITY;
-ALTER TABLE segundo_tessalonicenses ENABLE ROW LEVEL SECURITY;
-ALTER TABLE primeiro_timoteo ENABLE ROW LEVEL SECURITY;
-ALTER TABLE segundo_timoteo ENABLE ROW LEVEL SECURITY;
-ALTER TABLE tito ENABLE ROW LEVEL SECURITY;
-ALTER TABLE filemom ENABLE ROW LEVEL SECURITY;
-ALTER TABLE hebreus ENABLE ROW LEVEL SECURITY;
-ALTER TABLE tiago ENABLE ROW LEVEL SECURITY;
-ALTER TABLE primeiro_pedro ENABLE ROW LEVEL SECURITY;
-ALTER TABLE segundo_pedro ENABLE ROW LEVEL SECURITY;
-ALTER TABLE primeiro_joao ENABLE ROW LEVEL SECURITY;
-ALTER TABLE segundo_joao ENABLE ROW LEVEL SECURITY;
-ALTER TABLE terceiro_joao ENABLE ROW LEVEL SECURITY;
-ALTER TABLE judas ENABLE ROW LEVEL SECURITY;
-ALTER TABLE apocalipse ENABLE ROW LEVEL SECURITY;
-
--- Política de leitura pública para todas as tabelas
-CREATE POLICY "Leitura pública da Bíblia" ON genesis FOR SELECT TO PUBLIC USING (true);
-CREATE POLICY "Leitura pública da Bíblia" ON exodo FOR SELECT TO PUBLIC USING (true);
-CREATE POLICY "Leitura pública da Bíblia" ON levitico FOR SELECT TO PUBLIC USING (true);
-CREATE POLICY "Leitura pública da Bíblia" ON numeros FOR SELECT TO PUBLIC USING (true);
-CREATE POLICY "Leitura pública da Bíblia" ON deuteronomio FOR SELECT TO PUBLIC USING (true);
-CREATE POLICY "Leitura pública da Bíblia" ON josue FOR SELECT TO PUBLIC USING (true);
-CREATE POLICY "Leitura pública da Bíblia" ON juizes FOR SELECT TO PUBLIC USING (true);
-CREATE POLICY "Leitura pública da Bíblia" ON rute FOR SELECT TO PUBLIC USING (true);
-CREATE POLICY "Leitura pública da Bíblia" ON primeiro_samuel FOR SELECT TO PUBLIC USING (true);
-CREATE POLICY "Leitura pública da Bíblia" ON segundo_samuel FOR SELECT TO PUBLIC USING (true);
-CREATE POLICY "Leitura pública da Bíblia" ON primeiro_reis FOR SELECT TO PUBLIC USING (true);
-CREATE POLICY "Leitura pública da Bíblia" ON segundo_reis FOR SELECT TO PUBLIC USING (true);
-CREATE POLICY "Leitura pública da Bíblia" ON primeiro_cronicas FOR SELECT TO PUBLIC USING (true);
-CREATE POLICY "Leitura pública da Bíblia" ON segundo_cronicas FOR SELECT TO PUBLIC USING (true);
-CREATE POLICY "Leitura pública da Bíblia" ON esdras FOR SELECT TO PUBLIC USING (true);
-CREATE POLICY "Leitura pública da Bíblia" ON neemias FOR SELECT TO PUBLIC USING (true);
-CREATE POLICY "Leitura pública da Bíblia" ON ester FOR SELECT TO PUBLIC USING (true);
-CREATE POLICY "Leitura pública da Bíblia" ON jo FOR SELECT TO PUBLIC USING (true);
-CREATE POLICY "Leitura pública da Bíblia" ON salmos FOR SELECT TO PUBLIC USING (true);
-CREATE POLICY "Leitura pública da Bíblia" ON proverbios FOR SELECT TO PUBLIC USING (true);
-CREATE POLICY "Leitura pública da Bíblia" ON eclesiastes FOR SELECT TO PUBLIC USING (true);
-CREATE POLICY "Leitura pública da Bíblia" ON cantares FOR SELECT TO PUBLIC USING (true);
-CREATE POLICY "Leitura pública da Bíblia" ON isaias FOR SELECT TO PUBLIC USING (true);
-CREATE POLICY "Leitura pública da Bíblia" ON jeremias FOR SELECT TO PUBLIC USING (true);
-CREATE POLICY "Leitura pública da Bíblia" ON lamentacoes FOR SELECT TO PUBLIC USING (true);
-CREATE POLICY "Leitura pública da Bíblia" ON ezequiel FOR SELECT TO PUBLIC USING (true);
-CREATE POLICY "Leitura pública da Bíblia" ON daniel FOR SELECT TO PUBLIC USING (true);
-CREATE POLICY "Leitura pública da Bíblia" ON oseias FOR SELECT TO PUBLIC USING (true);
-CREATE POLICY "Leitura pública da Bíblia" ON joel FOR SELECT TO PUBLIC USING (true);
-CREATE POLICY "Leitura pública da Bíblia" ON amos FOR SELECT TO PUBLIC USING (true);
-CREATE POLICY "Leitura pública da Bíblia" ON obadias FOR SELECT TO PUBLIC USING (true);
-CREATE POLICY "Leitura pública da Bíblia" ON jonas FOR SELECT TO PUBLIC USING (true);
-CREATE POLICY "Leitura pública da Bíblia" ON miqueias FOR SELECT TO PUBLIC USING (true);
-CREATE POLICY "Leitura pública da Bíblia" ON naum FOR SELECT TO PUBLIC USING (true);
-CREATE POLICY "Leitura pública da Bíblia" ON habacuque FOR SELECT TO PUBLIC USING (true);
-CREATE POLICY "Leitura pública da Bíblia" ON sofonias FOR SELECT TO PUBLIC USING (true);
-CREATE POLICY "Leitura pública da Bíblia" ON ageu FOR SELECT TO PUBLIC USING (true);
-CREATE POLICY "Leitura pública da Bíblia" ON zacarias FOR SELECT TO PUBLIC USING (true);
-CREATE POLICY "Leitura pública da Bíblia" ON malaquias FOR SELECT TO PUBLIC USING (true);
-CREATE POLICY "Leitura pública da Bíblia" ON mateus FOR SELECT TO PUBLIC USING (true);
-CREATE POLICY "Leitura pública da Bíblia" ON marcos FOR SELECT TO PUBLIC USING (true);
-CREATE POLICY "Leitura pública da Bíblia" ON lucas FOR SELECT TO PUBLIC USING (true);
-CREATE POLICY "Leitura pública da Bíblia" ON joao FOR SELECT TO PUBLIC USING (true);
-CREATE POLICY "Leitura pública da Bíblia" ON atos FOR SELECT TO PUBLIC USING (true);
-CREATE POLICY "Leitura pública da Bíblia" ON romanos FOR SELECT TO PUBLIC USING (true);
-CREATE POLICY "Leitura pública da Bíblia" ON primeiro_corintios FOR SELECT TO PUBLIC USING (true);
-CREATE POLICY "Leitura pública da Bíblia" ON segundo_corintios FOR SELECT TO PUBLIC USING (true);
-CREATE POLICY "Leitura pública da Bíblia" ON galatas FOR SELECT TO PUBLIC USING (true);
-CREATE POLICY "Leitura pública da Bíblia" ON efesios FOR SELECT TO PUBLIC USING (true);
-CREATE POLICY "Leitura pública da Bíblia" ON filipenses FOR SELECT TO PUBLIC USING (true);
-CREATE POLICY "Leitura pública da Bíblia" ON colossenses FOR SELECT TO PUBLIC USING (true);
-CREATE POLICY "Leitura pública da Bíblia" ON primeiro_tessalonicenses FOR SELECT TO PUBLIC USING (true);
-CREATE POLICY "Leitura pública da Bíblia" ON segundo_tessalonicenses FOR SELECT TO PUBLIC USING (true);
-CREATE POLICY "Leitura pública da Bíblia" ON primeiro_timoteo FOR SELECT TO PUBLIC USING (true);
-CREATE POLICY "Leitura pública da Bíblia" ON segundo_timoteo FOR SELECT TO PUBLIC USING (true);
-CREATE POLICY "Leitura pública da Bíblia" ON tito FOR SELECT TO PUBLIC USING (true);
-CREATE POLICY "Leitura pública da Bíblia" ON filemom FOR SELECT TO PUBLIC USING (true);
-CREATE POLICY "Leitura pública da Bíblia" ON hebreus FOR SELECT TO PUBLIC USING (true);
-CREATE POLICY "Leitura pública da Bíblia" ON tiago FOR SELECT TO PUBLIC USING (true);
-CREATE POLICY "Leitura pública da Bíblia" ON primeiro_pedro FOR SELECT TO PUBLIC USING (true);
-CREATE POLICY "Leitura pública da Bíblia" ON segundo_pedro FOR SELECT TO PUBLIC USING (true);
-CREATE POLICY "Leitura pública da Bíblia" ON primeiro_joao FOR SELECT TO PUBLIC USING (true);
-CREATE POLICY "Leitura pública da Bíblia" ON segundo_joao FOR SELECT TO PUBLIC USING (true);
-CREATE POLICY "Leitura pública da Bíblia" ON terceiro_joao FOR SELECT TO PUBLIC USING (true);
-CREATE POLICY "Leitura pública da Bíblia" ON judas FOR SELECT TO PUBLIC USING (true);
-CREATE POLICY "Leitura pública da Bíblia" ON apocalipse FOR SELECT TO PUBLIC USING (true);
+CREATE OR REPLACE VIEW bible_all_verses AS
+SELECT 'genesis' as livro, 1 as livro_id, capitulo, versiculo, texto FROM genesis
+UNION ALL SELECT 'exodo', 2, capitulo, versiculo, texto FROM exodo
+UNION ALL SELECT 'levitico', 3, capitulo, versiculo, texto FROM levitico
+UNION ALL SELECT 'numeros', 4, capitulo, versiculo, texto FROM numeros
+UNION ALL SELECT 'deuteronomio', 5, capitulo, versiculo, texto FROM deuteronomio
+UNION ALL SELECT 'josue', 6, capitulo, versiculo, texto FROM josue
+UNION ALL SELECT 'juizes', 7, capitulo, versiculo, texto FROM juizes
+UNION ALL SELECT 'rute', 8, capitulo, versiculo, texto FROM rute
+UNION ALL SELECT 'samuel_1', 9, capitulo, versiculo, texto FROM samuel_1
+UNION ALL SELECT 'samuel_2', 10, capitulo, versiculo, texto FROM samuel_2
+UNION ALL SELECT 'reis_1', 11, capitulo, versiculo, texto FROM reis_1
+UNION ALL SELECT 'reis_2', 12, capitulo, versiculo, texto FROM reis_2
+UNION ALL SELECT 'cronicas_1', 13, capitulo, versiculo, texto FROM cronicas_1
+UNION ALL SELECT 'cronicas_2', 14, capitulo, versiculo, texto FROM cronicas_2
+UNION ALL SELECT 'esdras', 15, capitulo, versiculo, texto FROM esdras
+UNION ALL SELECT 'neemias', 16, capitulo, versiculo, texto FROM neemias
+UNION ALL SELECT 'ester', 17, capitulo, versiculo, texto FROM ester
+UNION ALL SELECT 'jo', 18, capitulo, versiculo, texto FROM jo
+UNION ALL SELECT 'salmos', 19, capitulo, versiculo, texto FROM salmos
+UNION ALL SELECT 'proverbios', 20, capitulo, versiculo, texto FROM proverbios
+UNION ALL SELECT 'eclesiastes', 21, capitulo, versiculo, texto FROM eclesiastes
+UNION ALL SELECT 'cantares', 22, capitulo, versiculo, texto FROM cantares
+UNION ALL SELECT 'isaias', 23, capitulo, versiculo, texto FROM isaias
+UNION ALL SELECT 'jeremias', 24, capitulo, versiculo, texto FROM jeremias
+UNION ALL SELECT 'lamentacoes', 25, capitulo, versiculo, texto FROM lamentacoes
+UNION ALL SELECT 'ezequiel', 26, capitulo, versiculo, texto FROM ezequiel
+UNION ALL SELECT 'daniel', 27, capitulo, versiculo, texto FROM daniel
+UNION ALL SELECT 'oseias', 28, capitulo, versiculo, texto FROM oseias
+UNION ALL SELECT 'joel', 29, capitulo, versiculo, texto FROM joel
+UNION ALL SELECT 'amos', 30, capitulo, versiculo, texto FROM amos
+UNION ALL SELECT 'obadias', 31, capitulo, versiculo, texto FROM obadias
+UNION ALL SELECT 'jonas', 32, capitulo, versiculo, texto FROM jonas
+UNION ALL SELECT 'miqueias', 33, capitulo, versiculo, texto FROM miqueias
+UNION ALL SELECT 'naum', 34, capitulo, versiculo, texto FROM naum
+UNION ALL SELECT 'habacuque', 35, capitulo, versiculo, texto FROM habacuque
+UNION ALL SELECT 'sofonias', 36, capitulo, versiculo, texto FROM sofonias
+UNION ALL SELECT 'ageu', 37, capitulo, versiculo, texto FROM ageu
+UNION ALL SELECT 'zacarias', 38, capitulo, versiculo, texto FROM zacarias
+UNION ALL SELECT 'malaquias', 39, capitulo, versiculo, texto FROM malaquias
+UNION ALL SELECT 'mateus', 40, capitulo, versiculo, texto FROM mateus
+UNION ALL SELECT 'marcos', 41, capitulo, versiculo, texto FROM marcos
+UNION ALL SELECT 'lucas', 42, capitulo, versiculo, texto FROM lucas
+UNION ALL SELECT 'joao', 43, capitulo, versiculo, texto FROM joao
+UNION ALL SELECT 'atos', 44, capitulo, versiculo, texto FROM atos
+UNION ALL SELECT 'romanos', 45, capitulo, versiculo, texto FROM romanos
+UNION ALL SELECT 'corintios_1', 46, capitulo, versiculo, texto FROM corintios_1
+UNION ALL SELECT 'corintios_2', 47, capitulo, versiculo, texto FROM corintios_2
+UNION ALL SELECT 'galatas', 48, capitulo, versiculo, texto FROM galatas
+UNION ALL SELECT 'efesios', 49, capitulo, versiculo, texto FROM efesios
+UNION ALL SELECT 'filipenses', 50, capitulo, versiculo, texto FROM filipenses
+UNION ALL SELECT 'colossenses', 51, capitulo, versiculo, texto FROM colossenses
+UNION ALL SELECT 'tessalonicenses_1', 52, capitulo, versiculo, texto FROM tessalonicenses_1
+UNION ALL SELECT 'tessalonicenses_2', 53, capitulo, versiculo, texto FROM tessalonicenses_2
+UNION ALL SELECT 'timoteo_1', 54, capitulo, versiculo, texto FROM timoteo_1
+UNION ALL SELECT 'timoteo_2', 55, capitulo, versiculo, texto FROM timoteo_2
+UNION ALL SELECT 'tito', 56, capitulo, versiculo, texto FROM tito
+UNION ALL SELECT 'filemom', 57, capitulo, versiculo, texto FROM filemom
+UNION ALL SELECT 'hebreus', 58, capitulo, versiculo, texto FROM hebreus
+UNION ALL SELECT 'tiago', 59, capitulo, versiculo, texto FROM tiago
+UNION ALL SELECT 'pedro_1', 60, capitulo, versiculo, texto FROM pedro_1
+UNION ALL SELECT 'pedro_2', 61, capitulo, versiculo, texto FROM pedro_2
+UNION ALL SELECT 'joao_1', 62, capitulo, versiculo, texto FROM joao_1
+UNION ALL SELECT 'joao_2', 63, capitulo, versiculo, texto FROM joao_2
+UNION ALL SELECT 'joao_3', 64, capitulo, versiculo, texto FROM joao_3
+UNION ALL SELECT 'judas', 65, capitulo, versiculo, texto FROM judas
+UNION ALL SELECT 'apocalipse', 66, capitulo, versiculo, texto FROM apocalipse;
 
 -- =============================================================================
--- EXEMPLO DE INSERÇÃO (PARA REFERÊNCIA)
+-- FUNÇÃO PARA BUSCAR VERSÍCULO POR REFERÊNCIA
 -- =============================================================================
+CREATE OR REPLACE FUNCTION get_verse_by_reference(p_livro TEXT, p_capitulo INTEGER, p_versiculo INTEGER)
+RETURNS TABLE (texto TEXT, livro_nome TEXT) AS $$
+DECLARE
+    v_table_name TEXT;
+BEGIN
+    -- Buscar nome da tabela pelo livro
+    SELECT tabela_nome INTO v_table_name 
+    FROM bible_books 
+    WHERE nome_normalizado = LOWER(REPLACE(REPLACE(REPLACE(p_livro, ' ', ''), 'º', ''), '°', ''))
+       OR abreviacao = UPPER(p_livro)
+       OR nome = p_livro;
+    
+    IF v_table_name IS NULL THEN
+        RETURN;
+    END IF;
+    
+    RETURN QUERY EXECUTE format(
+        'SELECT texto, %L as livro_nome FROM %I WHERE capitulo = %L AND versiculo = %L',
+        p_livro,
+        v_table_name,
+        p_capitulo,
+        p_versiculo
+    );
+END;
+$$ LANGUAGE plpgsql;
 
--- Exemplo de como inserir versículos (você pode fazer isso manualmente):
--- INSERT INTO joao (capitulo, versiculo, texto) VALUES 
--- (3, 16, 'Porque Deus amou o mundo de tal maneira que deu o seu Filho unigênito, para que todo aquele que nele crê não pereça, mas tenha a vida eterna.');
+-- =============================================================================
+-- COMENTÁRIOS
+-- =============================================================================
+COMMENT ON TABLE bible_books IS 'Metadados dos 66 livros da Bíblia';
+COMMENT ON VIEW bible_all_verses IS 'View unificada de todos os versículos da Bíblia para buscas';

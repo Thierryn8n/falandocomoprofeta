@@ -1,1389 +1,327 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { createClient } from '@supabase/supabase-js'
 
-// Estrutura de dados para versículos bíblicos
-interface BibleVerse {
-  book: string
-  chapter: number
-  verse: number
-  text: string
-  reference: string
+// Cliente Supabase para leitura pública
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
+const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+
+// Fallback local com versículos mais comuns (quando Supabase falha)
+const fallbackBibleVerses: Record<string, string> = {
+  'joao_3:16': 'Porque Deus amou o mundo de tal maneira que deu o seu Filho unigênito, para que todo aquele que nele crê não pereça, mas tenha a vida eterna.',
+  'joao_14:6': 'Disse-lhe Jesus: Eu sou o caminho, e a verdade, e a vida. Ninguém vem ao Pai senão por mim.',
+  'joao_1:1': 'No princípio era o Verbo, e o Verbo estava com Deus, e o Verbo era Deus.',
+  'joao_8:32': 'E conhecereis a verdade, e a verdade vos libertará.',
+  'joao_3:5': 'Jesus respondeu: Em verdade, em verdade te digo que aquele que não nascer da água e do Espírito, não pode entrar no reino de Deus.',
+  'romanos_6:23': 'Porque o salário do pecado é a morte, mas o dom gratuito de Deus é a vida eterna, por Cristo Jesus, nosso Senhor.',
+  'romanos_10:9': 'Se com a tua boca confessares ao Senhor Jesus, e em teu coração creres que Deus o ressuscitou dos mortos, serás salvo.',
+  'romanos_5:8': 'Mas Deus prova o seu amor para conosco, em que Cristo morreu por nós, sendo nós ainda pecadores.',
+  'efesios_2:8': 'Porque pela graça sois salvos, por meio da fé; e isso não vem de vós; é dom de Deus.',
+  'efesios_2:9': 'Não vem das obras, para que ninguém se glorie.',
+  'genesis_1:1': 'No princípio, criou Deus os céus e a terra.',
+  'genesis_1:27': 'E criou Deus o homem à sua imagem; à imagem de Deus o criou; macho e fêmea os criou.',
+  'salmos_23:1': 'O Senhor é o meu pastor; de nada terei falta.',
+  'salmos_23:4': 'Ainda que eu ande pelo vale da sombra da morte, não temerei mal algum, porque tu estás comigo; a tua vara e o teu cajado me consolam.',
+  'salmos_119:105': 'Lâmpada para os meus pés é a tua palavra, e luz para o meu caminho.',
+  'isaias_53:5': 'Mas ele foi ferido por causa das nossas transgressões, e moído por causa das nossas iniquidades; o castigo que nos traz a paz estava sobre ele, e pelas suas pisaduras fomos sarados.',
+  'isaias_7:14': 'Portanto o mesmo Senhor vos dará um sinal: Eis que uma virgem conceberá, e dará à luz um filho, e será o seu nome Emanuel.',
+  'isaias_9:6': 'Porque um menino nos nasceu, um filho se nos deu; e o principado está sobre os seus ombros; e o seu nome será: Maravilhoso Conselheiro, Deus Forte, Pai da Eternidade, Príncipe da Paz.',
+  'jeremias_29:11': 'Porque eu bem sei os pensamentos que penso a vosso respeito, diz o Senhor; pensamentos de paz, e não de mal, para vos dar o fim que esperais.',
+  'mateus_6:33': 'Mas buscai primeiro o reino de Deus, e a sua justiça, e todas estas coisas vos serão acrescentadas.',
+  'mateus_28:19': 'Portanto, ide, ensinai todas as nações, batizando-as em nome do Pai, e do Filho, e do Espírito Santo.',
+  'mateus_11:28': 'Vinde a mim, todos os que estais cansados e oprimidos, e eu vos aliviarei.',
+  'atos_2:38': 'E Pedro lhes disse: Arrependei-vos, e cada um de vós seja batizado em nome de Jesus Cristo para perdão dos pecados, e recebereis o dom do Espírito Santo.',
+  'atos_1:8': 'Mas recebereis a virtude do Espírito Santo, que há de vir sobre vós; e ser-me-eis testemunhas tanto em Jerusalém como em toda a Judéia e Samaria, e até aos confins da terra.',
+  '1corintios_13:13': 'Agora, pois, permanecem a fé, a esperança e o amor, estes três; mas o maior destes é o amor.',
+  '2corintios_5:17': 'Assim que, se alguém está em Cristo, nova criatura é; as coisas velhas já passaram; eis que tudo se fez novo.',
+  'filipenses_4:13': 'Posso todas as coisas em Cristo que me fortalece.',
+  'hebreus_11:1': 'Ora, a fé é o firme fundamento das coisas que se esperam, e a prova das coisas que se não veem.',
+  'hebreus_13:8': 'Jesus Cristo é o mesmo ontem, e hoje, e eternamente.',
+  '1joao_1:9': 'Se confessarmos os nossos pecados, ele é fiel e justo para nos perdoar os pecados, e nos purificar de toda injustiça.',
+  '1joao_4:8': 'Aquele que não ama não conhece a Deus; porque Deus é amor.',
+  'apocalipse_3:20': 'Eis que estou à porta e bato; se alguém ouvir a minha voz e abrir a porta, entrarei em sua casa e com ele cearei, e ele, comigo.',
+  'apocalipse_21:4': 'E Deus limpará de seus olhos toda a lágrima; e não haverá mais morte, nem pranto, nem clamor, nem dor; porque já as primeiras coisas são passadas.',
+  'colossenses_2:9': 'Porque nele habita corporalmente toda a plenitude da divindade.',
+  '1timoteo_2:5': 'Porque há um só Deus, e um só mediador entre Deus e os homens, o homem Cristo Jesus.',
+  'joao_10:30': 'Eu e o Pai somos um.',
+  'joao_20:28': 'Disse-lhe Tomé: Senhor meu, e Deus meu!',
+  'hebreus_1:8': 'Mas, quanto ao Filho, diz: O teu trono, ó Deus, é para todo o sempre; e cetro de equidade é o cetro do teu reino.',
+  '1joao_5:20': 'E sabemos que o Filho de Deus é vindo, e nos tem dado entendimento para conhecermos o que é verdadeiro; e no que é verdadeiro estamos, isto é, em seu Filho Jesus Cristo. Este é o verdadeiro Deus e a vida eterna.',
+  'romanios_9:5': 'Dos quais são os pais, e dos quais é a origem carnal de Cristo, o qual é sobre todos, Deus bendito eternamente. Amém.',
+  'tito_2:13': 'Aguardando a bem-aventurada esperança e o aparecimento da glória do grande Deus e nosso Salvador Jesus Cristo.',
 }
 
-// Função para normalizar texto e remover acentos
-function normalizeText(text: string): string {
-  return text.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
+// Mapeamento de nomes de livros para tabelas
+const bookNameMap: Record<string, string> = {
+  // Gênesis
+  'genesis': 'genesis', 'gn': 'genesis',
+  // Êxodo
+  'exodo': 'exodo', 'êxodo': 'exodo', 'ex': 'exodo',
+  // Levítico
+  'levitico': 'levitico', 'levítico': 'levitico', 'lv': 'levitico',
+  // Números
+  'numeros': 'numeros', 'números': 'numeros', 'nm': 'numeros',
+  // Deuteronômio
+  'deuteronomio': 'deuteronomio', 'deuteronômio': 'deuteronomio', 'dt': 'deuteronomio',
+  // Josué
+  'josue': 'josue', 'josué': 'josue', 'js': 'josue',
+  // Juízes
+  'juizes': 'juizes', 'juízes': 'juizes', 'jz': 'juizes',
+  // Rute
+  'rute': 'rute', 'rt': 'rute',
+  // 1 Samuel
+  '1samuel': 'samuel_1', '1ºsamuel': 'samuel_1', '1 samuel': 'samuel_1', '1sm': 'samuel_1', '1 sm': 'samuel_1',
+  // 2 Samuel
+  '2samuel': 'samuel_2', '2ºsamuel': 'samuel_2', '2 samuel': 'samuel_2', '2sm': 'samuel_2', '2 sm': 'samuel_2',
+  // 1 Reis
+  '1reis': 'reis_1', '1ºreis': 'reis_1', '1 reis': 'reis_1', '1rs': 'reis_1', '1 rs': 'reis_1',
+  // 2 Reis
+  '2reis': 'reis_2', '2ºreis': 'reis_2', '2 reis': 'reis_2', '2rs': 'reis_2', '2 rs': 'reis_2',
+  // 1 Crônicas
+  '1cronicas': 'cronicas_1', '1ºcronicas': 'cronicas_1', '1 cronicas': 'cronicas_1', '1cr': 'cronicas_1', '1 cr': 'cronicas_1',
+  // 2 Crônicas
+  '2cronicas': 'cronicas_2', '2ºcronicas': 'cronicas_2', '2 cronicas': 'cronicas_2', '2cr': 'cronicas_2', '2 cr': 'cronicas_2',
+  // Esdras
+  'esdras': 'esdras', 'ed': 'esdras',
+  // Neemias
+  'neemias': 'neemias', 'ne': 'neemias',
+  // Ester
+  'ester': 'ester', 'et': 'ester',
+  // Jó
+  'jo': 'jo', 'jó': 'jo',
+  // Salmos
+  'salmos': 'salmos', 'sl': 'salmos',
+  // Provérbios
+  'proverbios': 'proverbios', 'provérbios': 'proverbios', 'pv': 'proverbios',
+  // Eclesiastes
+  'eclesiastes': 'eclesiastes', 'ec': 'eclesiastes',
+  // Cantares
+  'cantares': 'cantares', 'ct': 'cantares',
+  // Isaías
+  'isaias': 'isaias', 'isaías': 'isaias', 'is': 'isaias',
+  // Jeremias
+  'jeremias': 'jeremias', 'jr': 'jeremias',
+  // Lamentações
+  'lamentacoes': 'lamentacoes', 'lamentações': 'lamentacoes', 'lm': 'lamentacoes',
+  // Ezequiel
+  'ezequiel': 'ezequiel', 'ez': 'ezequiel',
+  // Daniel
+  'daniel': 'daniel', 'dn': 'daniel',
+  // Oséias
+  'oseias': 'oseias', 'os': 'oseias',
+  // Joel
+  'joel': 'joel', 'jl': 'joel',
+  // Amós
+  'amos': 'amos', 'am': 'amos', 'amós': 'amos',
+  // Obadias
+  'obadias': 'obadias', 'ob': 'obadias',
+  // Jonas
+  'jonas': 'jonas', 'jn': 'jonas',
+  // Miquéias
+  'miqueias': 'miqueias', 'mq': 'miqueias',
+  // Naum
+  'naum': 'naum', 'na': 'naum',
+  // Habacuque
+  'habacuque': 'habacuque', 'hc': 'habacuque',
+  // Sofonias
+  'sofonias': 'sofonias', 'sofônias': 'sofonias', 'sf': 'sofonias',
+  // Ageu
+  'ageu': 'ageu', 'ag': 'ageu',
+  // Zacarias
+  'zacarias': 'zacarias', 'zc': 'zacarias',
+  // Malaquias
+  'malaquias': 'malaquias', 'ml': 'malaquias',
+  // Mateus
+  'mateus': 'mateus', 'mt': 'mateus',
+  // Marcos
+  'marcos': 'marcos', 'mc': 'marcos',
+  // Lucas
+  'lucas': 'lucas', 'lc': 'lucas',
+  // João (Evangelho)
+  'joao': 'joao', 'joão': 'joao',
+  // Atos
+  'atos': 'atos', 'at': 'atos',
+  // Romanos
+  'romanos': 'romanos', 'rm': 'romanos',
+  // 1 Coríntios
+  '1corintios': 'corintios_1', '1ºcorintios': 'corintios_1', '1 corintios': 'corintios_1', '1co': 'corintios_1', '1 co': 'corintios_1',
+  // 2 Coríntios
+  '2corintios': 'corintios_2', '2ºcorintios': 'corintios_2', '2 corintios': 'corintios_2', '2co': 'corintios_2', '2 co': 'corintios_2',
+  // Gálatas
+  'galatas': 'galatas', 'gálatas': 'galatas', 'gl': 'galatas',
+  // Efésios
+  'efesios': 'efesios', 'efésios': 'efesios', 'ef': 'efesios', 'efe': 'efesios',
+  // Filipenses
+  'filipenses': 'filipenses', 'fp': 'filipenses',
+  // Colossenses
+  'colossenses': 'colossenses', 'cl': 'colossenses', 'clo': 'colossenses',
+  // 1 Tessalonicenses
+  '1tessalonicenses': 'tessalonicenses_1', '1ºtessalonicenses': 'tessalonicenses_1', '1 tessalonicenses': 'tessalonicenses_1', '1ts': 'tessalonicenses_1', '1 ts': 'tessalonicenses_1',
+  // 2 Tessalonicenses
+  '2tessalonicenses': 'tessalonicenses_2', '2ºtessalonicenses': 'tessalonicenses_2', '2 tessalonicenses': 'tessalonicenses_2', '2ts': 'tessalonicenses_2', '2 ts': 'tessalonicenses_2',
+  // 1 Timóteo
+  '1timoteo': 'timoteo_1', '1ºtimoteo': 'timoteo_1', '1 timoteo': 'timoteo_1', '1tm': 'timoteo_1', '1 tm': 'timoteo_1',
+  // 2 Timóteo
+  '2timoteo': 'timoteo_2', '2ºtimoteo': 'timoteo_2', '2 timoteo': 'timoteo_2', '2tm': 'timoteo_2', '2 tm': 'timoteo_2',
+  // Tito
+  'tito': 'tito', 'tt': 'tito', 'ti': 'tito',
+  // Filemom
+  'filemom': 'filemom', 'filemão': 'filemom', 'fm': 'filemom',
+  // Hebreus
+  'hebreus': 'hebreus', 'hb': 'hebreus',
+  // Tiago
+  'tiago': 'tiago', 'tg': 'tiago', 'ti': 'tiago',
+  // 1 Pedro
+  '1pedro': 'pedro_1', '1ºpedro': 'pedro_1', '1 pedro': 'pedro_1', '1pe': 'pedro_1', '1 pe': 'pedro_1',
+  // 2 Pedro
+  '2pedro': 'pedro_2', '2ºpedro': 'pedro_2', '2 pedro': 'pedro_2', '2pe': 'pedro_2', '2 pe': 'pedro_2',
+  // 1 João
+  '1joao': 'joao_1', '1ºjoao': 'joao_1', '1 joao': 'joao_1', '1joão': 'joao_1', '1 joão': 'joao_1',
+  // 2 João
+  '2joao': 'joao_2', '2ºjoao': 'joao_2', '2 joao': 'joao_2', '2joão': 'joao_2', '2 joão': 'joao_2',
+  // 3 João
+  '3joao': 'joao_3', '3ºjoao': 'joao_3', '3 joao': 'joao_3', '3joão': 'joao_3', '3 joão': 'joao_3',
+  // Judas
+  'judas': 'judas', 'jd': 'judas',
+  // Apocalipse
+  'apocalipse': 'apocalipse', 'ap': 'apocalipse', 'apo': 'apocalipse',
 }
 
-// Base de dados local com versículos mais comuns (fallback quando API falha)
-const localBibleDatabase: BibleVerse[] = [
-  { book: '1 Timóteo', chapter: 2, verse: 9, reference: '1 Timóteo 2:9', text: 'Que as mulheres se vistam de forma decente, com modestia e sobriedade, não com tranças, nem com ouro, nem com pérolas, nem com vestidos custosos.' },
-  { book: '1 Timóteo', chapter: 2, verse: 10, reference: '1 Timóteo 2:10', text: 'Mas com boas obras, como convém a mulheres que professam piedade.' },
-  { book: 'João', chapter: 3, verse: 16, reference: 'João 3:16', text: 'Porque Deus amou o mundo de tal maneira que deu o seu Filho unigênito, para que todo aquele que nele crê não pereça, mas tenha a vida eterna.' },
-  { book: 'João', chapter: 14, verse: 6, reference: 'João 14:6', text: 'Disse-lhe Jesus: Eu sou o caminho, e a verdade, e a vida. Ninguém vem ao Pai senão por mim.' },
-  { book: 'Atos', chapter: 2, verse: 38, reference: 'Atos 2:38', text: 'E Pedro lhes disse: Arrependei-vos, e cada um de vós seja batizado em nome de Jesus Cristo para perdão dos pecados, e recebereis o dom do Espírito Santo.' },
-  { book: 'Romanos', chapter: 10, verse: 9, reference: 'Romanos 10:9', text: 'Se com a tua boca confessares ao Senhor Jesus, e em teu coração creres que Deus o ressuscitou dos mortos, serás salvo.' },
-  { book: 'Romanos', chapter: 6, verse: 23, reference: 'Romanos 6:23', text: 'Porque o salário do pecado é a morte, mas o dom gratuito de Deus é a vida eterna, por Cristo Jesus, nosso Senhor.' },
-  { book: 'Efésios', chapter: 2, verse: 8, reference: 'Efésios 2:8', text: 'Porque pela graça sois salvos, por meio da fé; e isso não vem de vós; é dom de Deus.' },
-  { book: 'Efésios', chapter: 2, verse: 9, reference: 'Efésios 2:9', text: 'Não vem das obras, para que ninguém se glorie.' },
-  { book: 'Gênesis', chapter: 1, verse: 1, reference: 'Gênesis 1:1', text: 'No princípio, criou Deus os céus e a terra.' },
-  { book: 'Apocalipse', chapter: 3, verse: 20, reference: 'Apocalipse 3:20', text: 'Eis que estou à porta e bato; se alguém ouvir a minha voz e abrir a porta, entrarei em sua casa e com ele cearei, e ele, comigo.' },
-  { book: 'Hebreus', chapter: 11, verse: 1, reference: 'Hebreus 11:1', text: 'Ora, a fé é o firme fundamento das coisas que se esperam, e a prova das coisas que se não veem.' },
-  { book: 'Hebreus', chapter: 13, verse: 8, reference: 'Hebreus 13:8', text: 'Jesus Cristo é o mesmo ontem, e hoje, e eternamente.' },
-  { book: 'Mateus', chapter: 28, verse: 19, reference: 'Mateus 28:19', text: 'Portanto, ide, ensinai todas as nações, batizando-as em nome do Pai, e do Filho, e do Espírito Santo.' },
-  { book: 'Mateus', chapter: 28, verse: 20, reference: 'Mateus 28:20', text: 'Ensinando-as a guardar todas as coisas que vos tenho ordenado; e eis que eu estou convosco todos os dias, até a consumação dos séculos.' },
-  { book: 'Filipenses', chapter: 4, verse: 13, reference: 'Filipenses 4:13', text: 'Tudo posso naquele que me fortalece.' },
-  { book: 'Salmos', chapter: 23, verse: 1, reference: 'Salmos 23:1', text: 'O Senhor é o meu pastor; de nada terei falta.' },
-  { book: 'Salmos', chapter: 23, verse: 2, reference: 'Salmos 23:2', text: 'Em verdes pastagens me faz repousar e me conduz a águas tranquilas.' },
-  { book: '1 João', chapter: 1, verse: 9, reference: '1 João 1:9', text: 'Se confessarmos os nossos pecados, ele é fiel e justo para nos perdoar os pecados e nos purificar de toda injustiça.' },
-  { book: 'Isaías', chapter: 53, verse: 5, reference: 'Isaías 53:5', text: 'Mas ele foi ferido por causa das nossas transgressões, e moído por causa das nossas iniquidades; o castigo que nos traz a paz estava sobre ele, e pelas suas pisaduras fomos sarados.' },
-  { book: 'Jeremias', chapter: 29, verse: 11, reference: 'Jeremias 29:11', text: 'Porque eu bem sei os pensamentos que penso a vosso respeito, diz o Senhor; pensamentos de paz, e não de mal, para vos dar o fim que esperais.' },
-  { book: 'Gênesis', chapter: 1, verse: 1, reference: 'Gênesis 1:1', text: 'No princípio criou Deus os céus e a terra.' },
-  { book: 'Gênesis', chapter: 1, verse: 3, reference: 'Gênesis 1:3', text: 'E disse Deus: Haja luz. E houve luz.' },
-  { book: 'Gênesis', chapter: 1, verse: 27, reference: 'Gênesis 1:27', text: 'E criou Deus o homem à sua imagem; à imagem de Deus o criou; macho e fêmea os criou.' },
-  { book: 'Gênesis', chapter: 1, verse: 31, reference: 'Gênesis 1:31', text: 'E viu Deus tudo quanto tinha feito, e eis que era muito bom. E foi a tarde e a manhã, o dia sexto.' },
-  { book: 'Êxodo', chapter: 20, verse: 3, reference: 'Êxodo 20:3', text: 'Não terás outros deuses diante de mim.' },
-  { book: 'Êxodo', chapter: 20, verse: 12, reference: 'Êxodo 20:12', text: 'Honra a teu pai e a tua mãe, para que se prolonguem os teus dias na terra que o Senhor teu Deus te dá.' },
-  { book: 'Deuteronômio', chapter: 6, verse: 5, reference: 'Deuteronômio 6:5', text: 'E amarás o Senhor teu Deus de todo o teu coração, e de toda a tua alma, e de todas as tuas forças.' },
-  { book: 'Josué', chapter: 1, verse: 8, reference: 'Josué 1:8', text: 'Não se aparte da tua boca o livro desta lei; antes medita nele dia e noite, para que tenhas cuidado de fazer conforme tudo quanto nele está escrito; porque então farás prosperar o teu caminho, e serás bem sucedido.' },
-  { book: 'Salmos', chapter: 1, verse: 1, reference: 'Salmos 1:1', text: 'Bem-aventurado o homem que não anda segundo o conselho dos ímpios, nem se detém no caminho dos pecadores, nem se assenta na roda dos escarnecedores.' },
-  { book: 'Salmos', chapter: 1, verse: 2, reference: 'Salmos 1:2', text: 'Antes tem o seu prazer na lei do Senhor, e na sua lei medita de dia e de noite.' },
-  { book: 'Salmos', chapter: 23, verse: 1, reference: 'Salmos 23:1', text: 'O Senhor é o meu pastor; nada me faltará.' },
-  { book: 'Salmos', chapter: 23, verse: 2, reference: 'Salmos 23:2', text: 'Faz-me deitar em verdes pastagens, guia-me mansamente a águas tranquilas.' },
-  { book: 'Salmos', chapter: 23, verse: 4, reference: 'Salmos 23:4', text: 'Ainda que eu ande pelo vale da sombra da morte, não temerei mal algum, porque tu estás comigo; a tua vara e o teu cajado me consolam.' },
-  { book: 'Salmos', chapter: 23, verse: 6, reference: 'Salmos 23:6', text: 'Certamente que a bondade e a misericórdia me seguirão todos os dias da minha vida; e habitarei na casa do Senhor por longos dias.' },
-  { book: 'Salmos', chapter: 119, verse: 105, reference: 'Salmos 119:105', text: 'Lâmpada para os meus pés é a tua palavra, e luz para o meu caminho.' },
-  { book: 'Provérbios', chapter: 3, verse: 5, reference: 'Provérbios 3:5', text: 'Confia no Senhor de todo o teu coração, e não te estribes no teu próprio entendimento.' },
-  { book: 'Provérbios', chapter: 3, verse: 6, reference: 'Provérbios 3:6', text: 'Reconhece-o em todos os teus caminhos, e ele endireitará as tuas veredas.' },
-  { book: 'Isaías', chapter: 40, verse: 31, reference: 'Isaías 40:31', text: 'Mas os que esperam no Senhor renovarão as suas forças; subirão com asas como águias; correrão, e não se cansarão; caminharão, e não se fatigarão.' },
-  { book: 'Isaías', chapter: 53, verse: 5, reference: 'Isaías 53:5', text: 'Mas ele foi ferido por causa das nossas transgressões, e moído por causa das nossas iniquidades; o castigo que nos traz a paz estava sobre ele, e pelas suas pisaduras fomos sarados.' },
-  { book: 'Jeremias', chapter: 29, verse: 11, reference: 'Jeremias 29:11', text: 'Porque eu bem sei os pensamentos que penso de vós, diz o Senhor; pensamentos de paz, e não de mal, para vos dar o fim que esperais.' },
-  { book: 'Mateus', chapter: 5, verse: 14, reference: 'Mateus 5:14', text: 'Vós sois a luz do mundo; não se pode esconder uma cidade edificada sobre um monte.' },
-  { book: 'Mateus', chapter: 5, verse: 16, reference: 'Mateus 5:16', text: 'Assim resplandeça a vossa luz diante dos homens, para que vejam as vossas boas obras e glorifiquem a vosso Pai, que está nos céus.' },
-  { book: 'Mateus', chapter: 6, verse: 33, reference: 'Mateus 6:33', text: 'Mas buscai primeiro o reino de Deus, e a sua justiça, e todas estas coisas vos serão acrescentadas.' },
-  { book: 'Mateus', chapter: 7, verse: 7, reference: 'Mateus 7:7', text: 'Pedi, e dar-se-vos-á; buscai, e encontrareis; batei, e abrir-se-vos-á.' },
-  { book: 'Mateus', chapter: 11, verse: 28, reference: 'Mateus 11:28', text: 'Vinde a mim, todos os que estais cansados e oprimidos, e eu vos aliviarei.' },
-  { book: 'Mateus', chapter: 28, verse: 19, reference: 'Mateus 28:19', text: 'Portanto ide, ensinai todas as nações, batizando-as em nome do Pai, e do Filho, e do Espírito Santo;' },
-  { book: 'Mateus', chapter: 28, verse: 20, reference: 'Mateus 28:20', text: 'Ensinando-as a guardar todas as coisas que eu vos tenho mandado; e eis que eu estou convosco todos os dias, até a consumação dos séculos. Amém.' },
-  { book: 'Marcos', chapter: 16, verse: 15, reference: 'Marcos 16:15', text: 'E disse-lhes: Ide por todo o mundo, pregai o evangelho a toda criatura.' },
-  { book: 'Lucas', chapter: 6, verse: 31, reference: 'Lucas 6:31', text: 'E como vós quereis que os homens vos façam, da mesma maneira lhes fazei vós também.' },
-  { book: 'João', chapter: 1, verse: 1, reference: 'João 1:1', text: 'No princípio era o Verbo, e o Verbo estava com Deus, e o Verbo era Deus.' },
-  { book: 'João', chapter: 3, verse: 16, reference: 'João 3:16', text: 'Porque Deus amou o mundo de tal maneira que deu o seu Filho unigênito, para que todo aquele que nele crê não pereça, mas tenha a vida eterna.' },
-  { book: 'João', chapter: 8, verse: 32, reference: 'João 8:32', text: 'E conhecereis a verdade, e a verdade vos libertará.' },
-  { book: 'João', chapter: 14, verse: 6, reference: 'João 14:6', text: 'Disse-lhe Jesus: Eu sou o caminho, e a verdade, e a vida; ninguém vem ao Pai, senão por mim.' },
-  { book: 'João', chapter: 15, verse: 5, reference: 'João 15:5', text: 'Eu sou a videira, vós as varas; quem está em mim, e eu nele, esse dá muito fruto; porque sem mim nada podeis fazer.' },
-  { book: 'Atos', chapter: 1, verse: 8, reference: 'Atos 1:8', text: 'Mas recebereis a virtude do Espírito Santo, que há de vir sobre vós; e ser-me-eis testemunhas tanto em Jerusalém como em toda a Judéia e Samaria, e até aos confins da terra.' },
-  { book: 'Atos', chapter: 2, verse: 38, reference: 'Atos 2:38', text: 'E Pedro lhes disse: Arrependei-vos, e cada um de vós seja batizado em nome de Jesus Cristo, para remissão dos pecados; e recebereis o dom do Espírito Santo.' },
-  { book: 'Romanos', chapter: 3, verse: 23, reference: 'Romanos 3:23', text: 'Porque todos pecaram e destituídos estão da glória de Deus;' },
-  { book: 'Romanos', chapter: 5, verse: 8, reference: 'Romanos 5:8', text: 'Mas Deus prova o seu amor para conosco, em que Cristo morreu por nós, sendo nós ainda pecadores.' },
-  { book: 'Romanos', chapter: 6, verse: 23, reference: 'Romanos 6:23', text: 'Porque o salário do pecado é a morte, mas o dom gratuito de Deus é a vida eterna, por Cristo Jesus nosso Senhor.' },
-  { book: 'Romanos', chapter: 8, verse: 28, reference: 'Romanos 8:28', text: 'E sabemos que todas as coisas contribuem juntamente para o bem daqueles que amam a Deus, daqueles que são chamados por seu decreto.' },
-  { book: 'Romanos', chapter: 10, verse: 9, reference: 'Romanos 10:9', text: 'Se com a tua boca confessares ao Senhor Jesus, e em teu coração creres que Deus o ressuscitou dentre os mortos, serás salvo.' },
-  { book: 'Romanos', chapter: 12, verse: 2, reference: 'Romanos 12:2', text: 'E não vos conformeis com este mundo, mas transformai-vos pela renovação do vosso entendimento, para que experimenteis qual seja a boa, agradável, e perfeita vontade de Deus.' },
-  { book: '1 Coríntios', chapter: 13, verse: 13, reference: '1 Coríntios 13:13', text: 'Agora, pois, permanecem a fé, a esperança e o amor, estes três; mas o maior destes é o amor.' },
-  { book: '2 Coríntios', chapter: 5, verse: 17, reference: '2 Coríntios 5:17', text: 'Assim que, se alguém está em Cristo, nova criatura é; as coisas velhas já passaram; eis que tudo se fez novo.' },
-  { book: 'Efésios', chapter: 2, verse: 8, reference: 'Efésios 2:8', text: 'Porque pela graça sois salvos, por meio da fé; e isto não vem de vós, é dom de Deus.' },
-  { book: 'Efésios', chapter: 2, verse: 9, reference: 'Efésios 2:9', text: 'Não vem das obras, para que ninguém se glorie.' },
-  { book: 'Efésios', chapter: 2, verse: 10, reference: 'Efésios 2:10', text: 'Porque somos feitura sua, criados em Cristo Jesus para as boas obras, as quais Deus preparou para que andássemos nelas.' },
-  { book: 'Filipenses', chapter: 4, verse: 6, reference: 'Filipenses 4:6', text: 'Não estejais inquietos por coisa alguma; antes as vossas petições sejam em tudo conhecidas diante de Deus pela oração e súplica, com ação de graças.' },
-  { book: 'Filipenses', chapter: 4, verse: 7, reference: 'Filipenses 4:7', text: 'E a paz de Deus, que excede todo o entendimento, guardará os vossos corações e os vossos sentimentos em Cristo Jesus.' },
-  { book: 'Filipenses', chapter: 4, verse: 13, reference: 'Filipenses 4:13', text: 'Posso todas as coisas em Cristo que me fortalece.' },
-  { book: 'Colossenses', chapter: 3, verse: 23, reference: 'Colossenses 3:23', text: 'E tudo quanto fizerdes, fazei-o de todo o coração, como ao Senhor, e não aos homens,' },
-  { book: '2 Timóteo', chapter: 3, verse: 16, reference: '2 Timóteo 3:16', text: 'Toda a Escritura é dada por inspiração de Deus, e é proveitosa para ensinar, para redarguir, para corrigir, para instruir em justiça,' },
-  { book: 'Hebreus', chapter: 11, verse: 1, reference: 'Hebreus 11:1', text: 'Ora, a fé é o firme fundamento das coisas que se esperam, e a prova das coisas que se não veem.' },
-  { book: 'Hebreus', chapter: 13, verse: 8, reference: 'Hebreus 13:8', text: 'Jesus Cristo é o mesmo ontem, e hoje, e eternamente.' },
-  { book: 'Tiago', chapter: 1, verse: 22, reference: 'Tiago 1:22', text: 'E sede cumpridores da palavra, e não somente ouvintes, enganando-vos com falsos discursos.' },
-  { book: '1 Pedro', chapter: 5, verse: 7, reference: '1 Pedro 5:7', text: 'Lançando sobre ele toda a vossa ansiedade, porque ele tem cuidado de vós.' },
-  { book: '1 João', chapter: 1, verse: 9, reference: '1 João 1:9', text: 'Se confessarmos os nossos pecados, ele é fiel e justo para nos perdoar os pecados, e nos purificar de toda a injustiça.' },
-  { book: '1 João', chapter: 4, verse: 8, reference: '1 João 4:8', text: 'Aquele que não ama não conhece a Deus; porque Deus é amor.' },
-  { book: 'Apocalipse', chapter: 3, verse: 20, reference: 'Apocalipse 3:20', text: 'Eis que estou à porta, e bato; se alguém ouvir a minha voz, e abrir a porta, entrarei em sua casa, e com ele cearei, e ele comigo.' },
-  { book: 'Apocalipse', chapter: 21, verse: 4, reference: 'Apocalipse 21:4', text: 'E Deus limpará de seus olhos toda a lágrima; e não haverá mais morte, nem pranto, nem clamor, nem dor; porque já as primeiras coisas são passadas.' },
-  { book: 'Gênesis', chapter: 1, verse: 26, reference: 'Gênesis 1:26', text: 'E disse Deus: Façamos o homem à nossa imagem, conforme a nossa semelhança; e domine sobre os peixes do mar, e sobre as aves dos céus, e sobre o gado, e sobre toda a terra, e sobre todo o réptil que se move sobre a terra.' },
-  { book: 'Gênesis', chapter: 2, verse: 7, reference: 'Gênesis 2:7', text: 'E formou o Senhor Deus o homem do pó da terra, e soprou em suas narinas o fôlego da vida; e o homem foi feito alma vivente.' },
-  { book: 'Gênesis', chapter: 3, verse: 15, reference: 'Gênesis 3:15', text: 'E porei inimizade entre ti e a mulher, e entre a tua semente e a sua semente; esta te ferirá a cabeça, e tu lhe ferirás o calcanhar.' },
-  { book: 'Êxodo', chapter: 3, verse: 14, reference: 'Êxodo 3:14', text: 'E disse Deus a Moisés: EU SOU O QUE SOU. Disse mais: Assim dirás aos filhos de Israel: EU SOU me enviou a vós.' },
-  { book: 'Êxodo', chapter: 20, verse: 2, reference: 'Êxodo 20:2', text: 'Eu sou o Senhor teu Deus, que te tirei da terra do Egito, da casa da servidão.' },
-  { book: 'Êxodo', chapter: 20, verse: 13, reference: 'Êxodo 20:13', text: 'Não matarás.' },
-  { book: 'Êxodo', chapter: 20, verse: 14, reference: 'Êxodo 20:14', text: 'Não adulterarás.' },
-  { book: 'Levítico', chapter: 19, verse: 18, reference: 'Levítico 19:18', text: 'Não te vingarás, nem guardarás ira contra os filhos do teu povo; mas amarás o teu próximo como a ti mesmo. Eu sou o Senhor.' },
-  { book: 'Deuteronômio', chapter: 31, verse: 6, reference: 'Deuteronômio 31:6', text: 'Esforçai-vos, e animai-vos; não temais, nem vos espanteis diante deles; porque o Senhor teu Deus é o que vai contigo; não te deixará nem te desamparará.' },
-  { book: 'Josué', chapter: 24, verse: 15, reference: 'Josué 24:15', text: 'Porém, se vos parece mal servir ao Senhor, escolhei hoje a quem sirvais; se aos deuses a quem serviram vossos pais, que estavam além do rio, ou aos deuses dos amorreus, em cuja terra habitais; porém eu e a minha casa serviremos ao Senhor.' },
-  { book: '1 Samuel', chapter: 15, verse: 22, reference: '1 Samuel 15:22', text: 'Porém Samuel disse: Tem porventura o Senhor tanto prazer em holocaustos e sacrifícios, como em que se obedeça à voz do Senhor? Eis que o obedecer é melhor do que o sacrificar; e o atender, melhor do que a gordura de carneiros.' },
-  { book: '2 Crônicas', chapter: 7, verse: 14, reference: '2 Crônicas 7:14', text: 'Se o meu povo, que se chama pelo meu nome, se humilhar, e orar, e buscar a minha face, e se converter dos seus maus caminhos, então eu ouvirei dos céus, e perdoarei os seus pecados, e sararei a sua terra.' },
-  { book: 'Salmos', chapter: 27, verse: 1, reference: 'Salmos 27:1', text: 'O Senhor é a minha luz e a minha salvação; a quem temerei? O Senhor é a força da minha vida; de quem me recearei?' },
-  { book: 'Salmos', chapter: 37, verse: 4, reference: 'Salmos 37:4', text: 'Deleita-te também no Senhor, e ele te concederá o que deseja o teu coração.' },
-  { book: 'Salmos', chapter: 46, verse: 1, reference: 'Salmos 46:1', text: 'Deus é o nosso refúgio e fortaleza, socorro bem presente na angústia.' },
-  { book: 'Salmos', chapter: 51, verse: 10, reference: 'Salmos 51:10', text: 'Cria em mim, ó Deus, um coração puro, e renova em mim um espírito reto.' },
-  { book: 'Salmos', chapter: 91, verse: 1, reference: 'Salmos 91:1', text: 'Aquele que habita no esconderijo do Altíssimo, à sombra do Onipotente descansará.' },
-  { book: 'Salmos', chapter: 100, verse: 4, reference: 'Salmos 100:4', text: 'Entrai pelas portas dele com louvor, e em seus átrios com hinos; louvai-o, e bendizei o seu nome.' },
-  { book: 'Salmos', chapter: 119, verse: 11, reference: 'Salmos 119:11', text: 'Escondi a tua palavra no meu coração, para não pecar contra ti.' },
-  { book: 'Provérbios', chapter: 4, verse: 23, reference: 'Provérbios 4:23', text: 'Sobre tudo o que se deve guardar, guarda o teu coração, porque dele procedem as saídas da vida.' },
-  { book: 'Provérbios', chapter: 18, verse: 21, reference: 'Provérbios 18:21', text: 'A morte e a vida estão no poder da língua; e aquele que a ama comerá do seu fruto.' },
-  { book: 'Provérbios', chapter: 22, verse: 6, reference: 'Provérbios 22:6', text: 'Ensina a criança no caminho em que deve andar, e até quando envelhecer não se desviará dele.' },
-  { book: 'Eclesiastes', chapter: 3, verse: 1, reference: 'Eclesiastes 3:1', text: 'Tudo tem o seu tempo determinado, e há tempo para todo o propósito debaixo do céu.' },
-  { book: 'Isaías', chapter: 9, verse: 6, reference: 'Isaías 9:6', text: 'Porque um menino nos nasceu, um filho se nos deu; e o principado está sobre os seus ombros; e o seu nome será Maravilhoso Conselheiro, Deus Forte, Pai da Eternidade, Príncipe da Paz.' },
-  { book: 'Isaías', chapter: 26, verse: 3, reference: 'Isaías 26:3', text: 'Tu conservarás em paz aquele cuja mente está firme em ti; porque ele confia em ti.' },
-  { book: 'Isaías', chapter: 41, verse: 10, reference: 'Isaías 41:10', text: 'Não temas, porque eu sou contigo; não te assombres, porque eu sou o teu Deus; eu te esforço, e te ajudo, e te sustento com a destra da minha justiça.' },
-  { book: 'Isaías', chapter: 55, verse: 8, reference: 'Isaías 55:8', text: 'Porque os meus pensamentos não são os vossos pensamentos, nem os vossos caminhos os meus caminhos, diz o Senhor.' },
-  { book: 'Jeremias', chapter: 17, verse: 7, reference: 'Jeremias 17:7', text: 'Bendito o homem que confia no Senhor, e cuja esperança é o Senhor.' },
-  { book: 'Daniel', chapter: 3, verse: 17, reference: 'Daniel 3:17', text: 'Eis que o nosso Deus, a quem nós servimos, é poderoso para nos livrar da fornalha de fogo ardente, e ele nos livrará da tua mão, ó rei.' },
-  { book: 'Miqueias', chapter: 6, verse: 8, reference: 'Miqueias 6:8', text: 'Ele te declarou, ó homem, o que é bom; e que é o que o Senhor pede de ti, senão que pratiques a justiça, e ames a benignidade, e andes humildemente com o teu Deus?' },
-  { book: 'Mateus', chapter: 5, verse: 3, reference: 'Mateus 5:3', text: 'Bem-aventurados os pobres em espírito, porque deles é o reino dos céus.' },
-  { book: 'Mateus', chapter: 5, verse: 44, reference: 'Mateus 5:44', text: 'Eu, porém, vos digo: Amai a vossos inimigos, bendizei os que vos maldizem, fazei bem aos que vos odeiam, e orai pelos que vos maltratam e vos perseguem.' },
-  { book: 'Mateus', chapter: 6, verse: 9, reference: 'Mateus 6:9', text: 'Portanto, vós orareis assim: Pai nosso, que estás nos céus, santificado seja o teu nome.' },
-  { book: 'Mateus', chapter: 6, verse: 34, reference: 'Mateus 6:34', text: 'Não vos inquieteis, pois, pelo dia de amanhã, porque o dia de amanhã cuidará de si mesmo. Basta a cada dia o seu mal.' },
-  { book: 'Mateus', chapter: 7, verse: 12, reference: 'Mateus 7:12', text: 'Portanto, tudo o que vós quereis que os homens vos façam, fazei-lho também vós, porque esta é a lei e os profetas.' },
-  { book: 'Mateus', chapter: 11, verse: 29, reference: 'Mateus 11:29', text: 'Tomai sobre vós o meu jugo, e aprendei de mim, que sou manso e humilde de coração; e encontrareis descanso para as vossas almas.' },
-  { book: 'Mateus', chapter: 16, verse: 24, reference: 'Mateus 16:24', text: 'Então disse Jesus aos seus discípulos: Se alguém quiser vir após mim, renuncie-se a si mesmo, tome sobre si a sua cruz, e siga-me.' },
-  { book: 'Marcos', chapter: 8, verse: 36, reference: 'Marcos 8:36', text: 'Pois que aproveitaria ao homem ganhar o mundo inteiro, e perder a sua alma?' },
-  { book: 'Lucas', chapter: 1, verse: 37, reference: 'Lucas 1:37', text: 'Porque para Deus nada será impossível.' },
-  { book: 'Lucas', chapter: 9, verse: 23, reference: 'Lucas 9:23', text: 'E dizia a todos: Se alguém quer vir após mim, negue-se a si mesmo, tome cada dia a sua cruz, e siga-me.' },
-  { book: 'Lucas', chapter: 12, verse: 7, reference: 'Lucas 12:7', text: 'Mas até os cabelos da vossa cabeça estão todos contados. Não temais, pois mais valeis vós do que muitos passarinhos.' },
-  { book: 'Lucas', chapter: 19, verse: 10, reference: 'Lucas 19:10', text: 'Porque o Filho do homem veio buscar e salvar o que se havia perdido.' },
-  { book: 'João', chapter: 1, verse: 12, reference: 'João 1:12', text: 'Mas, a todos quantos o receberam, deu-lhes o poder de serem feitos filhos de Deus, aos que crêem no seu nome.' },
-  { book: 'João', chapter: 4, verse: 24, reference: 'João 4:24', text: 'Deus é Espírito, e importa que os que o adoram o adorem em espírito e em verdade.' },
-  { book: 'João', chapter: 5, verse: 24, reference: 'João 5:24', text: 'Na verdade, na verdade vos digo que quem ouve a minha palavra, e crê naquele que me enviou, tem a vida eterna, e não entrará em condenação, mas passou da morte para a vida.' },
-  { book: 'João', chapter: 10, verse: 10, reference: 'João 10:10', text: 'O ladrão não vem senão a roubar, a matar, e a destruir; eu vim para que tenham vida, e a tenham com abundância.' },
-  { book: 'João', chapter: 11, verse: 25, reference: 'João 11:25', text: 'Disse-lhe Jesus: Eu sou a ressurreição e a vida; quem crê em mim, ainda que esteja morto, viverá.' },
-  { book: 'João', chapter: 13, verse: 34, reference: 'João 13:34', text: 'Um novo mandamento vos dou: Que vos ameis uns aos outros; como eu vos amei a vós, que também vós uns aos outros vos ameis.' },
-  { book: 'João', chapter: 14, verse: 27, reference: 'João 14:27', text: 'Deixo-vos a paz, a minha paz vos dou; não vo-la dou como o mundo a dá. Não se turbe o vosso coração, nem se atemorize.' },
-  { book: 'João', chapter: 15, verse: 13, reference: 'João 15:13', text: 'Ninguém tem maior amor do que este, de dar alguém a sua vida pelos seus amigos.' },
-  { book: 'João', chapter: 16, verse: 33, reference: 'João 16:33', text: 'Tenho-vos dito isto, para que em mim tenhais paz; no mundo tereis aflições, mas tende bom ânimo, eu venci o mundo.' },
-  { book: 'Atos', chapter: 4, verse: 12, reference: 'Atos 4:12', text: 'E em nenhum outro há salvação, porque também debaixo do céu nenhum outro nome há, dado entre os homens, pelo qual devamos ser salvos.' },
-  { book: 'Atos', chapter: 16, verse: 31, reference: 'Atos 16:31', text: 'E eles disseram: Crê no Senhor Jesus Cristo e serás salvo, tu e a tua casa.' },
-  { book: 'Romanos', chapter: 1, verse: 16, reference: 'Romanos 1:16', text: 'Porque não me envergonho do evangelho de Cristo, pois é o poder de Deus para salvação de todo aquele que crê; primeiro do judeu, e também do grego.' },
-  { book: 'Romanos', chapter: 5, verse: 1, reference: 'Romanos 5:1', text: 'Sendo, pois, justificados pela fé, temos paz com Deus, por nosso Senhor Jesus Cristo.' },
-  { book: 'Romanos', chapter: 8, verse: 1, reference: 'Romanos 8:1', text: 'Portanto, agora nenhuma condenação há para os que estão em Cristo Jesus.' },
-  { book: 'Romanos', chapter: 8, verse: 31, reference: 'Romanos 8:31', text: 'Que diremos, pois, a estas coisas? Se Deus é por nós, quem será contra nós?' },
-  { book: 'Romanos', chapter: 12, verse: 1, reference: 'Romanos 12:1', text: 'Rogo-vos, pois, irmãos, pela compaixão de Deus, que apresenteis os vossos corpos em sacrifício vivo, santo e agradável a Deus, que é o vosso culto racional.' },
-  { book: '1 Coríntios', chapter: 2, verse: 9, reference: '1 Coríntios 2:9', text: 'Mas, como está escrito: As coisas que o olho não viu, e o ouvido não ouviu, e não subiram ao coração do homem, são as que Deus preparou para os que o amam.' },
-  { book: '1 Coríntios', chapter: 6, verse: 19, reference: '1 Coríntios 6:19', text: 'Ou não sabeis que o vosso corpo é o templo do Espírito Santo, que habita em vós, proveniente de Deus, e que não sois de vós mesmos?' },
-  { book: '1 Coríntios', chapter: 10, verse: 13, reference: '1 Coríntios 10:13', text: 'Não vos sobreveio tentação, senão humana; mas fiel é Deus, que não vos deixará tentar acima do que podeis, antes com a tentação dará também o escape, para que a possais suportar.' },
-  { book: '1 Coríntios', chapter: 15, verse: 58, reference: '1 Coríntios 15:58', text: 'Portanto, meus amados irmãos, sede firmes e constantes, sempre abundantes na obra do Senhor, sabendo que o vosso trabalho não é vão no Senhor.' },
-  { book: '2 Coríntios', chapter: 4, verse: 18, reference: '2 Coríntios 4:18', text: 'Não atentando nós nas coisas que se veem, mas nas que se não veem; porque as que se veem são temporais, e as que se não veem são eternas.' },
-  { book: '2 Coríntios', chapter: 12, verse: 9, reference: '2 Coríntios 12:9', text: 'E disse-me: A minha graça te basta, porque o meu poder se aperfeiçoa na fraqueza. De boa vontade, pois, me gloriarei nas minhas fraquezas, para que em mim habite o poder de Cristo.' },
-  { book: 'Gálatas', chapter: 2, verse: 20, reference: 'Gálatas 2:20', text: 'Já estou crucificado com Cristo; e vivo, não mais eu, mas Cristo vive em mim; e a vida que agora vivo na carne, vivo-a na fé do Filho de Deus, o qual me amou, e se entregou a si mesmo por mim.' },
-  { book: 'Gálatas', chapter: 5, verse: 22, reference: 'Gálatas 5:22', text: 'Mas o fruto do Espírito é: amor, gozo, paz, longanimidade, benignidade, bondade, fé, mansidão, temperança.' },
-  { book: 'Efésios', chapter: 4, verse: 32, reference: 'Efésios 4:32', text: 'E sede uns para com os outros benignos, misericordiosos, perdoando-vos uns aos outros, como também Deus vos perdoou em Cristo.' },
-  { book: 'Efésios', chapter: 6, verse: 12, reference: 'Efésios 6:12', text: 'Porque não temos que lutar contra a carne e o sangue, mas, sim, contra os principados, contra as potestades, contra os príncipes das trevas deste século, contra as hostes espirituais da maldade, nos lugares celestiais.' },
-  { book: 'Filipenses', chapter: 1, verse: 6, reference: 'Filipenses 1:6', text: 'Tendo por certo isto mesmo, que aquele que em vós começou a boa obra a aperfeiçoará até ao dia de Jesus Cristo.' },
-  { book: 'Filipenses', chapter: 2, verse: 5, reference: 'Filipenses 2:5', text: 'De sorte que haja em vós o mesmo sentimento que houve também em Cristo Jesus.' },
-  { book: 'Filipenses', chapter: 4, verse: 8, reference: 'Filipenses 4:8', text: 'Quanto ao mais, irmãos, tudo o que é verdadeiro, tudo o que é honesto, tudo o que é justo, tudo o que é puro, tudo o que é amável, tudo o que é de boa fama, se há alguma virtude, e se há algum louvor, nisso pensai.' },
-  { book: 'Colossenses', chapter: 3, verse: 2, reference: 'Colossenses 3:2', text: 'Pensai nas coisas que são de cima, e não nas que são da terra.' },
-  { book: '1 Tessalonicenses', chapter: 5, verse: 16, reference: '1 Tessalonicenses 5:16', text: 'Regozijai-vos sempre.' },
-  { book: '1 Tessalonicenses', chapter: 5, verse: 17, reference: '1 Tessalonicenses 5:17', text: 'Orai sem cessar.' },
-  { book: '1 Tessalonicenses', chapter: 5, verse: 18, reference: '1 Tessalonicenses 5:18', text: 'Em tudo dai graças, porque esta é a vontade de Deus em Cristo Jesus para convosco.' },
-  { book: '2 Timóteo', chapter: 1, verse: 7, reference: '2 Timóteo 1:7', text: 'Porque Deus não nos deu o espírito de covardia, mas de fortaleza, e de amor, e de moderação.' },
-  { book: '2 Timóteo', chapter: 2, verse: 15, reference: '2 Timóteo 2:15', text: 'Procura apresentar-te a Deus aprovado, como obreiro que não tem de que se envergonhar, que maneja bem a palavra da verdade.' },
-  { book: 'Hebreus', chapter: 4, verse: 12, reference: 'Hebreus 4:12', text: 'Porque a palavra de Deus é viva e eficaz, e mais penetrante do que espada alguma de dois gumes, e penetra até à divisão da alma e do espírito, e das juntas e medulas, e é apta para discernir os pensamentos e intenções do coração.' },
-  { book: 'Hebreus', chapter: 12, verse: 1, reference: 'Hebreus 12:1', text: 'Portanto nós também, pois que estamos rodeados de uma tão grande nuvem de testemunhas, deixemos todo o embaraço, e o pecado que tão de perto nos rodeia, e corramos com paciência a carreira que nos está proposta.' },
-  { book: 'Hebreus', chapter: 12, verse: 2, reference: 'Hebreus 12:2', text: 'Olhando para Jesus, autor e consumador da fé, o qual, pelo gozo que lhe estava proposto, suportou a cruz, desprezando a afronta, e assentou-se à destra do trono de Deus.' },
-  { book: 'Tiago', chapter: 1, verse: 2, reference: 'Tiago 1:2', text: 'Meus irmãos, tende grande gozo quando cairdes em várias tentações.' },
-  { book: 'Tiago', chapter: 1, verse: 5, reference: 'Tiago 1:5', text: 'E, se algum de vós tem falta de sabedoria, peça-a a Deus, que a todos dá liberalmente, e o não lança em rosto, e ser-lhe-á dada.' },
-  { book: 'Tiago', chapter: 4, verse: 7, reference: 'Tiago 4:7', text: 'Sujeitai-vos, pois, a Deus, resisti ao diabo, e ele fugirá de vós.' },
-  { book: '1 Pedro', chapter: 2, verse: 9, reference: '1 Pedro 2:9', text: 'Mas vós sois a geração eleita, o sacerdócio real, a nação santa, o povo adquirido, para que anuncieis as virtudes daquele que vos chamou das trevas para a sua maravilhosa luz.' },
-  { book: '1 Pedro', chapter: 3, verse: 15, reference: '1 Pedro 3:15', text: 'Antes santificai a Cristo, como Senhor, em vossos corações; e estai sempre preparados para responder com mansidão e temor a qualquer que vos pedir a razão da esperança que há em vós.' },
-  { book: '1 João', chapter: 3, verse: 1, reference: '1 João 3:1', text: 'Vede quão grande amor nos tem concedido o Pai, que fôssemos chamados filhos de Deus.' },
-  { book: '1 João', chapter: 4, verse: 19, reference: '1 João 4:19', text: 'Nós o amamos a ele porque ele nos amou primeiro.' },
-  { book: 'Apocalipse', chapter: 1, verse: 8, reference: 'Apocalipse 1:8', text: 'Eu sou o Alfa e o Ômega, o princípio e o fim, diz o Senhor, que é, e que era, e que há de vir, o Todo-Poderoso.' },
-  { book: 'Apocalipse', chapter: 22, verse: 13, reference: 'Apocalipse 22:13', text: 'Eu sou o Alfa e o Ômega, o princípio e o fim, o primeiro e o derradeiro.' },
-  { book: 'Gênesis', chapter: 28, verse: 15, reference: 'Gênesis 28:15', text: 'E eis que eu estou contigo, e te guardarei por onde quer que fores, e te farei tornar a esta terra; porque não te deixarei, até que te haja feito o que te tenho dito.' },
-  { book: 'Êxodo', chapter: 14, verse: 13, reference: 'Êxodo 14:13', text: 'Então Moisés disse ao povo: Não temais; estai quietos, e vede o livramento do Senhor, que hoje vos fará; porque aos egípcios que hoje vistes, nunca mais os tornareis a ver.' },
-  { book: 'Êxodo', chapter: 15, verse: 2, reference: 'Êxodo 15:2', text: 'O Senhor é a minha força e o meu cântico; ele me salvou; este é o meu Deus, portanto o louvarei; ele é o Deus de meu pai, portanto o exaltarei.' },
-  { book: 'Números', chapter: 6, verse: 24, reference: 'Números 6:24', text: 'O Senhor te abençoe e te guarde;' },
-  { book: 'Números', chapter: 6, verse: 25, reference: 'Números 6:25', text: 'O Senhor faça resplandecer o seu rosto sobre ti, e tenha misericórdia de ti;' },
-  { book: 'Números', chapter: 6, verse: 26, reference: 'Números 6:26', text: 'O Senhor sobre ti levante o seu rosto e te dê a paz.' },
-  { book: 'Deuteronômio', chapter: 8, verse: 3, reference: 'Deuteronômio 8:3', text: 'E te humilhou, e te deixou ter fome, e te sustentou com o maná, que tu não conheceste, nem teus pais o conheceram; para te dar a entender que o homem não viverá só de pão, mas de tudo o que sai da boca do Senhor viverá o homem.' },
-  { book: 'Josué', chapter: 1, verse: 9, reference: 'Josué 1:9', text: 'Não to mandei eu? Esforça-te, e tem bom ânimo; não temas, nem te espantes; porque o Senhor teu Deus é contigo, por onde quer que andares.' },
-  { book: '1 Samuel', chapter: 16, verse: 7, reference: '1 Samuel 16:7', text: 'Porém o Senhor disse a Samuel: Não atentes para a sua aparência, nem para a altura da sua estatura, porque o tenho rejeitado; porque o Senhor não vê como vê o homem, pois o homem vê o que está diante dos olhos, porém o Senhor olha para o coração.' },
-  { book: '2 Samuel', chapter: 22, verse: 31, reference: '2 Samuel 22:31', text: 'Quanto a Deus, perfeito é o seu caminho; a palavra do Senhor é provada; ele é um escudo para todos os que nele confiam.' },
-  { book: '1 Reis', chapter: 8, verse: 57, reference: '1 Reis 8:57', text: 'O Senhor nosso Deus seja conosco, como foi com nossos pais; não nos desampare, e não nos deixe.' },
-  { book: '2 Crônicas', chapter: 16, verse: 9, reference: '2 Crônicas 16:9', text: 'Porque os olhos do Senhor passam por toda a terra, para mostrar-se forte para com aqueles cujo coração é perfeito para com ele; nisto procedeste loucamente, por isso desde agora haverá guerras contra ti.' },
-  { book: 'Salmos', chapter: 16, verse: 8, reference: 'Salmos 16:8', text: 'Tenho posto o Senhor continuamente diante de mim; por isso que ele está à minha mão direita, não serei abalado.' },
-  { book: 'Salmos', chapter: 27, verse: 4, reference: 'Salmos 27:4', text: 'Uma coisa pedi ao Senhor, e a buscarei: que possa morar na casa do Senhor todos os dias da minha vida, para contemplar a formosura do Senhor, e inquirir no seu templo.' },
-  { book: 'Salmos', chapter: 34, verse: 8, reference: 'Salmos 34:8', text: 'Provai, e vede que o Senhor é bom; bem-aventurado o homem que nele confia.' },
-  { book: 'Salmos', chapter: 37, verse: 5, reference: 'Salmos 37:5', text: 'Entrega o teu caminho ao Senhor; confia nele, e ele o fará.' },
-  { book: 'Salmos', chapter: 42, verse: 1, reference: 'Salmos 42:1', text: 'Como o cervo brama pelas correntes das águas, assim suspira a minha alma por ti, ó Deus!' },
-  { book: 'Salmos', chapter: 46, verse: 10, reference: 'Salmos 46:10', text: 'Aquietai-vos, e sabei que eu sou Deus; serei exaltado entre as nações; serei exaltado sobre a terra.' },
-  { book: 'Salmos', chapter: 51, verse: 17, reference: 'Salmos 51:17', text: 'Os sacrifícios para Deus são o espírito quebrantado; a um coração quebrantado e contrito não desprezarás, ó Deus.' },
-  { book: 'Salmos', chapter: 55, verse: 22, reference: 'Salmos 55:22', text: 'Lança o teu cuidado sobre o Senhor, e ele te susterá; nunca permitirá que o justo seja abalado.' },
-  { book: 'Salmos', chapter: 56, verse: 3, reference: 'Salmos 56:3', text: 'No dia em que eu temer, hei de confiar em ti.' },
-  { book: 'Salmos', chapter: 90, verse: 12, reference: 'Salmos 90:12', text: 'Ensina-nos a contar os nossos dias, de tal maneira que alcancemos coração sábio.' },
-  { book: 'Salmos', chapter: 91, verse: 11, reference: 'Salmos 91:11', text: 'Porque aos seus anjos dará ordem a teu respeito, para te guardarem em todos os teus caminhos.' },
-  { book: 'Salmos', chapter: 103, verse: 1, reference: 'Salmos 103:1', text: 'Bendize, ó minha alma, ao Senhor, e tudo o que há em mim bendiga o seu santo nome.' },
-  { book: 'Salmos', chapter: 119, verse: 9, reference: 'Salmos 119:9', text: 'Com que purificará o jovem o seu caminho? Observando-o conforme a tua palavra.' },
-  { book: 'Salmos', chapter: 119, verse: 165, reference: 'Salmos 119:165', text: 'Muita paz têm os que amam a tua lei, e para eles não há tropeço.' },
-  { book: 'Salmos', chapter: 121, verse: 1, reference: 'Salmos 121:1', text: 'Elevo os meus olhos para os montes; de onde me virá o socorro?' },
-  { book: 'Salmos', chapter: 121, verse: 2, reference: 'Salmos 121:2', text: 'O meu socorro vem do Senhor, que fez os céus e a terra.' },
-  { book: 'Provérbios', chapter: 1, verse: 7, reference: 'Provérbios 1:7', text: 'O temor do Senhor é o princípio do conhecimento; os loucos desprezam a sabedoria e a instrução.' },
-  { book: 'Provérbios', chapter: 3, verse: 7, reference: 'Provérbios 3:7', text: 'Não sejas sábio aos teus próprios olhos; teme ao Senhor e aparta-te do mal.' },
-  { book: 'Provérbios', chapter: 9, verse: 10, reference: 'Provérbios 9:10', text: 'O temor do Senhor é o princípio da sabedoria; e o conhecimento do Santo é a prudência.' },
-  { book: 'Provérbios', chapter: 15, verse: 1, reference: 'Provérbios 15:1', text: 'A resposta branda desvia o furor, mas a palavra dura suscita a ira.' },
-  { book: 'Provérbios', chapter: 16, verse: 3, reference: 'Provérbios 16:3', text: 'Confia ao Senhor as tuas obras, e teus pensamentos serão estabelecidos.' },
-  { book: 'Provérbios', chapter: 27, verse: 1, reference: 'Provérbios 27:1', text: 'Não te glories do dia de amanhã; porque não sabes o que o dia trará.' },
-  { book: 'Isaías', chapter: 6, verse: 3, reference: 'Isaías 6:3', text: 'E clamavam uns aos outros, dizendo: Santo, santo, santo é o Senhor dos Exércitos; toda a terra está cheia da sua glória.' },
-  { book: 'Isaías', chapter: 40, verse: 8, reference: 'Isaías 40:8', text: 'A erva seca, e a flor murcha; mas a palavra de nosso Deus subsiste eternamente.' },
-  { book: 'Isaías', chapter: 43, verse: 2, reference: 'Isaías 43:2', text: 'Quando passares pelas águas, eu serei contigo, e pelos rios, eles não te submergirão; quando andares pelo fogo, não te queimarás, nem a chama arderá em ti.' },
-  { book: 'Isaías', chapter: 64, verse: 8, reference: 'Isaías 64:8', text: 'Mas agora, ó Senhor, tu és nosso Pai; nós o barro e tu o nosso oleiro; e todos nós a obra das tuas mãos.' },
-  { book: 'Jeremias', chapter: 32, verse: 17, reference: 'Jeremias 32:17', text: 'Ah! Senhor Deus! Eis que tu fizeste os céus e a terra com o teu grande poder, e com o teu braço estendido; nada te é maravilhoso demais.' },
-  { book: 'Lamentações', chapter: 3, verse: 22, reference: 'Lamentações 3:22', text: 'As misericórdias do Senhor são a causa de não sermos consumidos; porque as suas misericórdias não têm fim.' },
-  { book: 'Lamentações', chapter: 3, verse: 23, reference: 'Lamentações 3:23', text: 'Novas são cada manhã; grande é a tua fidelidade.' },
-  { book: 'Ezequiel', chapter: 36, verse: 26, reference: 'Ezequiel 36:26', text: 'E vos darei um coração novo, e porei dentro de vós um espírito novo; e tirarei da vossa carne o coração de pedra, e vos darei um coração de carne.' },
-  { book: 'Daniel', chapter: 12, verse: 3, reference: 'Daniel 12:3', text: 'E os que forem sábios, resplandecerão como o fulgor do firmamento; e os que a muitos ensinarem a justiça, como as estrelas sempre e eternamente.' },
-  { book: 'Oséias', chapter: 6, verse: 3, reference: 'Oséias 6:3', text: 'Então conheçamos, e prossigamos em conhecer ao Senhor; a sua saída é certa como a alva; e ele a nós virá como a chuva, como a chuva serôdia que rega a terra.' },
-  { book: 'Amós', chapter: 5, verse: 24, reference: 'Amós 5:24', text: 'Corra, porém, o juízo como as águas, e a justiça como o ribeiro impetuoso.' },
-  { book: 'Miqueias', chapter: 7, verse: 18, reference: 'Miqueias 7:18', text: 'Quem é Deus semelhante a ti, que perdoa a iniqüidade, e que passa por cima da transgressão do restante da sua herança? O Senhor não retém a sua ira para sempre, porque tem prazer na benignidade.' },
-  { book: 'Habacuque', chapter: 2, verse: 4, reference: 'Habacuque 2:4', text: 'Eis que a sua alma se inchou, não é reta nele; mas o justo pela sua fé viverá.' },
-  { book: 'Malaquias', chapter: 3, verse: 10, reference: 'Malaquias 3:10', text: 'Trazei todos os dízimos à casa do tesouro, para que haja mantimento em minha casa, e depois provai-me nisto, diz o Senhor dos Exércitos, se eu não vos abrir as janelas do céu, e não derramar sobre vós uma bênção tal que dela vos advenha a maior abastança.' },
-  { book: 'Mateus', chapter: 5, verse: 48, reference: 'Mateus 5:48', text: 'Sede vós pois perfeitos, como é perfeito o vosso Pai que está nos céus.' },
-  { book: 'Mateus', chapter: 6, verse: 6, reference: 'Mateus 6:6', text: 'Mas tu, quando orares, entra no teu aposento e, fechando a tua porta, ora a teu Pai que está em secreto; e teu Pai, que vê em secreto, te recompensará publicamente.' },
-  { book: 'Mateus', chapter: 9, verse: 37, reference: 'Mateus 9:37', text: 'Então disse aos seus discípulos: A seara é realmente grande, mas poucos são os ceifeiros.' },
-  { book: 'Mateus', chapter: 10, verse: 29, reference: 'Mateus 10:29', text: 'Não se vendem dois passarinhos por um ceitil? E nenhum deles cairá em terra sem a vontade de vosso Pai.' },
-  { book: 'Mateus', chapter: 18, verse: 20, reference: 'Mateus 18:20', text: 'Porque, onde estiverem dois ou três reunidos em meu nome, aí estou eu no meio deles.' },
-  { book: 'Mateus', chapter: 22, verse: 37, reference: 'Mateus 22:37', text: 'Jesus disse-lhe: Amarás o Senhor teu Deus de todo o teu coração, e de toda a tua alma, e de todo o teu pensamento.' },
-  { book: 'Mateus', chapter: 22, verse: 39, reference: 'Mateus 22:39', text: 'E o segundo, semelhante a este, é: Amarás o teu próximo como a ti mesmo.' },
-  { book: 'Marcos', chapter: 9, verse: 23, reference: 'Marcos 9:23', text: 'E Jesus disse-lhe: Se tu podes crer, tudo é possível ao que crê.' },
-  { book: 'Marcos', chapter: 10, verse: 45, reference: 'Marcos 10:45', text: 'Porque o Filho do homem também não veio para ser servido, mas para servir, e dar a sua vida em resgate de muitos.' },
-  { book: 'Lucas', chapter: 1, verse: 38, reference: 'Lucas 1:38', text: 'Disse então Maria: Eis aqui a serva do Senhor; cumpra-se em mim segundo a tua palavra. E o anjo ausentou-se dela.' },
-  { book: 'Lucas', chapter: 2, verse: 14, reference: 'Lucas 2:14', text: 'Glória a Deus nas alturas, paz na terra, boa vontade para com os homens.' },
-  { book: 'Lucas', chapter: 6, verse: 38, reference: 'Lucas 6:38', text: 'Dai, e ser-vos-á dado; boa medida, recalcada, sacudida e transbordando, vos deitarão no vosso regaço; porque com a mesma medida com que medirdes também vos medirão de novo.' },
-  { book: 'Lucas', chapter: 11, verse: 9, reference: 'Lucas 11:9', text: 'E eu vos digo a vós: Pedi, e dar-se-vos-á; buscai, e achareis; batei, e abrir-se-vos-á.' },
-  { book: 'Lucas', chapter: 12, verse: 32, reference: 'Lucas 12:32', text: 'Não temas, ó pequeno rebanho, porque a vosso Pai agradou dar-vos o reino.' },
-  { book: 'Lucas', chapter: 18, verse: 27, reference: 'Lucas 18:27', text: 'E ele disse: As coisas que são impossíveis aos homens são possíveis a Deus.' },
-  { book: 'João', chapter: 1, verse: 14, reference: 'João 1:14', text: 'E o Verbo se fez carne, e habitou entre nós, e vimos a sua glória, como a glória do unigênito do Pai, cheio de graça e de verdade.' },
-  { book: 'João', chapter: 3, verse: 3, reference: 'João 3:3', text: 'Respondeu Jesus, e disse-lhe: Na verdade, na verdade te digo que aquele que não nascer de novo, não pode ver o reino de Deus.' },
-  { book: 'João', chapter: 3, verse: 36, reference: 'João 3:36', text: 'Quem crê no Filho tem a vida eterna; mas quem não crê no Filho não verá a vida, mas a ira de Deus sobre ele permanece.' },
-  { book: 'João', chapter: 6, verse: 35, reference: 'João 6:35', text: 'E Jesus lhes disse: Eu sou o pão da vida; aquele que vem a mim não terá fome, e quem crê em mim nunca terá sede.' },
-  { book: 'João', chapter: 8, verse: 12, reference: 'João 8:12', text: 'Falou-lhes, pois, Jesus outra vez, dizendo: Eu sou a luz do mundo; quem me segue não andará em trevas, mas terá a luz da vida.' },
-  { book: 'João', chapter: 10, verse: 11, reference: 'João 10:11', text: 'Eu sou o bom Pastor; o bom Pastor dá a sua vida pelas ovelhas.' },
-  { book: 'João', chapter: 12, verse: 32, reference: 'João 12:32', text: 'E eu, quando for levantado da terra, todos atrairei a mim.' },
-  { book: 'João', chapter: 14, verse: 1, reference: 'João 14:1', text: 'Não se turbe o vosso coração; credes em Deus, crede também em mim.' },
-  { book: 'João', chapter: 14, verse: 16, reference: 'João 14:16', text: 'E eu rogarei ao Pai, e ele vos dará outro Consolador, para que fique convosco para sempre;' },
-  { book: 'João', chapter: 15, verse: 12, reference: 'João 15:12', text: 'O meu mandamento é este: Que vos ameis uns aos outros, assim como eu vos amei.' },
-  { book: 'João', chapter: 17, verse: 3, reference: 'João 17:3', text: 'E a vida eterna é esta: que te conheçam a ti só, por único Deus verdadeiro, e a Jesus Cristo, a quem enviaste.' },
-  { book: 'Atos', chapter: 17, verse: 28, reference: 'Atos 17:28', text: 'Porque nele vivemos, e nos movemos, e existimos; como também alguns dos vossos poetas disseram: Pois somos também sua geração.' },
-  { book: 'Romanos', chapter: 1, verse: 20, reference: 'Romanos 1:20', text: 'Porque as suas coisas invisíveis, desde a criação do mundo, tanto o seu eterno poder, como a sua divindade, se entendem, e claramente se vêem pelas coisas que estão criadas, para que eles fiquem inescusáveis.' },
-  { book: 'Romanos', chapter: 6, verse: 14, reference: 'Romanos 6:14', text: 'Porque o pecado não terá domínio sobre vós, pois não estais debaixo da lei, mas debaixo da graça.' },
-  { book: 'Romanos', chapter: 8, verse: 18, reference: 'Romanos 8:18', text: 'Porque para mim tenho por certo que as aflições deste tempo presente não são para comparar com a glória que em nós há de ser revelada.' },
-  { book: 'Romanos', chapter: 8, verse: 38, reference: 'Romanos 8:38', text: 'Porque estou certo de que, nem a morte, nem a vida, nem os anjos, nem os principados, nem as potestades, nem o presente, nem o porvir,' },
-  { book: 'Romanos', chapter: 8, verse: 39, reference: 'Romanos 8:39', text: 'Nem a altura, nem a profundidade, nem alguma outra criatura nos poderá separar do amor de Deus, que está em Cristo Jesus nosso Senhor.' },
-  { book: 'Romanos', chapter: 12, verse: 12, reference: 'Romanos 12:12', text: 'Alegrai-vos na esperança, sede pacientes na tribulação, perseverai na oração.' },
-  { book: '1 Coríntios', chapter: 2, verse: 2, reference: '1 Coríntios 2:2', text: 'Porque nada me propus saber entre vós, senão a Jesus Cristo, e este crucificado.' },
-  { book: '1 Coríntios', chapter: 6, verse: 20, reference: '1 Coríntios 6:20', text: 'Porque fostes comprados por bom preço; glorificai pois a Deus no vosso corpo, e no vosso espírito, os quais pertencem a Deus.' },
-  { book: '1 Coríntios', chapter: 10, verse: 31, reference: '1 Coríntios 10:31', text: 'Portanto, quer comais, quer bebais, ou façais outra qualquer coisa, fazei tudo para glória de Deus.' },
-  { book: '1 Coríntios', chapter: 13, verse: 1, reference: '1 Coríntios 13:1', text: 'Ainda que eu falasse as línguas dos homens e dos anjos, e não tivesse caridade, seria como o metal que soa ou como o sino que tine.' },
-  { book: '1 Coríntios', chapter: 13, verse: 4, reference: '1 Coríntios 13:4', text: 'A caridade é sofredora, é benigna; a caridade não é invejosa; a caridade não trata com insolência, não se ensoberbece.' },
-  { book: '1 Coríntios', chapter: 13, verse: 13, reference: '1 Coríntios 13:13', text: 'Agora, pois, permanecem a fé, a esperança e a caridade, estas três; mas a maior destas é a caridade.' },
-  { book: '1 Coríntios', chapter: 15, verse: 3, reference: '1 Coríntios 15:3', text: 'Porque primeiramente vos entreguei o que também recebi: que Cristo morreu por nossos pecados, segundo as Escrituras,' },
-  { book: '1 Coríntios', chapter: 15, verse: 57, reference: '1 Coríntios 15:57', text: 'Mas graças a Deus que nos dá a vitória por nosso Senhor Jesus Cristo.' },
-  { book: '2 Coríntios', chapter: 3, verse: 17, reference: '2 Coríntios 3:17', text: 'Ora, o Senhor é o Espírito; e onde está o Espírito do Senhor, aí há liberdade.' },
-  { book: '2 Coríntios', chapter: 5, verse: 21, reference: '2 Coríntios 5:21', text: 'Àquele que não conheceu pecado, o fez pecado por nós; para que nele fôssemos feitos justiça de Deus.' },
-  { book: '2 Coríntios', chapter: 9, verse: 7, reference: '2 Coríntios 9:7', text: 'Cada um contribua segundo propôs no seu coração; não com tristeza, ou por necessidade; porque Deus ama ao que dá com alegria.' },
-  { book: '2 Coríntios', chapter: 10, verse: 5, reference: '2 Coríntios 10:5', text: 'Destruindo os conselhos, e toda a altivez que se levanta contra o conhecimento de Deus, e levando cativo todo o entendimento à obediência de Cristo.' },
-  { book: 'Gálatas', chapter: 5, verse: 1, reference: 'Gálatas 5:1', text: 'Estai pois firmes na liberdade com que Cristo nos libertou, e não torneis outra vez a meter-vos debaixo do jugo da servidão.' },
-  { book: 'Gálatas', chapter: 6, verse: 7, reference: 'Gálatas 6:7', text: 'Não erreis: Deus não se deixa escarnecer; porque tudo o que o homem semear, isso também ceifará.' },
-  { book: 'Gálatas', chapter: 6, verse: 9, reference: 'Gálatas 6:9', text: 'E não nos cansemos de fazer bem, porque a seu tempo ceifaremos, se não houvermos desfalecido.' },
-  { book: 'Efésios', chapter: 3, verse: 20, reference: 'Efésios 3:20', text: 'Ora, àquele que é poderoso para fazer tudo muito mais abundantemente além daquilo que pedimos ou pensamos, segundo o poder que em nós opera,' },
-  { book: 'Efésios', chapter: 4, verse: 2, reference: 'Efésios 4:2', text: 'Com toda a humildade e mansidão, com longanimidade, suportando-vos uns aos outros em amor.' },
-  { book: 'Efésios', chapter: 5, verse: 1, reference: 'Efésios 5:1', text: 'Sede pois imitadores de Deus, como filhos amados.' },
-  { book: 'Efésios', chapter: 5, verse: 25, reference: 'Efésios 5:25', text: 'Vós, maridos, amai vossas mulheres, como também Cristo amou a igreja, e a si mesmo se entregou por ela,' },
-  { book: 'Efésios', chapter: 6, verse: 10, reference: 'Efésios 6:10', text: 'No demais, irmãos meus, fortalecei-vos no Senhor e na força do seu poder.' },
-  { book: 'Efésios', chapter: 6, verse: 11, reference: 'Efésios 6:11', text: 'Revesti-vos de toda a armadura de Deus, para que possais estar firmes contra as astutas ciladas do diabo.' },
-  { book: 'Filipenses', chapter: 2, verse: 3, reference: 'Filipenses 2:3', text: 'Nada façais por contenda ou por vanglória, mas por humildade; cada um considere os outros superiores a si mesmo.' },
-  { book: 'Filipenses', chapter: 2, verse: 12, reference: 'Filipenses 2:12', text: 'De sorte que, meus amados, assim como sempre obedecestes, não só na minha presença, mas muito mais agora na minha ausência, assim também operai a vossa salvação com temor e tremor.' },
-  { book: 'Filipenses', chapter: 3, verse: 10, reference: 'Filipenses 3:10', text: 'Para conhecê-lo, e a virtude da sua ressurreição, e a comunicação de suas aflições, sendo feito conforme à sua morte;' },
-  { book: 'Filipenses', chapter: 3, verse: 14, reference: 'Filipenses 3:14', text: 'Prossigo para o alvo, pelo prêmio da soberana vocação de Deus em Cristo Jesus.' },
-  { book: 'Colossenses', chapter: 1, verse: 13, reference: 'Colossenses 1:13', text: 'Que nos tirou da potestade das trevas, e nos transportou para o reino do Filho do seu amor;' },
-  { book: 'Colossenses', chapter: 3, verse: 12, reference: 'Colossenses 3:12', text: 'Revesti-vos pois, como eleitos de Deus, santos e amados, de entranhas de misericórdia, de benignidade, humildade, mansidão, longanimidade;' },
-  { book: 'Colossenses', chapter: 3, verse: 17, reference: 'Colossenses 3:17', text: 'E tudo quanto fizerdes por palavra ou por obra, fazei-o em nome do Senhor Jesus, dando por ele graças a Deus Pai.' },
-  { book: '1 Tessalonicenses', chapter: 4, verse: 3, reference: '1 Tessalonicenses 4:3', text: 'Porque esta é a vontade de Deus, a vossa santificação: que vos abstenhais da prostituição;' },
-  { book: '1 Tessalonicenses', chapter: 5, verse: 19, reference: '1 Tessalonicenses 5:19', text: 'Não extingais o Espírito.' },
-  { book: '2 Tessalonicenses', chapter: 3, verse: 3, reference: '2 Tessalonicenses 3:3', text: 'Mas fiel é o Senhor, que vos confortará, e guardará do maligno.' },
-  { book: '1 Timóteo', chapter: 4, verse: 12, reference: '1 Timóteo 4:12', text: 'Ninguém despreze a tua mocidade; mas sê o exemplo dos fiéis, na palavra, no trato, no amor, no espírito, na fé, na pureza.' },
-  { book: '1 Timóteo', chapter: 6, verse: 10, reference: '1 Timóteo 6:10', text: 'Porque o amor ao dinheiro é a raiz de toda a espécie de males; e nessa cobiça alguns se desviaram da fé, e se traspassaram a si mesmos com muitas dores.' },
-  { book: '2 Timóteo', chapter: 1, verse: 9, reference: '2 Timóteo 1:9', text: 'Que nos salvou, e chamou com uma santa vocação; não segundo as nossas obras, mas segundo o seu próprio propósito e graça que nos foi dada em Cristo Jesus antes dos tempos dos séculos.' },
-  { book: '2 Timóteo', chapter: 4, verse: 7, reference: '2 Timóteo 4:7', text: 'Combati o bom combate, acabei a carreira, guardei a fé.' },
-  { book: 'Hebreus', chapter: 4, verse: 16, reference: 'Hebreus 4:16', text: 'Cheguemos pois com confiança ao trono da graça, para que possamos alcançar misericórdia e achar graça, a fim de sermos ajudados em tempo oportuno.' },
-  { book: 'Hebreus', chapter: 10, verse: 24, reference: 'Hebreus 10:24', text: 'E consideremo-nos uns aos outros, para nos estimularmos ao amor e às boas obras.' },
-  { book: 'Hebreus', chapter: 11, verse: 6, reference: 'Hebreus 11:6', text: 'Ora, sem fé é impossível agradar-lhe; porque é necessário que aquele que se aproxima de Deus creia que ele existe, e que é galardoador dos que o buscam.' },
-  { book: 'Hebreus', chapter: 12, verse: 14, reference: 'Hebreus 12:14', text: 'Segui a paz com todos, e a santificação, sem a qual ninguém verá o Senhor.' },
-  { book: 'Tiago', chapter: 1, verse: 12, reference: 'Tiago 1:12', text: 'Bem-aventurado o homem que sofre a tentação; porque, quando for provado, receberá a coroa da vida, a qual o Senhor prometeu aos que o amam.' },
-  { book: 'Tiago', chapter: 1, verse: 27, reference: 'Tiago 1:27', text: 'A religião pura e imaculada diante de Deus e Pai é esta: Visitar os órfãos e as viúvas nas suas tribulações, e guardar-se da corrupção do mundo.' },
-  { book: 'Tiago', chapter: 3, verse: 17, reference: 'Tiago 3:17', text: 'Mas a sabedoria que vem do alto é, primeiramente, pura, depois pacífica, moderada, tratável, cheia de misericórdia e de bons frutos, sem parcialidade, e sem hipocrisia.' },
-  { book: 'Tiago', chapter: 5, verse: 16, reference: 'Tiago 5:16', text: 'Confessai as vossas culpas uns aos outros, e orai uns pelos outros, para que sareis. A oração feita por um justo pode muito.' },
-  { book: '1 Pedro', chapter: 1, verse: 7, reference: '1 Pedro 1:7', text: 'Para que a prova da vossa fé, sendo muito mais preciosa do que o ouro que perece e é provado pelo fogo, se ache em louvor, e honra, e glória, na revelação de Jesus Cristo.' },
-  { book: '1 Pedro', chapter: 2, verse: 2, reference: '1 Pedro 2:2', text: 'Desejai afetuosamente, como meninos novamente nascidos, o leite racional, não falsificado, para que por ele vades crescendo;' },
-  { book: '1 Pedro', chapter: 5, verse: 8, reference: '1 Pedro 5:8', text: 'Sede sóbrios; vigiai; porque o vosso adversário, o diabo, anda em derredor, bramando como leão, buscando a quem possa tragar.' },
-  { book: '2 Pedro', chapter: 1, verse: 4, reference: '2 Pedro 1:4', text: 'Pelas quais ele nos tem dado grandíssimas e preciosas promessas, para que por elas fiqueis participantes da natureza divina, havendo escapado da corrupção, que pela concupiscência há no mundo.' },
-  { book: '1 João', chapter: 2, verse: 15, reference: '1 João 2:15', text: 'Não ameis o mundo, nem o que no mundo há. Se alguém ama o mundo, o amor do Pai não está nele.' },
-  { book: '1 João', chapter: 3, verse: 16, reference: '1 João 3:16', text: 'Nisto conhecemos o amor, que ele deu a sua vida por nós; também nós devemos dar a vida pelos irmãos.' },
-  { book: '1 João', chapter: 5, verse: 4, reference: '1 João 5:4', text: 'Porque todo o que é nascido de Deus vence o mundo; e esta é a vitória que vence o mundo, a nossa fé.' },
-  { book: 'Judas', chapter: 1, verse: 24, reference: 'Judas 1:24', text: 'Ora, àquele que é poderoso para vos guardar de tropeçar, e apresentar-vos irrepreensíveis, com alegria, perante a sua glória,' },
-  { book: 'Apocalipse', chapter: 1, verse: 18, reference: 'Apocalipse 1:18', text: 'E o que vivo e fui morto, mas eis aqui estou vivo para todo o sempre. Amém. E tenho as chaves da morte e do inferno.' },
-  { book: 'Apocalipse', chapter: 2, verse: 10, reference: 'Apocalipse 2:10', text: 'Não temas nada do que hás de padecer. Eis que o diabo lançará alguns de vós na prisão, para que sejais tentados; e tereis uma tribulação de dez dias. Sê fiel até à morte, e dar-te-ei a coroa da vida.' },
-  { book: 'Apocalipse', chapter: 12, verse: 11, reference: 'Apocalipse 12:11', text: 'E eles o venceram pelo sangue do Cordeiro e pela palavra do seu testemunho; e não amaram as suas vidas até à morte.' },
-  { book: 'Apocalipse', chapter: 21, verse: 1, reference: 'Apocalipse 21:1', text: 'E vi um novo céu e uma nova terra. Porque já o primeiro céu e a primeira terra passaram, e o mar já não existe.' },
-  { book: 'Apocalipse', chapter: 22, verse: 12, reference: 'Apocalipse 22:12', text: 'E eis que cedo venho, e o meu galardão está comigo, para dar a cada um segundo a sua obra.' },
-  { book: 'Gênesis', chapter: 50, verse: 20, reference: 'Gênesis 50:20', text: 'Vós bem intentastes mal contra mim; porém Deus o intentou para bem, para fazer como se vê neste dia, para conservar muita gente com vida.' },
-  { book: 'Êxodo', chapter: 33, verse: 14, reference: 'Êxodo 33:14', text: 'Disse, pois: A minha presença irá contigo, e eu te darei descanso.' },
-  { book: 'Levítico', chapter: 20, verse: 26, reference: 'Levítico 20:26', text: 'E ser-me-eis santos, porque eu, o Senhor, sou santo, e vos separei dos povos, para que sejais meus.' },
-  { book: 'Deuteronômio', chapter: 7, verse: 9, reference: 'Deuteronômio 7:9', text: 'Sabe, pois, que o Senhor teu Deus é Deus, o Deus fiel, que guarda a aliança e a misericórdia até mil gerações aos que o amam e guardam os seus mandamentos.' },
-  { book: 'Deuteronômio', chapter: 28, verse: 1, reference: 'Deuteronômio 28:1', text: 'E será que, se ouvires diligentemente a voz do Senhor teu Deus, tendo cuidado de guardar todos os seus mandamentos que hoje te ordeno, o Senhor teu Deus te exaltará sobre todas as nações da terra.' },
-  { book: 'Josué', chapter: 23, verse: 14, reference: 'Josué 23:14', text: 'Eis que hoje entro pelo caminho de toda a terra, e vós sabeis em vossos corações e em vossas almas, que nem uma só coisa caiu de todas as boas palavras que falou de vós o Senhor vosso Deus; todas vos sobrevieram, nem uma delas falhou.' },
-  { book: 'Juízes', chapter: 6, verse: 23, reference: 'Juízes 6:23', text: 'Porém o Senhor lhe disse: Paz seja contigo, não temas; não morrerás.' },
-  { book: '1 Samuel', chapter: 12, verse: 24, reference: '1 Samuel 12:24', text: 'Tão-somente temei ao Senhor, e servi-o fielmente com todo o vosso coração; pois vede quão grandiosas coisas ele vos tem feito.' },
-  { book: '2 Samuel', chapter: 7, verse: 28, reference: '2 Samuel 7:28', text: 'Agora pois, Senhor Deus, tu és Deus, e as tuas palavras são verdade; e falaste a teu servo este bem.' },
-  { book: '1 Reis', chapter: 3, verse: 9, reference: '1 Reis 3:9', text: 'Dá, pois, ao teu servo um coração entendido para julgar o teu povo, para que prudentemente discirna entre o bem e o mal; porque quem poderia julgar este teu tão grande povo?' },
-  { book: '2 Reis', chapter: 20, verse: 5, reference: '2 Reis 20:5', text: 'Volta, e dize a Ezequias, capitão do meu povo: Assim diz o Senhor Deus de Davi teu pai: Ouvi a tua oração, e vi as tuas lágrimas; eis que eu te sararei; ao terceiro dia subirás à casa do Senhor.' },
-  { book: '1 Crônicas', chapter: 16, verse: 34, reference: '1 Crônicas 16:34', text: 'Louvai ao Senhor, porque ele é bom; porque a sua benignidade dura para sempre.' },
-  { book: '2 Crônicas', chapter: 20, verse: 15, reference: '2 Crônicas 20:15', text: 'E disse: Dai ouvidos, todo o Judá, e vós, moradores de Jerusalém, e tu, ó rei Josafá. Assim vos diz o Senhor: Não temais, nem vos assusteis por causa desta grande multidão; pois a peleja não é vossa, senão de Deus.' },
-  { book: 'Esdras', chapter: 7, verse: 10, reference: 'Esdras 7:10', text: 'Porque Esdras tinha preparado o seu coração para buscar a lei do Senhor, e para a cumprir, e para ensinar em Israel os seus estatutos e os seus direitos.' },
-  { book: 'Neemias', chapter: 8, verse: 10, reference: 'Neemias 8:10', text: 'Disse-lhes mais: Ide, comei as gorduras, e bebei as doçuras, e enviai porções aos que não têm nada preparado para si; porque este dia é consagrado ao nosso Senhor; portanto não vos entristeçais, porque a alegria do Senhor é a vossa força.' },
-  { book: 'Jó', chapter: 1, verse: 21, reference: 'Jó 1:21', text: 'E disse: Nu saí do ventre de minha mãe, e nu tornarei para lá; o Senhor o deu, e o Senhor o tomou; bendito seja o nome do Senhor.' },
-  { book: 'Jó', chapter: 19, verse: 25, reference: 'Jó 19:25', text: 'Porque eu sei que o meu Redentor vive, e que por fim se levantará sobre a terra.' },
-  { book: 'Jó', chapter: 42, verse: 2, reference: 'Jó 42:2', text: 'Bem sei eu que tudo podes, e que nenhum pensamento pode ser oculto de ti.' },
-  { book: 'Salmos', chapter: 18, verse: 2, reference: 'Salmos 18:2', text: 'O Senhor é a minha rocha, e o meu lugar forte, e o meu libertador; o meu Deus, a minha fortaleza, em quem confio; o meu escudo, e a força da minha salvação, e o meu alto refúgio.' },
-  { book: 'Salmos', chapter: 19, verse: 14, reference: 'Salmos 19:14', text: 'Sejam agradáveis as palavras da minha boca e a meditação do meu coração perante a tua face, Senhor, rocha minha e redentor meu!' },
-  { book: 'Salmos', chapter: 25, verse: 4, reference: 'Salmos 25:4', text: 'Faze-me, Senhor, conhecer os teus caminhos, e ensina-me as tuas veredas.' },
-  { book: 'Salmos', chapter: 27, verse: 14, reference: 'Salmos 27:14', text: 'Espera no Senhor; anima-te, e fortalece o teu coração; espera, pois, no Senhor.' },
-  { book: 'Salmos', chapter: 34, verse: 18, reference: 'Salmos 34:18', text: 'Perto está o Senhor dos que têm o coração quebrantado, e salva os contritos de espírito.' },
-  { book: 'Salmos', chapter: 37, verse: 23, reference: 'Salmos 37:23', text: 'Os passos de um homem bom são ordenados pelo Senhor, e ele se deleita no seu caminho.' },
-  { book: 'Salmos', chapter: 40, verse: 1, reference: 'Salmos 40:1', text: 'Esperei com paciência pelo Senhor, e ele se inclinou para mim, e ouviu o meu clamor.' },
-  { book: 'Salmos', chapter: 63, verse: 1, reference: 'Salmos 63:1', text: 'Ó Deus, tu és o meu Deus; de madrugada te buscarei; a minha alma tem sede de ti; a minha carne te deseja muito em uma terra seca e cansada, onde não há água.' },
-  { book: 'Salmos', chapter: 73, verse: 26, reference: 'Salmos 73:26', text: 'A minha carne e o meu coração desfalecem; mas Deus é a fortaleza do meu coração, e a minha porção para sempre.' },
-  { book: 'Salmos', chapter: 84, verse: 11, reference: 'Salmos 84:11', text: 'Porque o Senhor Deus é sol e escudo; o Senhor dará graça e glória; não negará bem algum aos que andam na retidão.' },
-  { book: 'Salmos', chapter: 103, verse: 12, reference: 'Salmos 103:12', text: 'Quanto está longe o oriente do ocidente, tanto tem ele afastado de nós as nossas transgressões.' },
-  { book: 'Salmos', chapter: 118, verse: 24, reference: 'Salmos 118:24', text: 'Este é o dia que o Senhor fez; regozijemo-nos, e alegremo-nos nele.' },
-  { book: 'Salmos', chapter: 119, verse: 130, reference: 'Salmos 119:130', text: 'A exposição das tuas palavras dá luz; dá entendimento aos símplices.' },
-  { book: 'Salmos', chapter: 139, verse: 14, reference: 'Salmos 139:14', text: 'Eu te louvarei, porque de um modo terrível, e tão maravilhoso fui feito; maravilhosas são as tuas obras, e a minha alma o sabe muito bem.' },
-  { book: 'Salmos', chapter: 145, verse: 18, reference: 'Salmos 145:18', text: 'Perto está o Senhor de todos os que o invocam, de todos os que o invocam em verdade.' },
-  { book: 'Provérbios', chapter: 10, verse: 22, reference: 'Provérbios 10:22', text: 'A bênção do Senhor é que enriquece; e não traz consigo dores.' },
-  { book: 'Provérbios', chapter: 12, verse: 25, reference: 'Provérbios 12:25', text: 'A ansiedade no coração do homem o abate; mas uma boa palavra o alegra.' },
-  { book: 'Provérbios', chapter: 13, verse: 12, reference: 'Provérbios 13:12', text: 'A esperança demorada enfraquece o coração; mas o desejo chegado é árvore de vida.' },
-  { book: 'Provérbios', chapter: 14, verse: 12, reference: 'Provérbios 14:12', text: 'Há caminho que ao homem parece direito, mas o fim dele são os caminhos da morte.' },
-  { book: 'Provérbios', chapter: 15, verse: 33, reference: 'Provérbios 15:33', text: 'O temor do Senhor é a instrução da sabedoria; e a humildade precede a honra.' },
-  { book: 'Provérbios', chapter: 16, verse: 9, reference: 'Provérbios 16:9', text: 'O coração do homem planeja o seu caminho, mas o Senhor lhe dirige os passos.' },
-  { book: 'Provérbios', chapter: 19, verse: 21, reference: 'Provérbios 19:21', text: 'Muitos propósitos há no coração do homem, porém o conselho do Senhor permanecerá.' },
-  { book: 'Provérbios', chapter: 21, verse: 2, reference: 'Provérbios 21:2', text: 'Todo caminho do homem é reto aos seus olhos, mas o Senhor pesa os corações.' },
-  { book: 'Provérbios', chapter: 28, verse: 13, reference: 'Provérbios 28:13', text: 'O que encobre as suas transgressões nunca prosperará; mas o que as confessa e deixa, alcançará misericórdia.' },
-  { book: 'Provérbios', chapter: 31, verse: 30, reference: 'Provérbios 31:30', text: 'Enganosa é a graça, e vã é a formosura; mas a mulher que teme ao Senhor, essa será louvada.' },
-  { book: 'Eclesiastes', chapter: 3, verse: 11, reference: 'Eclesiastes 3:11', text: 'Tudo fez ele formoso no seu devido tempo; também pôs a eternidade no coração do homem, sem que este possa descobrir a obra que Deus fez desde o princípio até o fim.' },
-  { book: 'Eclesiastes', chapter: 12, verse: 13, reference: 'Eclesiastes 12:13', text: 'De tudo o que se tem ouvido, o fim é: Teme a Deus, e guarda os seus mandamentos; porque este é o dever de todo homem.' },
-  { book: 'Cânticos', chapter: 2, verse: 16, reference: 'Cânticos 2:16', text: 'O meu amado é meu, e eu sou dele; ele apascenta o seu rebanho entre os lírios.' },
-  { book: 'Isaías', chapter: 1, verse: 18, reference: 'Isaías 1:18', text: 'Vinde então, e argui-me, diz o Senhor: ainda que os vossos pecados sejam como a escarlata, eles se tornarão brancos como a neve; ainda que sejam vermelhos como o carmesim, se tornarão como a branca lã.' },
-  { book: 'Isaías', chapter: 12, verse: 2, reference: 'Isaías 12:2', text: 'Eis que Deus é a minha salvação; eu confiarei, e não temerei, porque o Senhor Deus é a minha força e o meu cântico, e se tornou a minha salvação.' },
-  { book: 'Isaías', chapter: 30, verse: 15, reference: 'Isaías 30:15', text: 'Porque assim diz o Senhor Deus, o Santo de Israel: No arrependimento e no descanso vos salvareis; na quietação e na confiança estará a vossa força; mas não o quisestes.' },
-  { book: 'Isaías', chapter: 35, verse: 10, reference: 'Isaías 35:10', text: 'E os resgatados do Senhor voltarão, e virão a Sião com júbilo, e alegria eterna haverá sobre as suas cabeças; gozo e alegria alcançarão, e deles fugirá a tristeza e o gemido.' },
-  { book: 'Isaías', chapter: 40, verse: 29, reference: 'Isaías 40:29', text: 'Ele dá força ao cansado, e multiplica as forças ao que não tem nenhum vigor.' },
-  { book: 'Isaías', chapter: 49, verse: 15, reference: 'Isaías 49:15', text: 'Pode uma mulher esquecer-se tanto do seu filho que cria, que não se compadeça dele, do filho do seu ventre? Mas ainda que esta se esquecesse dele, contudo eu não me esquecerei de ti.' },
-  { book: 'Isaías', chapter: 54, verse: 17, reference: 'Isaías 54:17', text: 'Toda a ferramenta preparada contra ti não prosperará, e toda a língua que se levantar contra ti em juízo tu a condenarás; esta é a herança dos servos do Senhor, e a sua justiça que de mim procede, diz o Senhor.' },
-  { book: 'Isaías', chapter: 55, verse: 11, reference: 'Isaías 55:11', text: 'Assim será a minha palavra, que sair da minha boca; ela não voltará para mim vazia, antes fará o que me apraz, e prosperará naquilo para que a enviei.' },
-  { book: 'Jeremias', chapter: 1, verse: 5, reference: 'Jeremias 1:5', text: 'Antes que te formasse no ventre te conheci, e antes que saísses da madre te santifiquei; às nações te dei por profeta.' },
-  { book: 'Jeremias', chapter: 33, verse: 3, reference: 'Jeremias 33:3', text: 'Clama a mim, e responder-te-ei, e anunciar-te-ei coisas grandes e firmes que não sabes.' },
-  { book: 'Lamentações', chapter: 3, verse: 24, reference: 'Lamentações 3:24', text: 'A minha porção é o Senhor, diz a minha alma; portanto esperarei nele.' },
-  { book: 'Ezequiel', chapter: 37, verse: 5, reference: 'Ezequiel 37:5', text: 'Assim diz o Senhor Deus a estes ossos: Eis que farei entrar em vós o espírito, e vivereis.' },
-  { book: 'Daniel', chapter: 2, verse: 22, reference: 'Daniel 2:22', text: 'Ele revela o profundo e o escondido; conhece o que está em trevas, e com ele mora a luz.' },
-  { book: 'Daniel', chapter: 6, verse: 16, reference: 'Daniel 6:16', text: 'Então o rei falou, e trouxeram a Daniel, e o lançaram na cova dos leões. E, respondendo o rei, disse a Daniel: O teu Deus, a quem tu continuamente serves, ele te livrará.' },
-  { book: 'Joel', chapter: 2, verse: 25, reference: 'Joel 2:25', text: 'E restituir-vos-ei os anos que foram consumidos pelo gafanhoto, e pelo pulgão, e pela locusta, e pela lagarta, o meu grande exército que enviei contra vós.' },
-  { book: 'Amós', chapter: 3, verse: 7, reference: 'Amós 3:7', text: 'Certamente o Senhor Deus não fará coisa alguma, sem ter revelado o seu segredo aos seus servos, os profetas.' },
-  { book: 'Obadias', chapter: 1, verse: 15, reference: 'Obadias 1:15', text: 'Porque o dia do Senhor está perto, sobre todas as nações; como tu fizeste, assim se fará contigo; a tua recompensa voltará sobre a tua cabeça.' },
-  { book: 'Jonas', chapter: 2, verse: 9, reference: 'Jonas 2:9', text: 'Mas eu te oferecerei sacrifício com a voz do agradecimento; o que votei pagarei. A salvação vem do Senhor.' },
-  { book: 'Miquéias', chapter: 7, verse: 7, reference: 'Miquéias 7:7', text: 'Eu, porém, olharei para o Senhor; esperarei no Deus da minha salvação; o meu Deus me ouvirá.' },
-  { book: 'Naum', chapter: 1, verse: 7, reference: 'Naum 1:7', text: 'Bom é o Senhor para os que nele confiam, e para os que o buscam.' },
-  { book: 'Habacuque', chapter: 3, verse: 19, reference: 'Habacuque 3:19', text: 'O Senhor Deus é a minha força, e fará os meus pés como os das cervas, e me fará andar sobre as minhas alturas.' },
-  { book: 'Sofonias', chapter: 3, verse: 17, reference: 'Sofonias 3:17', text: 'O Senhor teu Deus está no meio de ti, poderoso para salvar; ele se deleitará em ti com alegria; calar-se-á por seu amor, regozijar-se-á em ti com júbilo.' },
-  { book: 'Ageu', chapter: 2, verse: 4, reference: 'Ageu 2:4', text: 'Mas agora, esforça-te, Zorobabel, diz o Senhor, e esforça-te, Josué filho de Jozadaque, sumo sacerdote, e esforçai-vos, todo o povo da terra, diz o Senhor, e trabalhai, porque eu sou convosco, diz o Senhor dos Exércitos.' },
-  { book: 'Zacarias', chapter: 4, verse: 6, reference: 'Zacarias 4:6', text: 'E respondeu-me, dizendo: Esta é a palavra do Senhor a Zorobabel, dizendo: Não por força nem por violência, mas pelo meu Espírito, diz o Senhor dos Exércitos.' },
-  { book: 'Malaquias', chapter: 4, verse: 2, reference: 'Malaquias 4:2', text: 'Mas para vós, os que temeis o meu nome, nascerá o sol da justiça, e cura trará nas suas asas; e saireis, e saltareis como bezerros da estrebaria.' },
-  { book: 'Mateus', chapter: 4, verse: 4, reference: 'Mateus 4:4', text: 'Ele, porém, respondendo, disse: Está escrito: Nem só de pão viverá o homem, mas de toda a palavra que sai da boca de Deus.' },
-  { book: 'Mateus', chapter: 5, verse: 6, reference: 'Mateus 5:6', text: 'Bem-aventurados os que têm fome e sede de justiça, porque eles serão fartos.' },
-  { book: 'Mateus', chapter: 5, verse: 8, reference: 'Mateus 5:8', text: 'Bem-aventurados os limpos de coração, porque eles verão a Deus.' },
-  { book: 'Mateus', chapter: 5, verse: 9, reference: 'Mateus 5:9', text: 'Bem-aventurados os pacificadores, porque eles serão chamados filhos de Deus.' },
-  { book: 'Mateus', chapter: 6, verse: 19, reference: 'Mateus 6:19', text: 'Não ajunteis para vós tesouros na terra, onde a traça e a ferrugem tudo consomem, e onde os ladrões minam e roubam.' },
-  { book: 'Mateus', chapter: 6, verse: 20, reference: 'Mateus 6:20', text: 'Mas ajuntai para vós tesouros no céu, onde nem a traça nem a ferrugem consomem, e onde os ladrões não minam nem roubam.' },
-  { book: 'Mateus', chapter: 10, verse: 30, reference: 'Mateus 10:30', text: 'E até mesmo os cabelos da vossa cabeça estão todos contados.' },
-  { book: 'Mateus', chapter: 11, verse: 30, reference: 'Mateus 11:30', text: 'Porque o meu jugo é suave e o meu fardo é leve.' },
-  { book: 'Mateus', chapter: 18, verse: 3, reference: 'Mateus 18:3', text: 'E disse: Na verdade vos digo que, se não vos converterdes e não vos fizerdes como meninos, de modo algum entrareis no reino dos céus.' },
-  { book: 'Mateus', chapter: 19, verse: 26, reference: 'Mateus 19:26', text: 'E, olhando Jesus, disse-lhes: Aos homens é isso impossível, mas a Deus tudo é possível.' },
-  { book: 'Mateus', chapter: 24, verse: 35, reference: 'Mateus 24:35', text: 'O céu e a terra passarão, mas as minhas palavras não hão de passar.' },
-  { book: 'Marcos', chapter: 1, verse: 15, reference: 'Marcos 1:15', text: 'E dizendo: O tempo está cumprido, e o reino de Deus está próximo. Arrependei-vos, e crede no evangelho.' },
-  { book: 'Marcos', chapter: 11, verse: 24, reference: 'Marcos 11:24', text: 'Por isso vos digo que tudo o que pedirdes, orando, crede que o recebereis, e tê-lo-eis.' },
-  { book: 'Lucas', chapter: 1, verse: 49, reference: 'Lucas 1:49', text: 'Porque me fez grandes coisas o Poderoso; e santo é o seu nome.' },
-  { book: 'Lucas', chapter: 6, verse: 27, reference: 'Lucas 6:27', text: 'Mas a vós, que ouvis, digo: Amai a vossos inimigos, fazei bem aos que vos odeiam.' },
-  { book: 'Lucas', chapter: 9, verse: 62, reference: 'Lucas 9:62', text: 'E Jesus lhe disse: Ninguém que lança mão do arado e olha para trás é apto para o reino de Deus.' },
-  { book: 'Lucas', chapter: 10, verse: 27, reference: 'Lucas 10:27', text: 'E, respondendo ele, disse: Amarás ao Senhor teu Deus de todo o teu coração, e de toda a tua alma, e de todas as tuas forças, e de todo o teu entendimento, e ao teu próximo como a ti mesmo.' },
-  { book: 'Lucas', chapter: 12, verse: 15, reference: 'Lucas 12:15', text: 'E disse-lhes: Acautelai-vos, e guardai-vos da avareza; porque a vida de qualquer não consiste na abundância do que possui.' },
-  { book: 'Lucas', chapter: 14, verse: 27, reference: 'Lucas 14:27', text: 'E qualquer que não levar a sua cruz, e não vier após mim, não pode ser meu discípulo.' },
-  { book: 'Lucas', chapter: 15, verse: 7, reference: 'Lucas 15:7', text: 'Digo-vos que assim haverá alegria no céu por um pecador que se arrepende, mais do que por noventa e nove justos que não necessitam de arrependimento.' },
-  { book: 'Lucas', chapter: 17, verse: 10, reference: 'Lucas 17:10', text: 'Assim também vós, quando fizerdes tudo o que vos for mandado, dizei: Somos servos inúteis, porque fizemos somente o que devíamos fazer.' },
-  { book: 'João', chapter: 1, verse: 29, reference: 'João 1:29', text: 'No dia seguinte João viu a Jesus, que vinha para ele, e disse: Eis o Cordeiro de Deus, que tira o pecado do mundo.' },
-  { book: 'João', chapter: 4, verse: 14, reference: 'João 4:14', text: 'Mas aquele que beber da água que eu lhe der nunca terá sede, porque a água que eu lhe der se fará nele uma fonte de água que salte para a vida eterna.' },
-  { book: 'João', chapter: 5, verse: 39, reference: 'João 5:39', text: 'Examinais as Escrituras, porque vós cuidais ter nelas a vida eterna, e são elas que de mim testificam.' },
-  { book: 'João', chapter: 6, verse: 63, reference: 'João 6:63', text: 'O espírito é o que vivifica, a carne para nada aproveita; as palavras que eu vos disse são espírito e vida.' },
-  { book: 'João', chapter: 7, verse: 38, reference: 'João 7:38', text: 'Quem crê em mim, como diz a Escritura, rios de água viva correrão do seu ventre.' },
-  { book: 'João', chapter: 8, verse: 36, reference: 'João 8:36', text: 'Se, pois, o Filho vos libertar, verdadeiramente sereis livres.' },
-  { book: 'João', chapter: 9, verse: 4, reference: 'João 9:4', text: 'Convém que eu faça as obras daquele que me enviou, enquanto é dia; a noite vem, quando ninguém pode trabalhar.' },
-  { book: 'João', chapter: 10, verse: 27, reference: 'João 10:27', text: 'As minhas ovelhas ouvem a minha voz, e eu conheço-as, e elas me seguem.' },
-  { book: 'João', chapter: 11, verse: 40, reference: 'João 11:40', text: 'Disse-lhe Jesus: Não te hei dito que, se creres, verás a glória de Deus?' },
-  { book: 'João', chapter: 13, verse: 35, reference: 'João 13:35', text: 'Nisto todos conhecerão que sois meus discípulos, se vos amardes uns aos outros.' },
-  { book: 'João', chapter: 14, verse: 2, reference: 'João 14:2', text: 'Na casa de meu Pai há muitas moradas; se não fosse assim, eu vo-lo teria dito. Vou preparar-vos lugar.' },
-  { book: 'João', chapter: 14, verse: 13, reference: 'João 14:13', text: 'E tudo quanto pedirdes em meu nome eu o farei, para que o Pai seja glorificado no Filho.' },
-  { book: 'João', chapter: 15, verse: 16, reference: 'João 15:16', text: 'Não me escolhestes vós a mim, mas eu vos escolhi a vós, e vos nomeei, para que vades e deis fruto, e o vosso fruto permaneça, a fim de que tudo quanto em meu nome pedirdes ao Pai ele vos conceda.' },
-  { book: 'João', chapter: 16, verse: 13, reference: 'João 16:13', text: 'Mas, quando vier aquele Espírito da verdade, ele vos guiará em toda a verdade; porque não falará de si mesmo, mas dirá tudo o que tiver ouvido, e vos anunciará o que há de vir.' },
-  { book: 'João', chapter: 17, verse: 17, reference: 'João 17:17', text: 'Santifica-os na tua verdade; a tua palavra é a verdade.' },
-  { book: 'Atos', chapter: 1, verse: 11, reference: 'Atos 1:11', text: 'Os quais lhes disseram: Varões galileus, por que estais olhando para o céu? Esse Jesus, que dentre vós foi recebido em cima no céu, há de vir assim como para o céu o vistes ir.' },
-  { book: 'Atos', chapter: 3, verse: 19, reference: 'Atos 3:19', text: 'Arrependei-vos, pois, e convertei-vos, para que sejam apagados os vossos pecados, e venham assim os tempos do refrigério pela presença do Senhor.' },
-  { book: 'Atos', chapter: 4, verse: 13, reference: 'Atos 4:13', text: 'Então eles, vendo a ousadia de Pedro e João, e informados de que eram homens sem letras e indoutos, maravilharam-se e reconheceram que eles haviam estado com Jesus.' },
-  { book: 'Atos', chapter: 5, verse: 29, reference: 'Atos 5:29', text: 'Respondendo Pedro e os apóstolos, disseram: Mais importa obedecer a Deus do que aos homens.' },
-  { book: 'Atos', chapter: 20, verse: 35, reference: 'Atos 20:35', text: 'Tenho-vos mostrado em tudo que, trabalhando assim, é necessário auxiliar os enfermos, e lembrar as palavras do Senhor Jesus, que disse: Mais bem-aventurada coisa é dar do que receber.' },
-  { book: 'Romanos', chapter: 4, verse: 25, reference: 'Romanos 4:25', text: 'O qual por nossos pecados foi entregue, e ressuscitou para nossa justificação.' },
-  { book: 'Romanos', chapter: 5, verse: 3, reference: 'Romanos 5:3', text: 'E não somente isto, mas também nos gloriamos nas tribulações; sabendo que a tribulação produz a paciência,' },
-  { book: 'Romanos', chapter: 5, verse: 5, reference: 'Romanos 5:5', text: 'E a esperança não traz confusão, porquanto o amor de Deus está derramado em nossos corações pelo Espírito Santo que nos foi dado.' },
-  { book: 'Romanos', chapter: 6, verse: 11, reference: 'Romanos 6:11', text: 'Assim também vós considerai-vos como mortos para o pecado, mas vivos para Deus em Cristo Jesus nosso Senhor.' },
-  { book: 'Romanos', chapter: 8, verse: 37, reference: 'Romanos 8:37', text: 'Mas em todas estas coisas somos mais do que vencedores, por aquele que nos amou.' },
-  { book: 'Romanos', chapter: 10, verse: 17, reference: 'Romanos 10:17', text: 'De sorte que a fé é pelo ouvir, e o ouvir pela palavra de Deus.' },
-  { book: 'Romanos', chapter: 11, verse: 36, reference: 'Romanos 11:36', text: 'Porque dele e por ele, e para ele, são todas as coisas; glória, pois, a ele eternamente. Amém.' },
-  { book: 'Romanos', chapter: 12, verse: 21, reference: 'Romanos 12:21', text: 'Não te deixes vencer do mal, mas vence o mal com o bem.' },
-  { book: 'Romanos', chapter: 13, verse: 14, reference: 'Romanos 13:14', text: 'Mas revesti-vos do Senhor Jesus Cristo, e não tenhais cuidado da carne em suas concupiscências.' },
-  { book: '1 Coríntios', chapter: 1, verse: 18, reference: '1 Coríntios 1:18', text: 'Porque a palavra da cruz é loucura para os que perecem; mas para nós, que somos salvos, é o poder de Deus.' },
-  { book: '1 Coríntios', chapter: 1, verse: 31, reference: '1 Coríntios 1:31', text: 'Para que, como está escrito: Aquele que se gloria, glorie-se no Senhor.' },
-  { book: '1 Coríntios', chapter: 3, verse: 16, reference: '1 Coríntios 3:16', text: 'Não sabeis vós que sois o templo de Deus, e que o Espírito de Deus habita em vós?' },
-  { book: '1 Coríntios', chapter: 9, verse: 27, reference: '1 Coríntios 9:27', text: 'Antes subjugo o meu corpo, e o reduzo à servidão, para que, pregando aos outros, eu mesmo não venha de alguma maneira a ficar reprovado.' },
-  { book: '1 Coríntios', chapter: 15, verse: 33, reference: '1 Coríntios 15:33', text: 'Não vos enganeis: as más conversações corrompem os bons costumes.' },
-  { book: '2 Coríntios', chapter: 1, verse: 3, reference: '2 Coríntios 1:3', text: 'Bendito seja o Deus e Pai de nosso Senhor Jesus Cristo, o Pai de misericórdias e o Deus de toda a consolação;' },
-  { book: '2 Coríntios', chapter: 4, verse: 7, reference: '2 Coríntios 4:7', text: 'Temos, porém, este tesouro em vasos de barro, para que a excelência do poder seja de Deus, e não de nós.' },
-  { book: '2 Coríntios', chapter: 5, verse: 7, reference: '2 Coríntios 5:7', text: 'Porque andamos por fé, e não por vista.' },
-  { book: '2 Coríntios', chapter: 7, verse: 1, reference: '2 Coríntios 7:1', text: 'Ora, amados, pois que temos tais promessas, purifiquemo-nos de toda a imundícia da carne e do espírito, aperfeiçoando a santificação no temor de Deus.' },
-  { book: '2 Coríntios', chapter: 9, verse: 8, reference: '2 Coríntios 9:8', text: 'E Deus é poderoso para fazer abundar em vós toda a graça, a fim de que tendo sempre, em tudo, toda a suficiência, abundeis em toda a boa obra.' },
-  { book: 'Gálatas', chapter: 1, verse: 10, reference: 'Gálatas 1:10', text: 'Porque, persuado eu agora a homens ou a Deus? ou procuro agradar a homens? Porque, se ainda agradasse a homens, não seria servo de Cristo.' },
-  { book: 'Gálatas', chapter: 5, verse: 13, reference: 'Gálatas 5:13', text: 'Porque vós, irmãos, fostes chamados à liberdade; não useis então da liberdade para dar ocasião à carne, mas pela caridade servi-vos uns aos outros.' },
-  { book: 'Gálatas', chapter: 6, verse: 2, reference: 'Gálatas 6:2', text: 'Levai as cargas uns dos outros, e assim cumprireis a lei de Cristo.' },
-  { book: 'Efésios', chapter: 1, verse: 7, reference: 'Efésios 1:7', text: 'Em quem temos a redenção pelo seu sangue, a remissão das ofensas, segundo as riquezas da sua graça,' },
-  { book: 'Efésios', chapter: 3, verse: 12, reference: 'Efésios 3:12', text: 'No qual temos ousadia e acesso com confiança, pela nossa fé nele.' },
-  { book: 'Efésios', chapter: 4, verse: 15, reference: 'Efésios 4:15', text: 'Antes, seguindo a verdade em caridade, cresçamos em tudo naquele que é a cabeça, Cristo,' },
-  { book: 'Efésios', chapter: 4, verse: 29, reference: 'Efésios 4:29', text: 'Não saia da vossa boca nenhuma palavra torpe, mas só a que for boa para promover a edificação, para que dê graça aos que a ouvem.' },
-  { book: 'Efésios', chapter: 5, verse: 2, reference: 'Efésios 5:2', text: 'E andai em amor, como também Cristo vos amou, e se entregou a si mesmo por nós, em oferta e sacrifício a Deus, em cheiro suave.' },
-  { book: 'Efésios', chapter: 6, verse: 18, reference: 'Efésios 6:18', text: 'Orando em todo o tempo com toda a oração e súplica no Espírito, e vigiando nisto com toda a perseverança e súplica por todos os santos,' },
-  { book: 'Filipenses', chapter: 1, verse: 21, reference: 'Filipenses 1:21', text: 'Porque para mim o viver é Cristo, e o morrer é ganho.' },
-  { book: 'Filipenses', chapter: 2, verse: 13, reference: 'Filipenses 2:13', text: 'Porque Deus é o que opera em vós tanto o querer como o efetuar, segundo a sua boa vontade.' },
-  { book: 'Filipenses', chapter: 3, verse: 8, reference: 'Filipenses 3:8', text: 'Sim, deveras tenho também por perda todas as coisas, pela excelência do conhecimento de Cristo Jesus, meu Senhor; pelo qual sofri a perda de todas estas coisas, e as considero como esterco, para que possa ganhar a Cristo,' },
-  { book: 'Filipenses', chapter: 4, verse: 4, reference: 'Filipenses 4:4', text: 'Regozijai-vos sempre no Senhor; outra vez digo, regozijai-vos.' },
-  { book: 'Filipenses', chapter: 4, verse: 19, reference: 'Filipenses 4:19', text: 'E o meu Deus, segundo as suas riquezas, suprirá todas as vossas necessidades em glória, por Cristo Jesus.' },
-  { book: 'Colossenses', chapter: 1, verse: 10, reference: 'Colossenses 1:10', text: 'Para que possais andar dignamente diante do Senhor, agradando-lhe em tudo, frutificando em toda a boa obra, e crescendo no conhecimento de Deus;' },
-  { book: 'Colossenses', chapter: 2, verse: 6, reference: 'Colossenses 2:6', text: 'Como, pois, recebestes o Senhor Jesus Cristo, assim também andai nele,' },
-  { book: 'Colossenses', chapter: 4, verse: 2, reference: 'Colossenses 4:2', text: 'Perseverai em oração, velando nela com ação de graças;' },
-  { book: '1 Tessalonicenses', chapter: 2, verse: 13, reference: '1 Tessalonicenses 2:13', text: 'Por isso também damos, sem cessar, graças a Deus, pois, havendo recebido de nós a palavra da pregação de Deus, a recebestes, não como palavra de homens, mas (segundo é, na verdade), como palavra de Deus, a qual também opera em vós, os que crestes.' },
-  { book: '1 Tessalonicenses', chapter: 4, verse: 16, reference: '1 Tessalonicenses 4:16', text: 'Porque o mesmo Senhor descerá do céu com alarido, e com voz de arcanjo, e com a trombeta de Deus; e os que morreram em Cristo ressuscitarão primeiro.' },
-  { book: '1 Tessalonicenses', chapter: 5, verse: 23, reference: '1 Tessalonicenses 5:23', text: 'E o mesmo Deus de paz vos santifique em tudo; e todo o vosso espírito, e alma, e corpo, sejam plenamente conservados irrepreensíveis para a vinda de nosso Senhor Jesus Cristo.' },
-  { book: '2 Tessalonicenses', chapter: 2, verse: 16, reference: '2 Tessalonicenses 2:16', text: 'E o próprio Senhor nosso Jesus Cristo, e Deus nosso Pai, que nos amou, e em graça nos deu uma eterna consolação e boa esperança,' },
-  { book: '1 Timóteo', chapter: 1, verse: 15, reference: '1 Timóteo 1:15', text: 'Esta é uma palavra fiel, e digna de toda a aceitação, que Cristo Jesus veio ao mundo, para salvar os pecadores, dos quais eu sou o principal.' },
-  { book: '1 Timóteo', chapter: 2, verse: 5, reference: '1 Timóteo 2:5', text: 'Porque há um só Deus, e um só Mediador entre Deus e os homens, Jesus Cristo homem.' },
-  { book: '1 Timóteo', chapter: 4, verse: 8, reference: '1 Timóteo 4:8', text: 'Porque o exercício corporal para pouco aproveita, mas a piedade para tudo é proveitosa, tendo a promessa da vida presente e da que há de vir.' },
-  { book: '2 Timóteo', chapter: 1, verse: 12, reference: '2 Timóteo 1:12', text: 'Por cuja causa padeço também isto, mas não me envergonho; porque eu sei em quem tenho crido, e estou certo de que é poderoso para guardar o meu depósito até àquele dia.' },
-  { book: '2 Timóteo', chapter: 3, verse: 12, reference: '2 Timóteo 3:12', text: 'E também todos os que piamente querem viver em Cristo Jesus padecerão perseguições.' },
-  { book: '2 Timóteo', chapter: 4, verse: 2, reference: '2 Timóteo 4:2', text: 'Que pregues a palavra, instes a tempo e fora de tempo, redarguas, repreendas, exortes, com toda a longanimidade e doutrina.' },
-  { book: 'Tito', chapter: 2, verse: 11, reference: 'Tito 2:11', text: 'Porque a graça de Deus se há manifestado, trazendo salvação a todos os homens.' },
-  { book: 'Tito', chapter: 3, verse: 5, reference: 'Tito 3:5', text: 'Não pelas obras de justiça que houvéssemos feito, mas segundo a sua misericórdia, nos salvou pela lavagem da regeneração e renovação do Espírito Santo,' },
-  { book: 'Filemom', chapter: 1, verse: 6, reference: 'Filemom 1:6', text: 'Para que a comunicação da tua fé se torne eficaz, no pleno conhecimento de todo o bem que em vós há por Cristo Jesus.' },
-  { book: 'Hebreus', chapter: 1, verse: 3, reference: 'Hebreus 1:3', text: 'O qual, sendo o resplendor da sua glória, e a expressa imagem da sua pessoa, e sustentando todas as coisas pela palavra do seu poder, havendo feito por si mesmo a purificação dos nossos pecados, assentou-se à destra da majestade nas alturas;' },
-  { book: 'Hebreus', chapter: 2, verse: 18, reference: 'Hebreus 2:18', text: 'Porque naquilo que ele mesmo, sendo tentado, padeceu, pode socorrer aos que são tentados.' },
-  { book: 'Hebreus', chapter: 6, verse: 19, reference: 'Hebreus 6:19', text: 'A qual temos como âncora da alma segura e firme, e que penetra até ao interior do véu,' },
-  { book: 'Hebreus', chapter: 9, verse: 27, reference: 'Hebreus 9:27', text: 'E, como aos homens está ordenado morrerem uma só vez, vindo depois disso o juízo,' },
-  { book: 'Hebreus', chapter: 10, verse: 25, reference: 'Hebreus 10:25', text: 'Não deixando a nossa congregação, como é costume de alguns, antes admoestando-nos uns aos outros; e tanto mais quanto vedes que se vai aproximando aquele dia.' },
-  { book: 'Hebreus', chapter: 11, verse: 1, reference: 'Hebreus 11:1', text: 'Ora, a fé é o firme fundamento das coisas que se esperam, e a prova das coisas que se não veem.' },
-  { book: 'Hebreus', chapter: 12, verse: 1, reference: 'Hebreus 12:1', text: 'Portanto nós também, pois que estamos rodeados de uma tão grande nuvem de testemunhas, deixemos todo o embaraço, e o pecado que tão de perto nos rodeia, e corramos com paciência a carreira que nos está proposta,' },
-  { book: 'Hebreus', chapter: 13, verse: 5, reference: 'Hebreus 13:5', text: 'Sejam vossos costumes sem avareza, contentando-vos com o que tendes; porque ele disse: Não te deixarei, nem te desampararei.' },
-  { book: 'Hebreus', chapter: 13, verse: 6, reference: 'Hebreus 13:6', text: 'De sorte que podemos dizer com confiança: O Senhor é o meu ajudador, e não temerei o que me possa fazer o homem.' },
-  { book: 'Tiago', chapter: 1, verse: 17, reference: 'Tiago 1:17', text: 'Toda a boa dádiva e todo o dom perfeito vem do alto, descendo do Pai das luzes, em quem não há mudança nem sombra de variação.' },
-  { book: 'Tiago', chapter: 1, verse: 26, reference: 'Tiago 1:26', text: 'Se alguém entre vós cuida ser religioso, e não refreia a sua língua, mas engana o seu próprio coração, a religião desse é vã.' },
-  { book: 'Tiago', chapter: 2, verse: 17, reference: 'Tiago 2:17', text: 'Assim também a fé, se não tiver as obras, é morta em si mesma.' },
-  { book: 'Tiago', chapter: 4, verse: 8, reference: 'Tiago 4:8', text: 'Chegai-vos a Deus, e ele se chegará a vós. Limpai as mãos, pecadores; e, vós de duplo ânimo, purificai os corações.' },
-  { book: '1 Pedro', chapter: 1, verse: 3, reference: '1 Pedro 1:3', text: 'Bendito seja o Deus e Pai de nosso Senhor Jesus Cristo que, segundo a sua grande misericórdia, nos gerou de novo para uma viva esperança, pela ressurreição de Jesus Cristo dentre os mortos,' },
-  { book: '1 Pedro', chapter: 1, verse: 23, reference: '1 Pedro 1:23', text: 'Sendo de novo gerados, não de semente corruptível, mas da incorruptível, pela palavra de Deus, viva, e que permanece para sempre.' },
-  { book: '1 Pedro', chapter: 2, verse: 24, reference: '1 Pedro 2:24', text: 'Levando ele mesmo em seu corpo os nossos pecados sobre o madeiro, para que, mortos para os pecados, pudéssemos viver para a justiça; e pelas suas pisaduras fostes sarados.' },
-  { book: '1 Pedro', chapter: 4, verse: 8, reference: '1 Pedro 4:8', text: 'Mas, sobretudo, tende ardente caridade uns para com os outros; porque a caridade cobrirá a multidão dos pecados.' },
-  { book: '1 Pedro', chapter: 5, verse: 10, reference: '1 Pedro 5:10', text: 'E o Deus de toda a graça, que em Cristo Jesus vos chamou à sua eterna glória, depois de haverdes padecido um pouco, ele mesmo vos aperfeiçoará, confirmará, fortificará e fortalecerá.' },
-  { book: '2 Pedro', chapter: 1, verse: 10, reference: '2 Pedro 1:10', text: 'Portanto, irmãos, procurai fazer cada vez mais firme a vossa vocação e eleição; porque, fazendo isto, nunca jamais tropeçareis.' },
-  { book: '2 Pedro', chapter: 3, verse: 9, reference: '2 Pedro 3:9', text: 'O Senhor não retarda a sua promessa, ainda que alguns a têm por tardia; mas é longânimo para conosco, não querendo que alguns se percam, senão que todos venham a arrepender-se.' },
-  { book: '1 João', chapter: 1, verse: 7, reference: '1 João 1:7', text: 'Mas, se andarmos na luz, como ele na luz está, temos comunhão uns com os outros, e o sangue de Jesus Cristo, seu Filho, nos purifica de todo o pecado.' },
-  { book: '1 João', chapter: 2, verse: 1, reference: '1 João 2:1', text: 'Meus filhinhos, estas coisas vos escrevo, para que não pequeis; e, se alguém pecar, temos um Advogado para com o Pai, Jesus Cristo, o justo.' },
-  { book: '1 João', chapter: 3, verse: 2, reference: '1 João 3:2', text: 'Amados, agora somos filhos de Deus, e ainda não é manifestado o que havemos de ser. Mas sabemos que, quando ele se manifestar, seremos semelhantes a ele; porque assim como é o veremos.' },
-  { book: '1 João', chapter: 4, verse: 4, reference: '1 João 4:4', text: 'Filhinhos, sois de Deus, e já os tendes vencido; porque maior é o que está em vós do que o que está no mundo.' },
-  { book: '1 João', chapter: 5, verse: 14, reference: '1 João 5:14', text: 'E esta é a confiança que temos nele, que, se pedirmos alguma coisa segundo a sua vontade, ele nos ouve.' },
-  { book: '2 João', chapter: 1, verse: 6, reference: '2 João 1:6', text: 'E o amor é este: que andemos segundo os seus mandamentos. Este é o mandamento, como já desde o princípio ouvistes, que andeis nele.' },
-  { book: '3 João', chapter: 1, verse: 11, reference: '3 João 1:11', text: 'Amado, não sigas o mal, mas o bem. Quem faz o bem é de Deus; mas quem faz o mal não tem visto a Deus.' },
-  { book: 'Judas', chapter: 1, verse: 20, reference: 'Judas 1:20', text: 'Mas vós, amados, edificando-vos a vós mesmos sobre a vossa santíssima fé, orando no Espírito Santo,' },
-  { book: 'Apocalipse', chapter: 1, verse: 17, reference: 'Apocalipse 1:17', text: 'E, quando eu vi, caí a seus pés como morto; e ele pôs sobre mim a sua destra, dizendo-me: Não temas; eu sou o primeiro e o último;' },
-  { book: 'Apocalipse', chapter: 3, verse: 19, reference: 'Apocalipse 3:19', text: 'Eu repreendo e castigo a todos quantos amo; sê pois zeloso, e arrepende-te.' },
-  { book: 'Apocalipse', chapter: 4, verse: 11, reference: 'Apocalipse 4:11', text: 'Digno és, Senhor, de receber a glória, e a honra, e o poder; porque tu criaste todas as coisas, e por tua vontade são e foram criadas.' },
-  { book: 'Apocalipse', chapter: 7, verse: 17, reference: 'Apocalipse 7:17', text: 'Porque o Cordeiro que está no meio do trono os apascentará, e os guiará às fontes vivas das águas; e Deus limpará de seus olhos toda a lágrima.' },
-  { book: 'Apocalipse', chapter: 14, verse: 13, reference: 'Apocalipse 14:13', text: 'E ouvi uma voz do céu, que me dizia: Escreve: Bem-aventurados os mortos que desde agora morrem no Senhor. Sim, diz o Espírito, para que descansem dos seus trabalhos, e as suas obras os seguem.' },
-  { book: 'Apocalipse', chapter: 19, verse: 1, reference: 'Apocalipse 19:1', text: 'E depois destas coisas ouvi no céu como que uma grande voz de uma grande multidão, que dizia: Aleluia! Salvação e glória e honra e poder pertencem ao Senhor nosso Deus;' },
-  { book: 'Apocalipse', chapter: 21, verse: 5, reference: 'Apocalipse 21:5', text: 'E o que estava assentado sobre o trono disse: Eis que faço novas todas as coisas. E disse-me: Escreve; porque estas palavras são verdadeiras e fiéis.' },
-  { book: 'Apocalipse', chapter: 22, verse: 20, reference: 'Apocalipse 22:20', text: 'Aquele que testifica estas coisas diz: Certamente cedo venho. Amém; ora, vem, Senhor Jesus.' },
-  { book: 'Gênesis', chapter: 12, verse: 2, reference: 'Gênesis 12:2', text: 'E far-te-ei uma grande nação, e abençoar-te-ei, e engrandecerei o teu nome; e tu serás uma bênção.' },
-  { book: 'Gênesis', chapter: 15, verse: 1, reference: 'Gênesis 15:1', text: 'Depois destas coisas veio a palavra do Senhor a Abrão em visão, dizendo: Não temas, Abrão, eu sou o teu escudo, o teu grandíssimo galardão.' },
-  { book: 'Gênesis', chapter: 18, verse: 14, reference: 'Gênesis 18:14', text: 'Haveria coisa alguma difícil ao Senhor? Ao tempo determinado tornarei a ti, por este tempo da vida, e Sara terá um filho.' },
-  { book: 'Gênesis', chapter: 39, verse: 9, reference: 'Gênesis 39:9', text: 'Ninguém há maior do que eu nesta casa, e nenhuma coisa me vedou, senão a ti, porquanto tu és sua mulher; como pois faria eu este tão grande mal, e pecaria contra Deus?' },
-  { book: 'Êxodo', chapter: 4, verse: 12, reference: 'Êxodo 4:12', text: 'Vai pois agora, e eu serei com a tua boca, e te ensinarei o que hás de falar.' },
-  { book: 'Êxodo', chapter: 19, verse: 5, reference: 'Êxodo 19:5', text: 'Agora, pois, se diligentemente ouvirdes a minha voz e guardardes a minha aliança, então sereis a minha propriedade peculiar dentre todos os povos, porque toda a terra é minha.' },
-  { book: 'Êxodo', chapter: 20, verse: 7, reference: 'Êxodo 20:7', text: 'Não tomarás o nome do Senhor teu Deus em vão; porque o Senhor não terá por inocente o que tomar o seu nome em vão.' },
-  { book: 'Êxodo', chapter: 23, verse: 25, reference: 'Êxodo 23:25', text: 'E servireis ao Senhor vosso Deus, e ele abençoará o teu pão e as tuas águas; e eu tirarei do meio de ti as enfermidades.' },
-  { book: 'Levítico', chapter: 19, verse: 2, reference: 'Levítico 19:2', text: 'Fala a toda a congregação dos filhos de Israel, e dize-lhes: Santos sereis, porque eu, o Senhor vosso Deus, sou santo.' },
-  { book: 'Números', chapter: 23, verse: 19, reference: 'Números 23:19', text: 'Deus não é homem, para que minta; nem filho do homem, para que se arrependa. Porventura diria ele, e não o faria? Ou falaria, e não o confirmaria?' },
-  { book: 'Deuteronômio', chapter: 4, verse: 29, reference: 'Deuteronômio 4:29', text: 'Então dali buscarás ao Senhor teu Deus, e o acharás, quando o buscares de todo o teu coração e de toda a tua alma.' },
-  { book: 'Deuteronômio', chapter: 30, verse: 19, reference: 'Deuteronômio 30:19', text: 'Os céus e a terra tomo hoje por testemunhas contra vós, de que te pus diante a vida e a morte, a bênção e a maldição; escolhe pois a vida, para que vivas, tu e a tua descendência.' },
-  { book: 'Josué', chapter: 1, verse: 7, reference: 'Josué 1:7', text: 'Somente esforça-te, e sê muito corajoso, para teres o cuidado de fazer conforme toda a lei que meu servo Moisés te ordenou; dela não te desvies, nem para a direita nem para a esquerda, para que prudentemente te conduzas por onde quer que andares.' },
-  { book: 'Juízes', chapter: 5, verse: 31, reference: 'Juízes 5:31', text: 'Assim, ó Senhor, pereçam todos os teus inimigos! Mas os que te amam sejam como o sol quando se levanta na sua força.' },
-  { book: 'Rute', chapter: 1, verse: 16, reference: 'Rute 1:16', text: 'Disse, porém, Rute: Não me instes para que te deixe, e me afaste de ti; porque aonde quer que tu fores irei eu, e onde quer que passares passarei eu; o teu povo será o meu povo, o teu Deus será o meu Deus.' },
-  { book: '1 Samuel', chapter: 2, verse: 30, reference: '1 Samuel 2:30', text: 'Portanto, diz o Senhor Deus de Israel: Na verdade eu tinha dito que a tua casa e a casa de teu pai andariam diante de mim perpetuamente; mas agora diz o Senhor: Longe de mim tal coisa, porque aos que me honram honrarei, porém os que me desprezam serão desprezados.' },
-  { book: '1 Samuel', chapter: 17, verse: 45, reference: '1 Samuel 17:45', text: 'Disse, porém, Davi ao filisteu: Tu vens a mim com espada, e com lança, e com escudo, porém eu venho a ti em nome do Senhor dos Exércitos, o Deus dos exércitos de Israel, a quem tens afrontado.' },
-  { book: '2 Samuel', chapter: 22, verse: 2, reference: '2 Samuel 22:2', text: 'Disse: O Senhor é a minha rocha, e a minha fortaleza, e o meu libertador.' },
-  { book: '1 Reis', chapter: 18, verse: 21, reference: '1 Reis 18:21', text: 'Então Elias se chegou a todo o povo, e disse: Até quando coxeareis entre dois pensamentos? Se o Senhor é Deus, segui-o; e se Baal, segui-o. Porém o povo não lhe respondeu nada.' },
-  { book: '2 Reis', chapter: 6, verse: 16, reference: '2 Reis 6:16', text: 'E ele disse: Não temas; porque mais são os que estão conosco do que os que estão com eles.' },
-  { book: '1 Crônicas', chapter: 29, verse: 11, reference: '1 Crônicas 29:11', text: 'Tua é, Senhor, a magnificência, e o poder, e a glória, e a vitória, e a majestade; porque teu é tudo quanto há nos céus e na terra; teu é, Senhor, o reino, e tu te exaltaste sobre todos como chefe.' },
-  { book: '2 Crônicas', chapter: 15, verse: 7, reference: '2 Crônicas 15:7', text: 'Esforçai-vos, pois, e não se enfraqueçam as vossas mãos; porque a vossa obra tem galardão.' },
-  { book: 'Esdras', chapter: 9, verse: 8, reference: 'Esdras 9:8', text: 'E agora, por um breve momento, se manifestou a graça da parte do Senhor nosso Deus, para nos deixar alguns que escapem, e para dar-nos uma estaca no seu santo lugar; para que o nosso Deus alumie os nossos olhos, e nos dê um pouco de vida na nossa servidão.' },
-  { book: 'Neemias', chapter: 9, verse: 17, reference: 'Neemias 9:17', text: 'E recusaram ouvir, e não se lembraram das tuas maravilhas, que lhes fizeste; e endureceram a sua cerviz, e na sua rebelião propuseram um chefe, para voltarem à sua servidão; porém tu és um Deus pronto a perdoar, clemente e misericordioso, tardio em irar-te, e grande em benignidade, e tu não os desamparaste.' },
-  { book: 'Ester', chapter: 4, verse: 14, reference: 'Ester 4:14', text: 'Porque, se tu de todo te calares agora, socorro e livramento doutra parte virá para os judeus, mas tu e a casa de teu pai perecereis; e quem sabe se para tal tempo como este chegaste ao reino?' },
-  { book: 'Jó', chapter: 5, verse: 7, reference: 'Jó 5:7', text: 'Mas o homem nasce para a aflição, como as faíscas se levantam para voar.' },
-  { book: 'Jó', chapter: 13, verse: 15, reference: 'Jó 13:15', text: 'Ainda que ele me mate, nele esperarei; contudo os meus caminhos defenderei diante dele.' },
-  { book: 'Jó', chapter: 23, verse: 10, reference: 'Jó 23:10', text: 'Porém ele conhece o meu caminho; provando-me ele, sairei como o ouro.' },
-  { book: 'Salmos', chapter: 4, verse: 8, reference: 'Salmos 4:8', text: 'Em paz me deitarei e dormirei; porque só tu, Senhor, me fazes habitar em segurança.' },
-  { book: 'Salmos', chapter: 9, verse: 10, reference: 'Salmos 9:10', text: 'E em ti confiarão os que conhecem o teu nome; porque tu, Senhor, não desamparaste os que te buscam.' },
-  { book: 'Salmos', chapter: 18, verse: 30, reference: 'Salmos 18:30', text: 'O caminho de Deus é perfeito; a palavra do Senhor é provada; ele é um escudo para todos os que nele confiam.' },
-  { book: 'Salmos', chapter: 24, verse: 1, reference: 'Salmos 24:1', text: 'Do Senhor é a terra e a sua plenitude; o mundo e aqueles que nele habitam.' },
-  { book: 'Salmos', chapter: 29, verse: 2, reference: 'Salmos 29:2', text: 'Dai ao Senhor a glória devida ao seu nome; adorai o Senhor na beleza da santidade.' },
-  { book: 'Salmos', chapter: 31, verse: 24, reference: 'Salmos 31:24', text: 'Esforçai-vos, e ele fortaleça o vosso coração, todos os que esperais no Senhor.' },
-  { book: 'Salmos', chapter: 32, verse: 8, reference: 'Salmos 32:8', text: 'Instruir-te-ei, e ensinar-te-ei o caminho que deves seguir; guiar-te-ei com os meus olhos.' },
-  { book: 'Salmos', chapter: 33, verse: 4, reference: 'Salmos 33:4', text: 'Porque a palavra do Senhor é reta, e todas as suas obras são feitas com fidelidade.' },
-  { book: 'Salmos', chapter: 34, verse: 1, reference: 'Salmos 34:1', text: 'Louvarei ao Senhor em todo o tempo; o seu louvor estará continuamente na minha boca.' },
-  { book: 'Salmos', chapter: 34, verse: 19, reference: 'Salmos 34:19', text: 'Muitas são as aflições do justo, mas de todas elas o Senhor o livra.' },
-  { book: 'Salmos', chapter: 36, verse: 9, reference: 'Salmos 36:9', text: 'Porque em ti está o manancial da vida; na tua luz veremos a luz.' },
-  { book: 'Salmos', chapter: 37, verse: 7, reference: 'Salmos 37:7', text: 'Descansa no Senhor, e espera nele; não te indignes por causa daquele que prospera em seu caminho, por causa do homem que executa astutos intentos.' },
-  { book: 'Salmos', chapter: 39, verse: 4, reference: 'Salmos 39:4', text: 'Faze-me conhecer, Senhor, o meu fim, e a medida dos meus dias, qual é, para que eu saiba quão frágil sou.' },
-  { book: 'Salmos', chapter: 40, verse: 8, reference: 'Salmos 40:8', text: 'Deleito-me em fazer a tua vontade, ó Deus meu; sim, a tua lei está dentro do meu coração.' },
-  { book: 'Salmos', chapter: 46, verse: 5, reference: 'Salmos 46:5', text: 'Deus está no meio dela; não será abalada; Deus a ajudará desde o raiar da alva.' },
-  { book: 'Salmos', chapter: 48, verse: 14, reference: 'Salmos 48:14', text: 'Porque este Deus é o nosso Deus para sempre; ele será nosso guia até a morte.' },
-  { book: 'Salmos', chapter: 50, verse: 15, reference: 'Salmos 50:15', text: 'E invoca-me no dia da angústia; eu te livrarei, e tu me glorificarás.' },
-  { book: 'Salmos', chapter: 61, verse: 2, reference: 'Salmos 61:2', text: 'Desde o fim da terra clamarei a ti, quando o meu coração desfalecer; leva-me para a rocha que é mais alta do que eu.' },
-  { book: 'Salmos', chapter: 62, verse: 1, reference: 'Salmos 62:1', text: 'A minha alma espera somente em Deus; dele vem a minha salvação.' },
-  { book: 'Salmos', chapter: 62, verse: 8, reference: 'Salmos 62:8', text: 'Confiai nele, ó povo, em todos os tempos; derramai perante ele o vosso coração; Deus é o nosso refúgio.' },
-  { book: 'Salmos', chapter: 66, verse: 18, reference: 'Salmos 66:18', text: 'Se eu atender à iniqüidade no meu coração, o Senhor não me ouvirá.' },
-  { book: 'Salmos', chapter: 68, verse: 19, reference: 'Salmos 68:19', text: 'Bendito seja o Senhor, que de dia em dia nos cumula de benefícios; o Deus que é a nossa salvação.' },
-  { book: 'Salmos', chapter: 71, verse: 9, reference: 'Salmos 71:9', text: 'Não me rejeites no tempo da velhice; não me desampares, quando se me acabarem as forças.' },
-  { book: 'Salmos', chapter: 84, verse: 10, reference: 'Salmos 84:10', text: 'Porque vale mais um dia nos teus átrios do que em outra parte mil. Preferiria estar à porta da casa do meu Deus, a habitar nas tendas da iniqüidade.' },
-  { book: 'Salmos', chapter: 85, verse: 10, reference: 'Salmos 85:10', text: 'A benignidade e a verdade se encontraram; a justiça e a paz se beijaram.' },
-  { book: 'Salmos', chapter: 86, verse: 11, reference: 'Salmos 86:11', text: 'Ensina-me, Senhor, o teu caminho, e andarei na tua verdade; une o meu coração ao temor do teu nome.' },
-  { book: 'Salmos', chapter: 89, verse: 1, reference: 'Salmos 89:1', text: 'As benignidades do Senhor cantarei para sempre; com a minha boca manifestarei a todas as gerações a tua fidelidade.' },
-  { book: 'Salmos', chapter: 91, verse: 2, reference: 'Salmos 91:2', text: 'Direi do Senhor: Ele é o meu Deus, o meu refúgio, a minha fortaleza, e nele confiarei.' },
-  { book: 'Salmos', chapter: 92, verse: 1, reference: 'Salmos 92:1', text: 'Bom é louvar ao Senhor, e cantar louvores ao teu nome, ó Altíssimo.' },
-  { book: 'Salmos', chapter: 94, verse: 19, reference: 'Salmos 94:19', text: 'Na multidão dos meus cuidados interiores, as tuas consolações recreiam a minha alma.' },
-  { book: 'Salmos', chapter: 95, verse: 6, reference: 'Salmos 95:6', text: 'Ó, vinde, adoremos e prostremo-nos; ajoelhemos diante do Senhor que nos criou.' },
-  { book: 'Salmos', chapter: 96, verse: 9, reference: 'Salmos 96:9', text: 'Adorai ao Senhor na beleza da santidade; tremei diante dele toda a terra.' },
-  { book: 'Salmos', chapter: 103, verse: 2, reference: 'Salmos 103:2', text: 'Bendize, ó minha alma, ao Senhor, e não te esqueças de nenhum de seus benefícios.' },
-  { book: 'Salmos', chapter: 103, verse: 13, reference: 'Salmos 103:13', text: 'Como o pai se compadece de seus filhos, assim o Senhor se compadece daqueles que o temem.' },
-  { book: 'Salmos', chapter: 104, verse: 1, reference: 'Salmos 104:1', text: 'Bendize, ó minha alma, ao Senhor! Senhor Deus meu, tu és magnificentíssimo; estás vestido de glória e de majestade.' },
-  { book: 'Salmos', chapter: 107, verse: 1, reference: 'Salmos 107:1', text: 'Louvai ao Senhor, porque ele é bom; porque a sua benignidade dura para sempre.' },
-  { book: 'Salmos', chapter: 111, verse: 10, reference: 'Salmos 111:10', text: 'O temor do Senhor é o princípio da sabedoria; bom entendimento têm todos os que cumprem os seus mandamentos; o seu louvor permanece para sempre.' },
-  { book: 'Salmos', chapter: 112, verse: 1, reference: 'Salmos 112:1', text: 'Bem-aventurado o homem que teme ao Senhor, que em seus mandamentos tem grande prazer.' },
-  { book: 'Salmos', chapter: 113, verse: 3, reference: 'Salmos 113:3', text: 'Desde o nascimento do sol até ao seu ocaso, seja louvado o nome do Senhor.' },
-  { book: 'Salmos', chapter: 116, verse: 1, reference: 'Salmos 116:1', text: 'Amo ao Senhor, porquanto ouviu a minha voz e a minha súplica.' },
-  { book: 'Salmos', chapter: 118, verse: 6, reference: 'Salmos 118:6', text: 'O Senhor é por mim; não temerei o que me possa fazer o homem.' },
-  { book: 'Salmos', chapter: 118, verse: 14, reference: 'Salmos 118:14', text: 'O Senhor é a minha força e o meu cântico; e se me tornou a salvação.' },
-  { book: 'Salmos', chapter: 119, verse: 18, reference: 'Salmos 119:18', text: 'Abre tu os meus olhos, para que veja as maravilhas da tua lei.' },
-  { book: 'Salmos', chapter: 119, verse: 89, reference: 'Salmos 119:89', text: 'Para sempre, ó Senhor, a tua palavra está firmada nos céus.' },
-  { book: 'Salmos', chapter: 119, verse: 160, reference: 'Salmos 119:160', text: 'A soma da tua palavra é a verdade, e cada um dos teus justos juízos dura para sempre.' },
-  { book: 'Salmos', chapter: 121, verse: 5, reference: 'Salmos 121:5', text: 'O Senhor é quem te guarda; o Senhor é a tua sombra à tua mão direita.' },
-  { book: 'Salmos', chapter: 126, verse: 5, reference: 'Salmos 126:5', text: 'Os que com lágrimas semeiam com júbilo ceifarão.' },
-  { book: 'Salmos', chapter: 127, verse: 1, reference: 'Salmos 127:1', text: 'Se o Senhor não edificar a casa, em vão trabalham os que a edificam; se o Senhor não guardar a cidade, em vão vigia a sentinela.' },
-  { book: 'Salmos', chapter: 130, verse: 5, reference: 'Salmos 130:5', text: 'Aguardo ao Senhor; a minha alma o aguarda, e espero na sua palavra.' },
-  { book: 'Salmos', chapter: 133, verse: 1, reference: 'Salmos 133:1', text: 'Oh! quão bom e quão suave é que os irmãos vivam em união.' },
-  { book: 'Salmos', chapter: 136, verse: 1, reference: 'Salmos 136:1', text: 'Louvai ao Senhor, porque ele é bom; porque a sua benignidade dura para sempre.' },
-  { book: 'Salmos', chapter: 138, verse: 8, reference: 'Salmos 138:8', text: 'O Senhor aperfeiçoará o que me toca; a tua benignidade, ó Senhor, dura para sempre; não desampares as obras das tuas mãos.' },
-  { book: 'Salmos', chapter: 139, verse: 23, reference: 'Salmos 139:23', text: 'Sonda-me, ó Deus, e conhece o meu coração; prova-me, e conhece os meus pensamentos.' },
-  { book: 'Salmos', chapter: 143, verse: 10, reference: 'Salmos 143:10', text: 'Ensina-me a fazer a tua vontade, pois tu és o meu Deus; o teu espírito é bom; guia-me pela terra da retidão.' },
-  { book: 'Salmos', chapter: 144, verse: 3, reference: 'Salmos 144:3', text: 'Senhor, que é o homem, para que o conheças, e o filho do homem, para que o estimes?' },
-  { book: 'Salmos', chapter: 147, verse: 3, reference: 'Salmos 147:3', text: 'Sara os quebrantados de coração, e liga as suas feridas.' },
-  { book: 'Provérbios', chapter: 3, verse: 9, reference: 'Provérbios 3:9', text: 'Honra ao Senhor com os teus bens, e com as primícias de toda a tua renda.' },
-  { book: 'Provérbios', chapter: 8, verse: 17, reference: 'Provérbios 8:17', text: 'Eu amo aos que me amam, e os que cedo me buscam, me acharão.' },
-  { book: 'Provérbios', chapter: 11, verse: 14, reference: 'Provérbios 11:14', text: 'Não havendo conselho, o povo cai; mas na multidão de conselheiros há segurança.' },
-  { book: 'Provérbios', chapter: 14, verse: 34, reference: 'Provérbios 14:34', text: 'A justiça exalta as nações, mas o pecado é o opróbrio dos povos.' },
-  { book: 'Provérbios', chapter: 15, verse: 3, reference: 'Provérbios 15:3', text: 'Os olhos do Senhor estão em todo lugar, contemplando os maus e os bons.' },
-  { book: 'Provérbios', chapter: 16, verse: 18, reference: 'Provérbios 16:18', text: 'A soberba precede a ruína, e a altivez do espírito precede a queda.' },
-  { book: 'Provérbios', chapter: 16, verse: 32, reference: 'Provérbios 16:32', text: 'Melhor é o longânimo do que o valente; e o que governa o seu espírito do que o que toma uma cidade.' },
-  { book: 'Provérbios', chapter: 17, verse: 17, reference: 'Provérbios 17:17', text: 'Em todo o tempo ama o amigo, mas na angústia nasce o irmão.' },
-  { book: 'Provérbios', chapter: 18, verse: 10, reference: 'Provérbios 18:10', text: 'Torre forte é o nome do Senhor; a ele correrá o justo, e estará em alto refúgio.' },
-  { book: 'Provérbios', chapter: 19, verse: 23, reference: 'Provérbios 19:23', text: 'O temor do Senhor encaminha para a vida; e aquele que o tem ficará satisfeito, e não o visitará mal algum.' },
-  { book: 'Provérbios', chapter: 20, verse: 7, reference: 'Provérbios 20:7', text: 'O justo anda na sua integridade; bem-aventurados serão os seus filhos depois dele.' },
-  { book: 'Provérbios', chapter: 22, verse: 1, reference: 'Provérbios 22:1', text: 'Mais vale o bom nome do que as muitas riquezas; e o favor é melhor do que a prata e o ouro.' },
-  { book: 'Provérbios', chapter: 23, verse: 26, reference: 'Provérbios 23:26', text: 'Dá-me, filho meu, o teu coração, e os teus olhos observem os meus caminhos.' },
-  { book: 'Provérbios', chapter: 24, verse: 10, reference: 'Provérbios 24:10', text: 'Se te mostrares fraco no dia da angústia, é que a tua força é pequena.' },
-  { book: 'Provérbios', chapter: 25, verse: 11, reference: 'Provérbios 25:11', text: 'Como maçãs de ouro com figuras de prata, assim é a palavra dita a seu tempo.' },
-  { book: 'Provérbios', chapter: 27, verse: 17, reference: 'Provérbios 27:17', text: 'Como o ferro com o ferro se afia, assim o homem afia o rosto do seu amigo.' },
-  { book: 'Provérbios', chapter: 28, verse: 1, reference: 'Provérbios 28:1', text: 'Os ímpios fogem, sem que ninguém os persiga; mas os justos estão confiantes como o leão.' },
-  { book: 'Provérbios', chapter: 29, verse: 18, reference: 'Provérbios 29:18', text: 'Não havendo profecia, o povo se corrompe; mas o que guarda a lei, esse é bem-aventurado.' },
-  { book: 'Provérbios', chapter: 30, verse: 5, reference: 'Provérbios 30:5', text: 'Toda a palavra de Deus é pura; escudo é para os que confiam nele.' },
-  { book: 'Eclesiastes', chapter: 3, verse: 14, reference: 'Eclesiastes 3:14', text: 'Eu sei que tudo quanto Deus faz durará eternamente; nada se lhe deve acrescentar, e nada se lhe deve tirar; e isto faz Deus para que os homens temam diante dele.' },
-  { book: 'Eclesiastes', chapter: 5, verse: 2, reference: 'Eclesiastes 5:2', text: 'Não te precipites com a tua boca, e o teu coração não se apresse a pronunciar palavra alguma diante de Deus; porque Deus está nos céus, e tu estás sobre a terra; portanto sejam poucas as tuas palavras.' },
-  { book: 'Eclesiastes', chapter: 7, verse: 9, reference: 'Eclesiastes 7:9', text: 'Não te apresses no teu espírito a irar-te; porque a ira repousa no seio dos tolos.' },
-  { book: 'Eclesiastes', chapter: 9, verse: 10, reference: 'Eclesiastes 9:10', text: 'Tudo quanto te vier à mão para fazer, faze-o conforme as tuas forças; porque na sepultura, para onde tu vais, não há obra, nem indústria, nem ciência, nem sabedoria alguma.' },
-  { book: 'Eclesiastes', chapter: 12, verse: 1, reference: 'Eclesiastes 12:1', text: 'Lembra-te agora do teu Criador nos dias da tua mocidade, antes que venham os maus dias, e cheguem os anos dos quais venhas a dizer: Não tenho neles contentamento.' },
-  { book: 'Cantares', chapter: 8, verse: 7, reference: 'Cantares 8:7', text: 'As muitas águas não poderiam apagar este amor, nem os rios o afogariam; ainda que alguém desse todos os bens de sua casa pelo amor, seria totalmente desprezado.' },
-  { book: 'Isaías', chapter: 1, verse: 19, reference: 'Isaías 1:19', text: 'Se quiserdes, e obedecerdes, comereis o bem desta terra.' },
-  { book: 'Isaías', chapter: 7, verse: 9, reference: 'Isaías 7:9', text: 'E a cabeça de Efraim é Samaria, e a cabeça de Samaria é o filho de Remalias. Se vós não crerdes, certamente não ficareis firmes.' },
-  { book: 'Isaías', chapter: 25, verse: 1, reference: 'Isaías 25:1', text: 'Ó Senhor, tu és o meu Deus; exaltar-te-ei, e louvarei o teu nome, porque fizeste maravilhas; os teus conselhos antigos são verdade e firmeza.' },
-  { book: 'Isaías', chapter: 30, verse: 18, reference: 'Isaías 30:18', text: 'Por isso, o Senhor esperará, para ter misericórdia de vós; e por isso se levantará, para se compadecer de vós, porque o Senhor é um Deus de juízo; bem-aventurados todos os que nele esperam.' },
-  { book: 'Isaías', chapter: 33, verse: 6, reference: 'Isaías 33:6', text: 'E haverá estabilidade nos teus tempos, abundância de salvação, sabedoria e conhecimento; o temor do Senhor será o seu tesouro.' },
-  { book: 'Isaías', chapter: 40, verse: 11, reference: 'Isaías 40:11', text: 'Como o pastor apascentará o seu rebanho; entre os seus braços recolherá os cordeirinhos, e os levará no seu regaço.' },
-  { book: 'Isaías', chapter: 41, verse: 13, reference: 'Isaías 41:13', text: 'Porque eu, o Senhor teu Deus, te tomo pela tua mão direita, e te digo: Não temas, eu te ajudarei.' },
-  { book: 'Isaías', chapter: 43, verse: 1, reference: 'Isaías 43:1', text: 'Mas agora, assim diz o Senhor que te criou, ó Jacó, e que te formou, ó Israel: Não temas, porque eu te remi; chamei-te pelo teu nome, tu és meu.' },
-  { book: 'Isaías', chapter: 44, verse: 22, reference: 'Isaías 44:22', text: 'Apaguei as tuas transgressões como a névoa, e os teus pecados como a nuvem; torna-te a mim, porque eu te remi.' },
-  { book: 'Isaías', chapter: 45, verse: 22, reference: 'Isaías 45:22', text: 'Olhai para mim, e sereis salvos, vós, todos os termos da terra; porque eu sou Deus, e não há outro.' },
-  { book: 'Isaías', chapter: 48, verse: 17, reference: 'Isaías 48:17', text: 'Assim diz o Senhor, o teu Redentor, o Santo de Israel: Eu sou o Senhor teu Deus, que te ensina o que é útil, e te guia pelo caminho em que deves andar.' },
-  { book: 'Isaías', chapter: 52, verse: 7, reference: 'Isaías 52:7', text: 'Quão formosos são sobre os montes os pés do que anuncia as boas novas, que faz ouvir a paz, que anuncia o bem, que faz ouvir a salvação, que diz a Sião: O teu Deus reina!' },
-  { book: 'Isaías', chapter: 55, verse: 6, reference: 'Isaías 55:6', text: 'Buscai ao Senhor enquanto se pode achar, invocai-o enquanto está perto.' },
-  { book: 'Isaías', chapter: 58, verse: 11, reference: 'Isaías 58:11', text: 'E o Senhor te guiará continuamente, e fartará a tua alma em lugares áridos, e fortificará os teus ossos; e serás como um jardim regado, e como um manancial cujas águas nunca faltam.' },
-  { book: 'Isaías', chapter: 59, verse: 1, reference: 'Isaías 59:1', text: 'Eis que a mão do Senhor não está encolhida, para que não possa salvar; nem o seu ouvido agravado, para não poder ouvir.' },
-  { book: 'Isaías', chapter: 60, verse: 1, reference: 'Isaías 60:1', text: 'Levanta-te, resplandece, porque vem a tua luz, e a glória do Senhor vai nascendo sobre ti.' },
-  { book: 'Isaías', chapter: 61, verse: 1, reference: 'Isaías 61:1', text: 'O Espírito do Senhor Deus está sobre mim, porque o Senhor me ungiu, para pregar boas novas aos mansos; enviou-me a restaurar os contritos de coração, a proclamar liberdade aos cativos, e a abertura de prisão aos presos.' },
-  { book: 'Isaías', chapter: 61, verse: 3, reference: 'Isaías 61:3', text: 'A ordenar acerca dos que choram em Sião que se lhes dê glória em vez de cinza, óleo de gozo em vez de pranto, veste de louvor em vez de espírito angustiado; a fim de que se chamem árvores de justiça, plantação do Senhor, para que ele seja glorificado.' },
-  { book: 'Jeremias', chapter: 1, verse: 12, reference: 'Jeremias 1:12', text: 'E disse-me o Senhor: Viste bem; porque eu velo sobre a minha palavra para cumpri-la.' },
-  { book: 'Jeremias', chapter: 9, verse: 23, reference: 'Jeremias 9:23', text: 'Assim diz o Senhor: Não se glorie o sábio na sua sabedoria, nem o forte na sua força, nem o rico nas suas riquezas.' },
-  { book: 'Jeremias', chapter: 9, verse: 24, reference: 'Jeremias 9:24', text: 'Mas o que se gloriar, glorie-se nisto: em me entender e me conhecer, que eu sou o Senhor, que faço misericórdia, juízo e justiça na terra; porque destas coisas me agrado, diz o Senhor.' },
-  { book: 'Jeremias', chapter: 10, verse: 23, reference: 'Jeremias 10:23', text: 'Eu sei, ó Senhor, que não é do homem o seu caminho; nem é do homem que caminha o dirigir os seus passos.' },
-  { book: 'Jeremias', chapter: 15, verse: 16, reference: 'Jeremias 15:16', text: 'Achadas as tuas palavras, logo as comi, e a tua palavra foi para mim o gozo e alegria do meu coração; porque pelo teu nome sou chamado, ó Senhor Deus dos Exércitos.' },
-  { book: 'Jeremias', chapter: 18, verse: 6, reference: 'Jeremias 18:6', text: 'Não poderei eu fazer de vós como fez este oleiro, ó casa de Israel? diz o Senhor. Eis que, como o barro na mão do oleiro, assim sois vós na minha mão, ó casa de Israel.' },
-  { book: 'Jeremias', chapter: 23, verse: 24, reference: 'Jeremias 23:24', text: 'Esconder-se-ia alguém em esconderijos, de modo que eu não o veja? diz o Senhor. Porventura não encho eu os céus e a terra? diz o Senhor.' },
-  { book: 'Jeremias', chapter: 29, verse: 13, reference: 'Jeremias 29:13', text: 'E buscar-me-eis, e me achareis, quando me buscardes de todo o vosso coração.' },
-  { book: 'Jeremias', chapter: 31, verse: 3, reference: 'Jeremias 31:3', text: 'O Senhor de longe se me deixou ver, dizendo: Com amor eterno te amei; por isso com benignidade te atraí.' },
-  { book: 'Jeremias', chapter: 32, verse: 27, reference: 'Jeremias 32:27', text: 'Eis que eu sou o Senhor, o Deus de toda a carne; haveria coisa demasiado difícil para mim?' },
-  { book: 'Jeremias', chapter: 33, verse: 11, reference: 'Jeremias 33:11', text: 'A voz de gozo e de alegria, a voz do esposo e a voz da esposa, a voz dos que dizem: Louvai ao Senhor dos Exércitos, porque o Senhor é bom, porque a sua benignidade dura para sempre; a voz dos que trazem ofertas de ações de graças à casa do Senhor. Porque farei voltar os cativos da terra como no princípio, diz o Senhor.' },
-  { book: 'Lamentações', chapter: 3, verse: 25, reference: 'Lamentações 3:25', text: 'Bom é o Senhor para os que nele esperam, para a alma que o busca.' },
-  { book: 'Lamentações', chapter: 3, verse: 40, reference: 'Lamentações 3:40', text: 'Esquadrinhemos os nossos caminhos, e provemo-los, e voltemos para o Senhor.' },
-  { book: 'Ezequiel', chapter: 11, verse: 19, reference: 'Ezequiel 11:19', text: 'E lhes darei um mesmo coração, e um espírito novo porei dentro deles; e tirarei da sua carne o coração de pedra, e lhes darei um coração de carne.' },
-  { book: 'Ezequiel', chapter: 18, verse: 32, reference: 'Ezequiel 18:32', text: 'Porque não tenho prazer na morte de ninguém, diz o Senhor Deus; convertei-vos, pois, e vivei.' },
-  { book: 'Ezequiel', chapter: 34, verse: 16, reference: 'Ezequiel 34:16', text: 'A perdida buscarei, e a desgarrada tornarei a trazer, e a quebrada ligarei, e a enferma fortalecerei; mas a gorda e a forte destruirei; apascentá-las-ei com juízo.' },
-  { book: 'Daniel', chapter: 2, verse: 20, reference: 'Daniel 2:20', text: 'Respondeu Daniel, e disse: Seja bendito o nome de Deus de eternidade a eternidade, porque dele é a sabedoria e a força.' },
-  { book: 'Daniel', chapter: 4, verse: 35, reference: 'Daniel 4:35', text: 'E todos os moradores da terra são reputados em nada; e segundo a sua vontade ele opera com o exército do céu e os moradores da terra; não há quem lhe possa resistir, e lhe diga: Que fazes?' },
-  { book: 'Daniel', chapter: 9, verse: 9, reference: 'Daniel 9:9', text: 'Ao Senhor nosso Deus pertencem as misericórdias e os perdões; pois nos rebelamos contra ele.' },
-  { book: 'Oséias', chapter: 6, verse: 1, reference: 'Oséias 6:1', text: 'Vinde, e tornemos para o Senhor, porque ele despedaçou, e nos sarará; feriu, e nos atará a ferida.' },
-  { book: 'Oséias', chapter: 10, verse: 12, reference: 'Oséias 10:12', text: 'Semeai para vós em justiça, ceifai segundo a misericórdia; lavrai o campo de lavoura; porque é tempo de buscar ao Senhor, até que venha e chova a justiça sobre vós.' },
-  { book: 'Joel', chapter: 2, verse: 13, reference: 'Joel 2:13', text: 'E rasgai o vosso coração, e não as vossas vestes, e convertei-vos ao Senhor vosso Deus; porque ele é misericordioso, e compassivo, e tardio em irar-se, e grande em benignidade, e se arrepende do mal.' },
-  { book: 'Amós', chapter: 5, verse: 4, reference: 'Amós 5:4', text: 'Porque assim diz o Senhor à casa de Israel: Buscai-me, e vivei.' },
-  { book: 'Jonas', chapter: 4, verse: 2, reference: 'Jonas 4:2', text: 'E orou ao Senhor, e disse: Ah! Senhor! Não foi esta minha palavra, estando ainda na minha terra? Por isso me apressei, fugindo para Társis, pois sabia que és Deus clemente, e misericordioso, tardio em irar-te, e grande em benignidade, e que te arrependes do mal.' },
-  { book: 'Miquéias', chapter: 5, verse: 2, reference: 'Miquéias 5:2', text: 'E tu, Belém Efrata, posto que pequena entre os milhares de Judá, de ti me sairá o que será Senhor em Israel, e cujas saídas são desde os tempos antigos, desde os dias da eternidade.' },
-  { book: 'Miquéias', chapter: 7, verse: 8, reference: 'Miquéias 7:8', text: 'Não te alegres a meu respeito, ó minha inimiga; ainda que eu caia, levantar-me-ei; ainda que eu habite nas trevas, o Senhor será a minha luz.' },
-  { book: 'Naum', chapter: 1, verse: 3, reference: 'Naum 1:3', text: 'O Senhor é tardio em irar-se, e grande em força, e ao culpado não tem por inocente; o Senhor tem o seu caminho na tormenta e na tempestade, e as nuvens são o pó dos seus pés.' },
-  { book: 'Habacuque', chapter: 3, verse: 17, reference: 'Habacuque 3:17', text: 'Ainda que a figueira não floresça, nem haja fruto na vide; ainda que o produto da oliveira minta, e os campos não produzam mantimento, ainda que as ovelhas da malhada sejam arrebatadas, e não haja gado nos currais,' },
-  { book: 'Habacuque', chapter: 3, verse: 18, reference: 'Habacuque 3:18', text: 'Todavia eu me alegrarei no Senhor; exultarei no Deus da minha salvação.' },
-  { book: 'Sofonias', chapter: 3, verse: 20, reference: 'Sofonias 3:20', text: 'Naquele tempo vos trarei, naquele tempo vos ajuntarei; porque farei de vós um nome e um louvor entre todos os povos da terra, quando fizer voltar os vossos cativos diante dos vossos olhos, diz o Senhor.' },
-  { book: 'Ageu', chapter: 1, verse: 7, reference: 'Ageu 1:7', text: 'Assim diz o Senhor dos Exércitos: Considerai os vossos caminhos.' },
-  { book: 'Zacarias', chapter: 4, verse: 10, reference: 'Zacarias 4:10', text: 'Porque aqueles que desprezaram o dia das pequenas coisas se alegrarão, e verão o prumo na mão de Zorobabel; estes são os sete olhos do Senhor, que discorrem por toda a terra.' },
-  { book: 'Zacarias', chapter: 8, verse: 23, reference: 'Zacarias 8:23', text: 'Assim diz o Senhor dos Exércitos: Naqueles dias sucederá que dez homens de todas as línguas das nações pegarão na orla da veste de um judeu, dizendo: Iremos convosco, porque temos ouvido que Deus está convosco.' },
-  { book: 'Malaquias', chapter: 2, verse: 15, reference: 'Malaquias 2:15', text: 'E não fez ele um, sobejando nele espírito? E por que um? Porque buscava uma descendência para Deus. Portanto guardai-vos em vosso espírito, e ninguém seja infiel para com a mulher da sua mocidade.' },
-  { book: 'Malaquias', chapter: 3, verse: 6, reference: 'Malaquias 3:6', text: 'Porque eu, o Senhor, não mudo; por isso vós, ó filhos de Jacó, não sois consumidos.' },
-  { book: 'Mateus', chapter: 4, verse: 19, reference: 'Mateus 4:19', text: 'E disse-lhes: Vinde após mim, e eu vos farei pescadores de homens.' },
-  { book: 'Mateus', chapter: 5, verse: 4, reference: 'Mateus 5:4', text: 'Bem-aventurados os que choram, porque eles serão consolados.' },
-  { book: 'Mateus', chapter: 5, verse: 7, reference: 'Mateus 5:7', text: 'Bem-aventurados os misericordiosos, porque eles alcançarão misericórdia.' },
-  { book: 'Mateus', chapter: 5, verse: 13, reference: 'Mateus 5:13', text: 'Vós sois o sal da terra; e se o sal for insípido, com que se há de salgar? Para nada mais presta, senão para se lançar fora, e ser pisado pelos homens.' },
-  { book: 'Mateus', chapter: 6, verse: 10, reference: 'Mateus 6:10', text: 'Venha o teu reino, seja feita a tua vontade, assim na terra como no céu.' },
-  { book: 'Mateus', chapter: 6, verse: 12, reference: 'Mateus 6:12', text: 'E perdoa-nos as nossas dívidas, assim como nós perdoamos aos nossos devedores.' },
-  { book: 'Mateus', chapter: 6, verse: 21, reference: 'Mateus 6:21', text: 'Porque onde estiver o vosso tesouro, aí estará também o vosso coração.' },
-  { book: 'Mateus', chapter: 6, verse: 25, reference: 'Mateus 6:25', text: 'Por isso vos digo: Não andeis cuidadosos da vossa vida, pelo que haveis de comer ou pelo que haveis de beber; nem pelo vosso corpo, pelo que haveis de vestir. Não é a vida mais do que o mantimento, e o corpo mais do que o vestuário?' },
-  { book: 'Mateus', chapter: 7, verse: 1, reference: 'Mateus 7:1', text: 'Não julgueis, para que não sejais julgados.' },
-  { book: 'Mateus', chapter: 7, verse: 24, reference: 'Mateus 7:24', text: 'Todo aquele, pois, que escuta estas minhas palavras, e as pratica, assemelhá-lo-ei ao homem prudente, que edificou a sua casa sobre a rocha.' },
-  { book: 'Mateus', chapter: 9, verse: 13, reference: 'Mateus 9:13', text: 'Ide, porém, e aprendei o que significa: Misericórdia quero, e não sacrifício. Porque eu não vim a chamar justos, mas pecadores, ao arrependimento.' },
-  { book: 'Mateus', chapter: 10, verse: 28, reference: 'Mateus 10:28', text: 'E não temais os que matam o corpo, e não podem matar a alma; temei, porém, aquele que pode fazer perecer no inferno tanto a alma como o corpo.' },
-  { book: 'Mateus', chapter: 11, verse: 29, reference: 'Mateus 11:29', text: 'Tomai sobre vós o meu jugo, e aprendei de mim, que sou manso e humilde de coração; e encontrareis descanso para as vossas almas.' },
-  { book: 'Mateus', chapter: 12, verse: 50, reference: 'Mateus 12:50', text: 'Porque qualquer que fizer a vontade de meu Pai que está nos céus, esse é meu irmão, e irmã e mãe.' },
-  { book: 'Mateus', chapter: 13, verse: 44, reference: 'Mateus 13:44', text: 'Também o reino dos céus é semelhante a um tesouro escondido num campo, que, achando-o um homem, o encobriu; e, pelo gozo dele, vai, vende tudo quanto tem, e compra aquele campo.' },
-  { book: 'Mateus', chapter: 15, verse: 8, reference: 'Mateus 15:8', text: 'Este povo honra-me com os lábios, mas o seu coração está longe de mim.' },
-  { book: 'Mateus', chapter: 16, verse: 26, reference: 'Mateus 16:26', text: 'Pois que aproveitaria ao homem ganhar o mundo inteiro, se perdesse a sua alma? Ou que daria o homem em recompensa da sua alma?' },
-  { book: 'Mateus', chapter: 18, verse: 21, reference: 'Mateus 18:21', text: 'Então Pedro, aproximando-se dele, disse: Senhor, até quantas vezes pecará meu irmão contra mim, e eu lhe perdoarei? Até sete?' },
-  { book: 'Mateus', chapter: 18, verse: 22, reference: 'Mateus 18:22', text: 'Jesus lhe disse: Não te digo que até sete, mas até setenta vezes sete.' },
-  { book: 'Mateus', chapter: 19, verse: 14, reference: 'Mateus 19:14', text: 'Jesus, porém, disse: Deixai os meninos, e não os estorveis de vir a mim; porque dos tais é o reino dos céus.' },
-  { book: 'Mateus', chapter: 20, verse: 28, reference: 'Mateus 20:28', text: 'Assim como o Filho do homem não veio para ser servido, mas para servir, e para dar a sua vida em resgate de muitos.' },
-  { book: 'Mateus', chapter: 22, verse: 21, reference: 'Mateus 22:21', text: 'Então ele lhes disse: Dai pois a César o que é de César, e a Deus o que é de Deus.' },
-  { book: 'Mateus', chapter: 23, verse: 11, reference: 'Mateus 23:11', text: 'O maior dentre vós será vosso servo.' },
-  { book: 'Mateus', chapter: 23, verse: 12, reference: 'Mateus 23:12', text: 'E aquele que a si mesmo se exaltar será humilhado; e o que a si mesmo se humilhar será exaltado.' },
-  { book: 'Mateus', chapter: 24, verse: 13, reference: 'Mateus 24:13', text: 'Mas aquele que perseverar até ao fim, esse será salvo.' },
-  { book: 'Mateus', chapter: 25, verse: 40, reference: 'Mateus 25:40', text: 'E, respondendo o Rei, lhes dirá: Em verdade vos digo que, quando o fizestes a um destes meus pequeninos irmãos, a mim o fizestes.' },
-  { book: 'Mateus', chapter: 26, verse: 41, reference: 'Mateus 26:41', text: 'Vigiai e orai, para que não entreis em tentação; na verdade, o espírito está pronto, mas a carne é fraca.' },
-  { book: 'Marcos', chapter: 2, verse: 27, reference: 'Marcos 2:27', text: 'E disse-lhes: O sábado foi feito por causa do homem, e não o homem por causa do sábado.' },
-  { book: 'Marcos', chapter: 7, verse: 37, reference: 'Marcos 7:37', text: 'E muito se maravilhavam, dizendo: Tudo tem feito bem; faz até os surdos ouvir e os mudos falar.' },
-  { book: 'Marcos', chapter: 8, verse: 34, reference: 'Marcos 8:34', text: 'E, chamando a si a multidão, com os seus discípulos, disse-lhes: Se alguém quiser vir após mim, negue-se a si mesmo, e tome a sua cruz, e siga-me.' },
-  { book: 'Marcos', chapter: 9, verse: 35, reference: 'Marcos 9:35', text: 'E, assentando-se, chamou os doze, e disse-lhes: Se alguém quiser ser o primeiro, será o derradeiro de todos, e o servo de todos.' },
-  { book: 'Marcos', chapter: 10, verse: 14, reference: 'Marcos 10:14', text: 'Jesus, porém, vendo isto, indignou-se, e disse-lhes: Deixai vir os meninos a mim, e não os estorveis, porque dos tais é o reino de Deus.' },
-  { book: 'Marcos', chapter: 10, verse: 27, reference: 'Marcos 10:27', text: 'E Jesus, olhando para eles, disse: Para os homens é impossível, mas não para Deus; porque para Deus tudo é possível.' },
-  { book: 'Marcos', chapter: 11, verse: 22, reference: 'Marcos 11:22', text: 'E Jesus, respondendo, disse-lhes: Tende fé em Deus.' },
-  { book: 'Marcos', chapter: 12, verse: 30, reference: 'Marcos 12:30', text: 'E amarás ao Senhor teu Deus de todo o teu coração, e de toda a tua alma, e de todo o teu entendimento, e de todas as tuas forças; este é o primeiro mandamento.' },
-  { book: 'Marcos', chapter: 12, verse: 31, reference: 'Marcos 12:31', text: 'E o segundo, semelhante a este, é: Amarás o teu próximo como a ti mesmo. Não há outro mandamento maior do que estes.' },
-  { book: 'Marcos', chapter: 16, verse: 16, reference: 'Marcos 16:16', text: 'Quem crer e for batizado será salvo; mas quem não crer será condenado.' },
-  { book: 'Lucas', chapter: 1, verse: 46, reference: 'Lucas 1:46', text: 'Então disse Maria: A minha alma engrandece ao Senhor.' },
-  { book: 'Lucas', chapter: 1, verse: 47, reference: 'Lucas 1:47', text: 'E o meu espírito se alegrou em Deus meu Salvador.' },
-  { book: 'Lucas', chapter: 2, verse: 52, reference: 'Lucas 2:52', text: 'E crescia Jesus em sabedoria, e em estatura, e em graça para com Deus e os homens.' },
-  { book: 'Lucas', chapter: 4, verse: 18, reference: 'Lucas 4:18', text: 'O Espírito do Senhor é sobre mim, pois que me ungiu para evangelizar os pobres, enviou-me a curar os quebrantados do coração,' },
-  { book: 'Lucas', chapter: 6, verse: 36, reference: 'Lucas 6:36', text: 'Sede pois misericordiosos, como também vosso Pai é misericordioso.' },
-  { book: 'Lucas', chapter: 6, verse: 37, reference: 'Lucas 6:37', text: 'Não julgueis, e não sereis julgados; não condeneis, e não sereis condenados; perdoai, e sereis perdoados.' },
-  { book: 'Lucas', chapter: 6, verse: 45, reference: 'Lucas 6:45', text: 'O homem bom, do bom tesouro do seu coração tira o bem, e o homem mau, do mau tesouro do seu coração tira o mal, porque da abundância do seu coração fala a sua boca.' },
-  { book: 'Lucas', chapter: 7, verse: 47, reference: 'Lucas 7:47', text: 'Por isso te digo que os seus muitos pecados lhe são perdoados, porque muito amou; mas aquele a quem pouco é perdoado pouco ama.' },
-  { book: 'Lucas', chapter: 8, verse: 15, reference: 'Lucas 8:15', text: 'E a que caiu em boa terra, esses são os que, ouvindo a palavra com coração honesto e bom, a retêm, e dão fruto com perseverança.' },
-  { book: 'Lucas', chapter: 9, verse: 48, reference: 'Lucas 9:48', text: 'E disse-lhes: Qualquer que receber esta criança em meu nome, a mim me recebe; e qualquer que me receber a mim, recebe aquele que me enviou; porque aquele que entre vós todos for o menor, esse será grande.' },
-  { book: 'Lucas', chapter: 10, verse: 2, reference: 'Lucas 10:2', text: 'E dizia-lhes: A seara é grande, mas os obreiros são poucos; rogai, pois, ao Senhor da seara que envie obreiros para a sua seara.' },
-  { book: 'Lucas', chapter: 11, verse: 13, reference: 'Lucas 11:13', text: 'Pois se vós, sendo maus, sabeis dar boas dádivas aos vossos filhos, quanto mais dará o Pai celestial o Espírito Santo àqueles que lho pedirem?' },
-  { book: 'Lucas', chapter: 12, verse: 22, reference: 'Lucas 12:22', text: 'E disse aos seus discípulos: Portanto vos digo: Não andeis cuidadosos da vossa vida, pelo que haveis de comer, nem do corpo, pelo que haveis de vestir.' },
-  { book: 'Lucas', chapter: 12, verse: 48, reference: 'Lucas 12:48', text: 'Mas o que não sabia, e fez coisas dignas de açoites, com poucos açoites será castigado; porque a qualquer que muito for dado, muito se lhe pedirá, e ao que muito se lhe confiou, muito mais se lhe pedirá.' },
-  { book: 'Lucas', chapter: 14, verse: 11, reference: 'Lucas 14:11', text: 'Porque qualquer que a si mesmo se exaltar será humilhado, e qualquer que a si mesmo se humilhar será exaltado.' },
-  { book: 'Lucas', chapter: 14, verse: 26, reference: 'Lucas 14:26', text: 'Se alguém vier a mim, e não aborrecer a seu pai, e mãe, e mulher, e filhos, e irmãos, e irmãs, e ainda também a sua própria vida, não pode ser meu discípulo.' },
-  { book: 'Lucas', chapter: 15, verse: 10, reference: 'Lucas 15:10', text: 'Assim, vos digo, que há alegria diante dos anjos de Deus por um pecador que se arrepende.' },
-  { book: 'Lucas', chapter: 16, verse: 13, reference: 'Lucas 16:13', text: 'Nenhum servo pode servir a dois senhores; porque, ou há de odiar um e amar o outro, ou há de aderir a um e desprezar o outro. Não podeis servir a Deus e a Mamom.' },
-  { book: 'Lucas', chapter: 17, verse: 21, reference: 'Lucas 17:21', text: 'Nem dirão: Ei-lo aqui, ou: Ei-lo ali; porque eis que o reino de Deus está dentro de vós.' },
-  { book: 'Lucas', chapter: 18, verse: 1, reference: 'Lucas 18:1', text: 'E contou-lhes também uma parábola sobre o dever de orar sempre, e nunca desfalecer,' },
-  { book: 'Lucas', chapter: 18, verse: 13, reference: 'Lucas 18:13', text: 'E o publicano, estando em pé, de longe, nem ainda queria levantar os olhos ao céu, mas batia no peito, dizendo: Ó Deus, tem misericórdia de mim pecador!' },
-  { book: 'Lucas', chapter: 19, verse: 40, reference: 'Lucas 19:40', text: 'E, respondendo ele, disse-lhes: Digo-vos que, se estes se calarem, as pedras clamarão.' },
-  { book: 'Lucas', chapter: 21, verse: 33, reference: 'Lucas 21:33', text: 'Passará o céu e a terra, mas as minhas palavras não hão de passar.' },
-  { book: 'Lucas', chapter: 22, verse: 19, reference: 'Lucas 22:19', text: 'E, tomando o pão, e havendo dado graças, partiu-o, e deu-lho, dizendo: Isto é o meu corpo, que por vós é dado; fazei isto em memória de mim.' },
-  { book: 'Lucas', chapter: 23, verse: 34, reference: 'Lucas 23:34', text: 'E dizia Jesus: Pai, perdoa-lhes, porque não sabem o que fazem. E, repartindo as suas vestes, lançaram sortes.' },
-  { book: 'Lucas', chapter: 24, verse: 25, reference: 'Lucas 24:25', text: 'E ele lhes disse: Ó néscios, e tardos de coração para crer tudo o que os profetas disseram!' },
-  { book: 'João', chapter: 1, verse: 4, reference: 'João 1:4', text: 'Nele estava a vida, e a vida era a luz dos homens.' },
-  { book: 'João', chapter: 1, verse: 17, reference: 'João 1:17', text: 'Porque a lei foi dada por Moisés; a graça e a verdade vieram por Jesus Cristo.' },
-  { book: 'João', chapter: 2, verse: 5, reference: 'João 2:5', text: 'Sua mãe disse aos serventes: Fazei tudo quanto ele vos disser.' },
-  { book: 'João', chapter: 3, verse: 17, reference: 'João 3:17', text: 'Porque Deus enviou o seu Filho ao mundo, não para que condenasse o mundo, mas para que o mundo fosse salvo por ele.' },
-  { book: 'João', chapter: 3, verse: 30, reference: 'João 3:30', text: 'É necessário que ele cresça e que eu diminua.' },
-  { book: 'João', chapter: 4, verse: 23, reference: 'João 4:23', text: 'Mas a hora vem, e agora é, em que os verdadeiros adoradores adorarão o Pai em espírito e em verdade; porque o Pai procura a tais que assim o adorem.' },
-  { book: 'João', chapter: 4, verse: 34, reference: 'João 4:34', text: 'Jesus lhes disse: A minha comida é fazer a vontade daquele que me enviou, e completar a sua obra.' },
-  { book: 'João', chapter: 5, verse: 39, reference: 'João 5:39', text: 'Examinais as Escrituras, porque vós cuidais ter nelas a vida eterna, e são elas que de mim testificam.' },
-  { book: 'João', chapter: 6, verse: 27, reference: 'João 6:27', text: 'Trabalhai, não pela comida que perece, mas pela comida que permanece para a vida eterna, a qual o Filho do homem vos dará; porque a este o Pai, Deus, o selou.' },
-  { book: 'João', chapter: 6, verse: 29, reference: 'João 6:29', text: 'Jesus respondeu, e disse-lhes: A obra de Deus é esta: Que creiais naquele que ele enviou.' },
-  { book: 'João', chapter: 6, verse: 37, reference: 'João 6:37', text: 'Todo o que o Pai me dá virá a mim; e o que vem a mim de maneira nenhuma o lançarei fora.' },
-  { book: 'João', chapter: 6, verse: 68, reference: 'João 6:68', text: 'Respondeu-lhe, pois, Simão Pedro: Senhor, para quem iremos nós? Tu tens as palavras da vida eterna.' },
-  { book: 'João', chapter: 7, verse: 17, reference: 'João 7:17', text: 'Se alguém quiser fazer a vontade dele, pela mesma doutrina conhecerá se ela é de Deus, ou se eu falo de mim mesmo.' },
-  { book: 'João', chapter: 8, verse: 31, reference: 'João 8:31', text: 'Dizia, pois, Jesus aos judeus que criam nele: Se vós permanecerdes na minha palavra, verdadeiramente sois meus discípulos;' },
-  { book: 'João', chapter: 8, verse: 58, reference: 'João 8:58', text: 'Disse-lhes Jesus: Em verdade, em verdade vos digo que antes que Abraão existisse, eu sou.' },
-  { book: 'João', chapter: 9, verse: 25, reference: 'João 9:25', text: 'Respondeu ele, pois, e disse: Se é pecador, não sei; uma coisa sei, é que, havendo eu sido cego, agora vejo.' },
-  { book: 'João', chapter: 10, verse: 14, reference: 'João 10:14', text: 'Eu sou o bom Pastor, e conheço as minhas ovelhas, e das minhas sou conhecido.' },
-  { book: 'João', chapter: 10, verse: 28, reference: 'João 10:28', text: 'E dou-lhes a vida eterna, e nunca hão de perecer, e ninguém as arrebatará da minha mão.' },
-  { book: 'João', chapter: 11, verse: 35, reference: 'João 11:35', text: 'Jesus chorou.' },
-  { book: 'João', chapter: 12, verse: 24, reference: 'João 12:24', text: 'Na verdade, na verdade vos digo que, se o grão de trigo, caindo na terra, não morrer, fica ele só; mas se morrer, dá muito fruto.' },
-  { book: 'João', chapter: 12, verse: 46, reference: 'João 12:46', text: 'Eu sou a luz que vim ao mundo, para que todo aquele que crê em mim não permaneça nas trevas.' },
-  { book: 'João', chapter: 13, verse: 14, reference: 'João 13:14', text: 'Pois que eu, Senhor e Mestre, vos lavei os pés, vós deveis também lavar os pés uns aos outros.' },
-  { book: 'João', chapter: 13, verse: 34, reference: 'João 13:34', text: 'Um novo mandamento vos dou: Que vos ameis uns aos outros; como eu vos amei a vós, que também vós uns aos outros vos ameis.' },
-  { book: 'João', chapter: 14, verse: 15, reference: 'João 14:15', text: 'Se me amais, guardai os meus mandamentos.' },
-  { book: 'João', chapter: 14, verse: 21, reference: 'João 14:21', text: 'Aquele que tem os meus mandamentos e os guarda, esse é o que me ama; e aquele que me ama será amado de meu Pai, e eu o amarei, e me manifestarei a ele.' },
-  { book: 'João', chapter: 14, verse: 26, reference: 'João 14:26', text: 'Mas aquele Consolador, o Espírito Santo, que o Pai enviará em meu nome, esse vos ensinará todas as coisas, e vos fará lembrar de tudo quanto vos tenho dito.' },
-  { book: 'João', chapter: 15, verse: 4, reference: 'João 15:4', text: 'Estai em mim, e eu em vós; como a vara de si mesma não pode dar fruto, se não estiver na videira, assim também vós, se não estiverdes em mim.' },
-  { book: 'João', chapter: 15, verse: 9, reference: 'João 15:9', text: 'Como o Pai me amou, também eu vos amei a vós; permanecei no meu amor.' },
-  { book: 'João', chapter: 15, verse: 11, reference: 'João 15:11', text: 'Tenho-vos dito isto, para que o meu gozo permaneça em vós, e o vosso gozo seja completo.' },
-  { book: 'João', chapter: 16, verse: 24, reference: 'João 16:24', text: 'Até agora nada pedistes em meu nome; pedi, e recebereis, para que o vosso gozo se cumpra.' },
-  { book: 'João', chapter: 17, verse: 21, reference: 'João 17:21', text: 'Para que todos sejam um, como tu, ó Pai, o és em mim, e eu em ti; que também eles sejam um em nós, para que o mundo creia que tu me enviaste.' },
-  { book: 'João', chapter: 20, verse: 21, reference: 'João 20:21', text: 'Disse-lhes, pois, Jesus outra vez: Paz seja convosco; assim como o Pai me enviou, também eu vos envio a vós.' },
-  { book: 'João', chapter: 20, verse: 29, reference: 'João 20:29', text: 'Disse-lhe Jesus: Porque me viste, Tomé, creste; bem-aventurados os que não viram e creram.' },
-  { book: 'João', chapter: 21, verse: 15, reference: 'João 21:15', text: 'E, depois de terem jantado, disse Jesus a Simão Pedro: Simão, filho de Jonas, amas-me mais do que estes? E ele respondeu: Sim, Senhor; tu sabes que te amo. Disse-lhe: Apascenta os meus cordeiros.' },
-  { book: 'Atos', chapter: 1, verse: 8, reference: 'Atos 1:8', text: 'Mas recebereis a virtude do Espírito Santo, que há de vir sobre vós; e ser-me-eis testemunhas tanto em Jerusalém como em toda a Judéia e Samaria, e até aos confins da terra.' },
-  { book: 'Atos', chapter: 2, verse: 42, reference: 'Atos 2:42', text: 'E perseveravam na doutrina dos apóstolos, e na comunhão, e no partir do pão, e nas orações.' },
-  { book: 'Atos', chapter: 4, verse: 19, reference: 'Atos 4:19', text: 'Respondendo, porém, Pedro e João, lhes disseram: Julgai vós se é justo, diante de Deus, ouvir-vos antes a vós do que a Deus.' },
-  { book: 'Atos', chapter: 5, verse: 42, reference: 'Atos 5:42', text: 'E todos os dias, no templo e nas casas, não cessavam de ensinar, e de anunciar a Jesus Cristo.' },
-  { book: 'Atos', chapter: 10, verse: 34, reference: 'Atos 10:34', text: 'E, abrindo Pedro a boca, disse: Na verdade reconheço que Deus não faz acepção de pessoas;' },
-  { book: 'Atos', chapter: 10, verse: 35, reference: 'Atos 10:35', text: 'Mas que, em toda a nação, aquele que o teme e faz o que é justo lhe é agradável.' },
-  { book: 'Atos', chapter: 13, verse: 47, reference: 'Atos 13:47', text: 'Porque o Senhor assim no-lo mandou, dizendo: Eu te pus para luz dos gentios, a fim de que sejas para salvação até aos confins da terra.' },
-  { book: 'Atos', chapter: 15, verse: 11, reference: 'Atos 15:11', text: 'Mas cremos que pela graça do Senhor Jesus Cristo seremos salvos, como eles também.' },
-  { book: 'Atos', chapter: 16, verse: 25, reference: 'Atos 16:25', text: 'E, perto da meia-noite, orando Paulo e Silas, cantavam hinos a Deus, e os outros presos os escutavam.' },
-  { book: 'Atos', chapter: 17, verse: 11, reference: 'Atos 17:11', text: 'Ora, estes foram mais nobres do que os que estavam em Tessalônica, porque de bom grado receberam a palavra, examinando cada dia nas Escrituras se estas coisas eram assim.' },
-  { book: 'Atos', chapter: 20, verse: 24, reference: 'Atos 20:24', text: 'Mas em nada tenho a minha vida por preciosa, contanto que cumpra com alegria a minha carreira, e o ministério que recebi do Senhor Jesus, para dar testemunho do evangelho da graça de Deus.' },
-  { book: 'Atos', chapter: 20, verse: 28, reference: 'Atos 20:28', text: 'Olhai, pois, por vós, e por todo o rebanho sobre que o Espírito Santo vos constituiu bispos, para apascentardes a igreja de Deus, que ele resgatou com o seu próprio sangue.' },
-  { book: 'Atos', chapter: 24, verse: 16, reference: 'Atos 24:16', text: 'E nisso procuro sempre ter uma consciência sem ofensa, tanto para com Deus como para com os homens.' },
-  { book: 'Romanos', chapter: 1, verse: 17, reference: 'Romanos 1:17', text: 'Porque nele se descobre a justiça de Deus de fé em fé, como está escrito: Mas o justo viverá pela fé.' },
-  { book: 'Romanos', chapter: 2, verse: 11, reference: 'Romanos 2:11', text: 'Porque, para com Deus, não há acepção de pessoas.' },
-  { book: 'Romanos', chapter: 3, verse: 24, reference: 'Romanos 3:24', text: 'Sendo justificados gratuitamente pela sua graça, pela redenção que há em Cristo Jesus.' },
-  { book: 'Romanos', chapter: 4, verse: 5, reference: 'Romanos 4:5', text: 'Mas, àquele que não pratica, mas crê naquele que justifica o ímpio, a sua fé lhe é imputada como justiça.' },
-  { book: 'Romanos', chapter: 5, verse: 12, reference: 'Romanos 5:12', text: 'Portanto, como por um homem entrou o pecado no mundo, e pelo pecado a morte, assim também a morte passou a todos os homens por isso que todos pecaram.' },
-  { book: 'Romanos', chapter: 6, verse: 4, reference: 'Romanos 6:4', text: 'De sorte que fomos sepultados com ele pelo batismo na morte; para que, como Cristo ressuscitou dos mortos pela glória do Pai, assim andemos nós também em novidade de vida.' },
-  { book: 'Romanos', chapter: 6, verse: 13, reference: 'Romanos 6:13', text: 'Nem tampouco apresenteis os vossos membros ao pecado por instrumentos de iniqüidade; mas apresentai-vos a Deus, como vivos dentre mortos, e os vossos membros a Deus, como instrumentos de justiça.' },
-  { book: 'Romanos', chapter: 7, verse: 15, reference: 'Romanos 7:15', text: 'Porque o que faço não o entendo; pois o que quero isso não faço, mas o que aborreço isso faço.' },
-  { book: 'Romanos', chapter: 8, verse: 2, reference: 'Romanos 8:2', text: 'Porque a lei do Espírito de vida, em Cristo Jesus, me livrou da lei do pecado e da morte.' },
-  { book: 'Romanos', chapter: 8, verse: 14, reference: 'Romanos 8:14', text: 'Porque todos os que são guiados pelo Espírito de Deus esses são filhos de Deus.' },
-  { book: 'Romanos', chapter: 8, verse: 15, reference: 'Romanos 8:15', text: 'Porque não recebestes o espírito de escravidão, para outra vez estardes em temor, mas recebestes o Espírito de adoção de filhos, pelo qual clamamos: Aba, Pai.' },
-  { book: 'Romanos', chapter: 8, verse: 32, reference: 'Romanos 8:32', text: 'Aquele que nem mesmo a seu próprio Filho poupou, antes o entregou por todos nós, como nos não dará também com ele todas as coisas?' },
-  { book: 'Romanos', chapter: 9, verse: 20, reference: 'Romanos 9:20', text: 'Mas, ó homem, quem és tu, que a Deus replicas? Porventura a coisa formada dirá ao que a formou: Por que me fizeste assim?' },
-  { book: 'Romanos', chapter: 10, verse: 4, reference: 'Romanos 10:4', text: 'Porque o fim da lei é Cristo para justiça de todo aquele que crê.' },
-  { book: 'Romanos', chapter: 10, verse: 13, reference: 'Romanos 10:13', text: 'Porque todo aquele que invocar o nome do Senhor será salvo.' },
-  { book: 'Romanos', chapter: 11, verse: 33, reference: 'Romanos 11:33', text: 'Ó profundidade das riquezas, tanto da sabedoria, como da ciência de Deus! Quão insondáveis são os seus juízos, e quão inescrutáveis os seus caminhos!' },
-  { book: 'Romanos', chapter: 12, verse: 3, reference: 'Romanos 12:3', text: 'Porque pela graça que me é dada, digo a cada um dentre vós que não saiba mais do que convém saber, mas que saiba com temperança, conforme a medida da fé que Deus repartiu a cada um.' },
-  { book: 'Romanos', chapter: 12, verse: 9, reference: 'Romanos 12:9', text: 'O amor seja não fingido. Aborrecei o mal e apegai-vos ao bem.' },
-  { book: 'Romanos', chapter: 12, verse: 10, reference: 'Romanos 12:10', text: 'Amai-vos cordialmente uns aos outros com amor fraternal, preferindo-vos em honra uns aos outros.' },
-  { book: 'Romanos', chapter: 12, verse: 11, reference: 'Romanos 12:11', text: 'Não sejais vagarosos no cuidado; sede fervorosos no espírito, servindo ao Senhor.' },
-  { book: 'Romanos', chapter: 12, verse: 16, reference: 'Romanos 12:16', text: 'Tende o mesmo sentimento uns para com os outros; não ambicioneis coisas altas, mas acomodai-vos às humildes; não sejais sábios em vós mesmos.' },
-  { book: 'Romanos', chapter: 12, verse: 18, reference: 'Romanos 12:18', text: 'Se for possível, quanto estiver em vós, tende paz com todos os homens.' },
-  { book: 'Romanos', chapter: 13, verse: 8, reference: 'Romanos 13:8', text: 'A ninguém devais coisa alguma, senão o amor com que vos ameis uns aos outros; porque quem ama aos outros cumpriu a lei.' },
-  { book: 'Romanos', chapter: 13, verse: 10, reference: 'Romanos 13:10', text: 'O amor não faz mal ao próximo. De sorte que o cumprimento da lei é o amor.' },
-  { book: 'Romanos', chapter: 14, verse: 8, reference: 'Romanos 14:8', text: 'Porque, se vivemos, para o Senhor vivemos; se morremos, para o Senhor morremos. De sorte que, ou vivamos ou morramos, somos do Senhor.' },
-  { book: 'Romanos', chapter: 14, verse: 17, reference: 'Romanos 14:17', text: 'Porque o reino de Deus não é comida nem bebida, mas justiça, e paz, e alegria no Espírito Santo.' },
-  { book: 'Romanos', chapter: 15, verse: 13, reference: 'Romanos 15:13', text: 'Ora o Deus de esperança vos encha de todo o gozo e paz em crença, para que abundeis em esperança pela virtude do Espírito Santo.' },
-  { book: '1 Coríntios', chapter: 1, verse: 27, reference: '1 Coríntios 1:27', text: 'Mas Deus escolheu as coisas loucas deste mundo para confundir as sábias; e Deus escolheu as coisas fracas deste mundo para confundir as fortes;' },
-  { book: '1 Coríntios', chapter: 1, verse: 30, reference: '1 Coríntios 1:30', text: 'Mas vós sois dele, em Jesus Cristo, o qual para nós foi feito por Deus sabedoria, e justiça, e santificação, e redenção.' },
-  { book: '1 Coríntios', chapter: 2, verse: 14, reference: '1 Coríntios 2:14', text: 'Ora, o homem natural não compreende as coisas do Espírito de Deus, porque lhe parecem loucura; e não pode entendê-las, porque elas se discernem espiritualmente.' },
-  { book: '1 Coríntios', chapter: 3, verse: 6, reference: '1 Coríntios 3:6', text: 'Eu plantei, Apolo regou; mas Deus deu o crescimento.' },
-  { book: '1 Coríntios', chapter: 3, verse: 9, reference: '1 Coríntios 3:9', text: 'Porque nós somos cooperadores de Deus; vós sois lavoura de Deus e edifício de Deus.' },
-  { book: '1 Coríntios', chapter: 3, verse: 11, reference: '1 Coríntios 3:11', text: 'Porque ninguém pode pôr outro fundamento, além do que já está posto, o qual é Jesus Cristo.' },
-  { book: '1 Coríntios', chapter: 4, verse: 2, reference: '1 Coríntios 4:2', text: 'Além disso, requer-se nos despenseiros que cada um se ache fiel.' },
-  { book: '1 Coríntios', chapter: 6, verse: 11, reference: '1 Coríntios 6:11', text: 'E é o que alguns têm sido, mas haveis sido lavados, mas haveis sido santificados, mas haveis sido justificados em nome do Senhor Jesus, e pelo Espírito do nosso Deus.' },
-  { book: '1 Coríntios', chapter: 6, verse: 18, reference: '1 Coríntios 6:18', text: 'Fugi da prostituição. Todo o pecado que o homem comete é fora do corpo; mas o que se prostitui peca contra o seu próprio corpo.' },
-  { book: '1 Coríntios', chapter: 7, verse: 23, reference: '1 Coríntios 7:23', text: 'Por preço fostes comprados; não vos façais servos dos homens.' },
-  { book: '1 Coríntios', chapter: 8, verse: 3, reference: '1 Coríntios 8:3', text: 'Mas, se alguém ama a Deus, esse é conhecido dele.' },
-  { book: '1 Coríntios', chapter: 9, verse: 24, reference: '1 Coríntios 9:24', text: 'Não sabeis vós que os que correm no estádio, todos, na verdade, correm, mas um só leva o prêmio? Correi de tal maneira que o alcanceis.' },
-  { book: '1 Coríntios', chapter: 10, verse: 12, reference: '1 Coríntios 10:12', text: 'Aquele, pois, que cuida estar em pé, olhe não caia.' },
-  { book: '1 Coríntios', chapter: 10, verse: 31, reference: '1 Coríntios 10:31', text: 'Portanto, quer comais quer bebais, ou façais outra qualquer coisa, fazei tudo para glória de Deus.' },
-  { book: '1 Coríntios', chapter: 11, verse: 1, reference: '1 Coríntios 11:1', text: 'Sede meus imitadores, como também eu de Cristo.' },
-  { book: '1 Coríntios', chapter: 11, verse: 26, reference: '1 Coríntios 11:26', text: 'Porque todas as vezes que comerdes este pão e beberdes este cálice anunciais a morte do Senhor, até que venha.' },
-  { book: '1 Coríntios', chapter: 12, verse: 27, reference: '1 Coríntios 12:27', text: 'Ora, vós sois o corpo de Cristo, e seus membros em particular.' },
-  { book: '1 Coríntios', chapter: 13, verse: 2, reference: '1 Coríntios 13:2', text: 'E ainda que eu tenha o dom de profecia, e entenda todos os mistérios e toda a ciência, e ainda que tenha toda a fé, de maneira tal que transporte os montes, e não tenha caridade, nada seria.' },
-  { book: '1 Coríntios', chapter: 13, verse: 7, reference: '1 Coríntios 13:7', text: 'Tudo sofre, tudo crê, tudo espera, tudo suporta.' },
-  { book: '1 Coríntios', chapter: 13, verse: 8, reference: '1 Coríntios 13:8', text: 'A caridade nunca falha; mas havendo profecias, serão aniquiladas; havendo línguas, cessarão; havendo ciência, desaparecerá;' },
-  { book: '1 Coríntios', chapter: 13, verse: 12, reference: '1 Coríntios 13:12', text: 'Porque agora vemos por espelho em enigma, mas então veremos face a face; agora conheço em parte, mas então conhecerei como também sou conhecido.' },
-  { book: '1 Coríntios', chapter: 14, verse: 40, reference: '1 Coríntios 14:40', text: 'Mas faça-se tudo decentemente e com ordem.' },
-  { book: '1 Coríntios', chapter: 15, verse: 10, reference: '1 Coríntios 15:10', text: 'Mas pela graça de Deus sou o que sou; e a sua graça para comigo não foi vã, antes trabalhei muito mais do que todos eles; todavia não eu, mas a graça de Deus que está comigo.' },
-  { book: '1 Coríntios', chapter: 15, verse: 31, reference: '1 Coríntios 15:31', text: 'Eu protesto pela vossa glória, que tenho em Cristo Jesus nosso Senhor, que cada dia morro.' },
-  { book: '1 Coríntios', chapter: 15, verse: 58, reference: '1 Coríntios 15:58', text: 'Portanto, meus amados irmãos, sede firmes e constantes, sempre abundantes na obra do Senhor, sabendo que o vosso trabalho não é vão no Senhor.' },
-  { book: '2 Coríntios', chapter: 1, verse: 4, reference: '2 Coríntios 1:4', text: 'Que nos consola em toda a nossa tribulação, para que também possamos consolar os que estiverem em alguma tribulação, com a consolação com que nós mesmos somos consolados de Deus.' },
-  { book: '2 Coríntios', chapter: 1, verse: 20, reference: '2 Coríntios 1:20', text: 'Porque todas quantas promessas há de Deus, são nele sim, e nele Amém, para glória de Deus por nós.' },
-  { book: '2 Coríntios', chapter: 2, verse: 14, reference: '2 Coríntios 2:14', text: 'E graças a Deus, que sempre nos faz triunfar em Cristo, e por meio de nós manifesta o cheiro do seu conhecimento em todo o lugar.' },
-  { book: '2 Coríntios', chapter: 3, verse: 5, reference: '2 Coríntios 3:5', text: 'Não que sejamos capazes, por nós, de pensar alguma coisa, como de nós mesmos; mas a nossa capacidade vem de Deus,' },
-  { book: '2 Coríntios', chapter: 3, verse: 18, reference: '2 Coríntios 3:18', text: 'Mas todos nós, com rosto descoberto, refletindo como um espelho a glória do Senhor, somos transformados de glória em glória na mesma imagem, como pelo Espírito do Senhor.' },
-  { book: '2 Coríntios', chapter: 4, verse: 8, reference: '2 Coríntios 4:8', text: 'Em tudo somos atribulados, mas não angustiados; perplexos, mas não desanimados.' },
-  { book: '2 Coríntios', chapter: 4, verse: 16, reference: '2 Coríntios 4:16', text: 'Por isso não desfalecemos; mas, ainda que o nosso homem exterior se corrompa, o interior, contudo, se renova de dia em dia.' },
-  { book: '2 Coríntios', chapter: 5, verse: 1, reference: '2 Coríntios 5:1', text: 'Porque sabemos que, se a nossa casa terrestre deste tabernáculo se desfizer, temos de Deus um edifício, uma casa não feita por mãos, eterna, nos céus.' },
-  { book: '2 Coríntios', chapter: 5, verse: 7, reference: '2 Coríntios 5:7', text: 'Porque andamos por fé, e não por vista.' },
-  { book: '2 Coríntios', chapter: 5, verse: 14, reference: '2 Coríntios 5:14', text: 'Porque o amor de Cristo nos constrange, julgando nós assim: que, se um morreu por todos, logo todos morreram.' },
-  { book: '2 Coríntios', chapter: 5, verse: 15, reference: '2 Coríntios 5:15', text: 'E ele morreu por todos, para que os que vivem não vivam mais para si, mas para aquele que por eles morreu e ressuscitou.' },
-  { book: '2 Coríntios', chapter: 5, verse: 17, reference: '2 Coríntios 5:17', text: 'Assim que, se alguém está em Cristo, nova criatura é; as coisas velhas já passaram; eis que tudo se fez novo.' },
-  { book: '2 Coríntios', chapter: 5, verse: 20, reference: '2 Coríntios 5:20', text: 'De sorte que somos embaixadores da parte de Cristo, como se Deus por nós rogasse. Rogamo-vos, pois, da parte de Cristo, que vos reconcilieis com Deus.' },
-  { book: '2 Coríntios', chapter: 6, verse: 2, reference: '2 Coríntios 6:2', text: 'Porque diz: Eu te ouvi no tempo aceitável e socorri-te no dia da salvação. Eis aqui agora o tempo aceitável, eis aqui agora o dia da salvação.' },
-  { book: '2 Coríntios', chapter: 7, verse: 10, reference: '2 Coríntios 7:10', text: 'Porque a tristeza segundo Deus opera arrependimento para a salvação, da qual ninguém se arrepende; mas a tristeza do mundo opera a morte.' },
-  { book: '2 Coríntios', chapter: 8, verse: 9, reference: '2 Coríntios 8:9', text: 'Já sabeis a graça de nosso Senhor Jesus Cristo, que, sendo rico, por amor de vós se fez pobre; para que pela sua pobreza enriquecêsseis.' },
-  { book: '2 Coríntios', chapter: 9, verse: 6, reference: '2 Coríntios 9:6', text: 'E digo isto: Que o que semeia pouco, pouco também ceifará; e o que semeia em abundância, em abundância ceifará.' },
-  { book: '2 Coríntios', chapter: 9, verse: 15, reference: '2 Coríntios 9:15', text: 'Graças a Deus pelo seu dom inefável.' },
-  { book: '2 Coríntios', chapter: 10, verse: 4, reference: '2 Coríntios 10:4', text: 'Porque as armas da nossa milícia não são carnais, mas poderosas em Deus para destruição das fortalezas;' },
-  { book: '2 Coríntios', chapter: 12, verse: 9, reference: '2 Coríntios 12:9', text: 'E disse-me: A minha graça te basta, porque o meu poder se aperfeiçoa na fraqueza. De boa vontade, pois, me gloriarei nas minhas fraquezas, para que em mim habite o poder de Cristo.' },
-  { book: '2 Coríntios', chapter: 12, verse: 10, reference: '2 Coríntios 12:10', text: 'Pelo que sinto prazer nas fraquezas, nas injúrias, nas necessidades, nas perseguições, nas angústias por amor de Cristo. Porque quando estou fraco então sou forte.' },
-  { book: 'Gálatas', chapter: 1, verse: 4, reference: 'Gálatas 1:4', text: 'O qual se deu a si mesmo por nossos pecados, para nos livrar do presente século mau, segundo a vontade de Deus nosso Pai,' },
-  { book: 'Gálatas', chapter: 2, verse: 20, reference: 'Gálatas 2:20', text: 'Já estou crucificado com Cristo; e vivo, não mais eu, mas Cristo vive em mim; e a vida que agora vivo na carne, vivo-a na fé do Filho de Deus, o qual me amou, e se entregou a si mesmo por mim.' },
-  { book: 'Gálatas', chapter: 3, verse: 13, reference: 'Gálatas 3:13', text: 'Cristo nos resgatou da maldição da lei, fazendo-se maldição por nós; porque está escrito: Maldito todo aquele que for pendurado no madeiro.' },
-  { book: 'Gálatas', chapter: 3, verse: 28, reference: 'Gálatas 3:28', text: 'Nisto não há judeu nem grego; não há servo nem livre; não há macho nem fêmea; porque todos vós sois um em Cristo Jesus.' },
-  { book: 'Gálatas', chapter: 5, verse: 6, reference: 'Gálatas 5:6', text: 'Porque em Jesus Cristo nem a circuncisão nem a incircuncisão tem virtude alguma, mas sim a fé que opera por amor.' },
-  { book: 'Gálatas', chapter: 5, verse: 16, reference: 'Gálatas 5:16', text: 'Digo, porém: Andai em Espírito, e não cumprireis a concupiscência da carne.' },
-  { book: 'Gálatas', chapter: 5, verse: 23, reference: 'Gálatas 5:23', text: 'Mansidão, temperança. Contra estas coisas não há lei.' },
-  { book: 'Gálatas', chapter: 6, verse: 1, reference: 'Gálatas 6:1', text: 'Irmãos, se algum homem chegar a ser surpreendido nalguma ofensa, vós, que sois espirituais, encaminhai o tal com espírito de mansidão; olhando por ti mesmo, para que não sejas também tentado.' },
-  { book: 'Gálatas', chapter: 6, verse: 14, reference: 'Gálatas 6:14', text: 'Mas longe esteja de mim gloriar-me, a não ser na cruz de nosso Senhor Jesus Cristo, pela qual o mundo está crucificado para mim e eu para o mundo.' },
-  { book: 'Efésios', chapter: 1, verse: 3, reference: 'Efésios 1:3', text: 'Bendito o Deus e Pai de nosso Senhor Jesus Cristo, o qual nos abençoou com todas as bênçãos espirituais nos lugares celestiais em Cristo;' },
-  { book: 'Efésios', chapter: 1, verse: 4, reference: 'Efésios 1:4', text: 'Como também nos elegeu nele antes da fundação do mundo, para que fôssemos santos e irrepreensíveis diante dele em amor;' },
-  { book: 'Efésios', chapter: 1, verse: 6, reference: 'Efésios 1:6', text: 'Para louvor da glória da sua graça, pela qual nos fez agradáveis a si no Amado,' },
-  { book: 'Efésios', chapter: 1, verse: 18, reference: 'Efésios 1:18', text: 'Iluminados os olhos do vosso entendimento, para que saibais qual seja a esperança da sua vocação, e quais as riquezas da glória da sua herança nos santos;' },
-  { book: 'Efésios', chapter: 2, verse: 4, reference: 'Efésios 2:4', text: 'Mas Deus, que é riquíssimo em misericórdia, pelo seu muito amor com que nos amou,' },
-  { book: 'Efésios', chapter: 2, verse: 5, reference: 'Efésios 2:5', text: 'Mesmo estando nós mortos em pecados, nos vivificou juntamente com Cristo (pela graça sois salvos),' },
-  { book: 'Efésios', chapter: 2, verse: 19, reference: 'Efésios 2:19', text: 'Assim que já não sois estrangeiros, nem forasteiros, mas concidadãos dos santos, e da família de Deus;' },
-  { book: 'Efésios', chapter: 3, verse: 17, reference: 'Efésios 3:17', text: 'Para que Cristo habite pela fé nos vossos corações; a fim de, estando arraigados e fundados em amor,' },
-  { book: 'Efésios', chapter: 3, verse: 19, reference: 'Efésios 3:19', text: 'E conhecer o amor de Cristo, que excede todo o entendimento, para que sejais cheios de toda a plenitude de Deus.' },
-  { book: 'Efésios', chapter: 4, verse: 1, reference: 'Efésios 4:1', text: 'Rogo-vos, pois, eu, o preso do Senhor, que andeis como é digno da vocação com que fostes chamados,' },
-  { book: 'Efésios', chapter: 4, verse: 3, reference: 'Efésios 4:3', text: 'Procurando guardar a unidade do Espírito pelo vínculo da paz.' },
-  { book: 'Efésios', chapter: 4, verse: 11, reference: 'Efésios 4:11', text: 'E ele mesmo deu uns para apóstolos, e outros para profetas, e outros para evangelistas, e outros para pastores e doutores,' },
-  { book: 'Efésios', chapter: 4, verse: 12, reference: 'Efésios 4:12', text: 'Querendo o aperfeiçoamento dos santos, para a obra do ministério, para edificação do corpo de Cristo;' },
-  { book: 'Efésios', chapter: 4, verse: 22, reference: 'Efésios 4:22', text: 'Que, quanto ao trato passado, vos despojeis do velho homem, que se corrompe pelas concupiscências do engano;' },
-  { book: 'Efésios', chapter: 4, verse: 23, reference: 'Efésios 4:23', text: 'E vos renoveis no espírito da vossa mente;' },
-  { book: 'Efésios', chapter: 4, verse: 24, reference: 'Efésios 4:24', text: 'E vos revistais do novo homem, que segundo Deus é criado em verdadeira justiça e santidade.' },
-  { book: 'Efésios', chapter: 4, verse: 26, reference: 'Efésios 4:26', text: 'Irai-vos, e não pequeis; não se ponha o sol sobre a vossa ira.' },
-  { book: 'Efésios', chapter: 4, verse: 30, reference: 'Efésios 4:30', text: 'E não entristeçais o Espírito Santo de Deus, no qual estais selados para o dia da redenção.' },
-  { book: 'Efésios', chapter: 4, verse: 31, reference: 'Efésios 4:31', text: 'Toda a amargura, e ira, e cólera, e gritaria, e blasfêmia e toda a malícia seja tirada de entre vós,' },
-  { book: 'Efésios', chapter: 5, verse: 8, reference: 'Efésios 5:8', text: 'Porque noutro tempo éreis trevas, mas agora sois luz no Senhor; andai como filhos da luz' },
-  { book: 'Efésios', chapter: 5, verse: 18, reference: 'Efésios 5:18', text: 'E não vos embriagueis com vinho, em que há contenda, mas enchei-vos do Espírito;' },
-  { book: 'Efésios', chapter: 5, verse: 19, reference: 'Efésios 5:19', text: 'Falando entre vós em salmos, e hinos, e cânticos espirituais; cantando e salmodiando ao Senhor no vosso coração;' },
-  { book: 'Efésios', chapter: 5, verse: 20, reference: 'Efésios 5:20', text: 'Dando sempre graças por tudo a Deus, o Pai, em nome de nosso Senhor Jesus Cristo,' },
-  { book: 'Efésios', chapter: 6, verse: 4, reference: 'Efésios 6:4', text: 'E vós, pais, não provoqueis à ira a vossos filhos, mas criai-os na doutrina e admoestação do Senhor.' },
-  { book: 'Efésios', chapter: 6, verse: 13, reference: 'Efésios 6:13', text: 'Portanto, tomai toda a armadura de Deus, para que possais resistir no dia mau e, havendo feito tudo, ficar firmes.' },
-  { book: 'Efésios', chapter: 6, verse: 16, reference: 'Efésios 6:16', text: 'Tomando sobretudo o escudo da fé, com o qual podereis apagar todos os dardos inflamados do maligno.' },
-  { book: 'Efésios', chapter: 6, verse: 17, reference: 'Efésios 6:17', text: 'Tomai também o capacete da salvação, e a espada do Espírito, que é a palavra de Deus.' },
-  { book: 'Filipenses', chapter: 1, verse: 9, reference: 'Filipenses 1:9', text: 'E peço isto: que o vosso amor cresça mais e mais em ciência e em todo o conhecimento,' },
-  { book: 'Filipenses', chapter: 1, verse: 21, reference: 'Filipenses 1:21', text: 'Porque para mim o viver é Cristo, e o morrer é ganho.' },
-  { book: 'Filipenses', chapter: 1, verse: 29, reference: 'Filipenses 1:29', text: 'Porque a vós vos foi concedido, em relação a Cristo, não somente crer nele, mas também padecer por ele,' },
-  { book: 'Filipenses', chapter: 2, verse: 4, reference: 'Filipenses 2:4', text: 'Não atente cada um somente para o que é seu, mas cada qual também para o que é dos outros.' },
-  { book: 'Filipenses', chapter: 2, verse: 8, reference: 'Filipenses 2:8', text: 'E, achado na forma como homem, humilhou-se a si mesmo, sendo obediente até à morte, e morte de cruz.' },
-  { book: 'Filipenses', chapter: 2, verse: 14, reference: 'Filipenses 2:14', text: 'Fazei todas as coisas sem murmurações nem contendas,' },
-  { book: 'Filipenses', chapter: 3, verse: 7, reference: 'Filipenses 3:7', text: 'Mas o que para mim era ganho, isso estimei como perda por amor de Cristo.' },
-  { book: 'Filipenses', chapter: 3, verse: 13, reference: 'Filipenses 3:13', text: 'Irmãos, quanto a mim, não julgo que o haja alcançado; mas uma coisa faço, e é que, esquecendo-me das coisas que atrás ficam, e avançando para as que estão diante,' },
-  { book: 'Filipenses', chapter: 3, verse: 20, reference: 'Filipenses 3:20', text: 'Mas a nossa cidade está nos céus, donde também esperamos o Salvador, o Senhor Jesus Cristo,' },
-  { book: 'Filipenses', chapter: 4, verse: 5, reference: 'Filipenses 4:5', text: 'A vossa moderação seja conhecida de todos os homens. Perto está o Senhor.' },
-  { book: 'Filipenses', chapter: 4, verse: 6, reference: 'Filipenses 4:6', text: 'Não estejais inquietos por coisa alguma; antes as vossas petições sejam em tudo conhecidas diante de Deus pela oração e súplica, com ação de graças.' },
-  { book: 'Filipenses', chapter: 4, verse: 8, reference: 'Filipenses 4:8', text: 'Quanto ao mais, irmãos, tudo o que é verdadeiro, tudo o que é honesto, tudo o que é justo, tudo o que é puro, tudo o que é amável, tudo o que é de boa fama, se há alguma virtude, e se há algum louvor, nisso pensai.' },
-  { book: 'Filipenses', chapter: 4, verse: 11, reference: 'Filipenses 4:11', text: 'Não digo isto por causa da pobreza, porque aprendi a contentar-me com o que tenho.' },
-  { book: 'Filipenses', chapter: 4, verse: 12, reference: 'Filipenses 4:12', text: 'Sei estar abatido, e sei também abundar; em toda a maneira, e em todas as coisas estou instruído, tanto a ter fartura, como a ter fome; tanto a ter abundância, como a padecer necessidade.' },
-  { book: 'Colossenses', chapter: 1, verse: 9, reference: 'Colossenses 1:9', text: 'Por esta razão também nós, desde o dia em que o ouvimos, não cessamos de orar por vós, e de pedir que sejais cheios do conhecimento da sua vontade, em toda a sabedoria e inteligência espiritual;' },
-  { book: 'Colossenses', chapter: 1, verse: 16, reference: 'Colossenses 1:16', text: 'Porque nele foram criadas todas as coisas que há nos céus e na terra, visíveis e invisíveis, sejam tronos, sejam dominações, sejam principados, sejam potestades. Tudo foi criado por ele e para ele.' },
-  { book: 'Colossenses', chapter: 1, verse: 17, reference: 'Colossenses 1:17', text: 'E ele é antes de todas as coisas, e todas as coisas subsistem por ele.' },
-  { book: 'Colossenses', chapter: 1, verse: 18, reference: 'Colossenses 1:18', text: 'E ele é a cabeça do corpo, da igreja; é o princípio e o primogênito dentre os mortos, para que em tudo tenha a primazia.' },
-  { book: 'Colossenses', chapter: 1, verse: 27, reference: 'Colossenses 1:27', text: 'Aos quais Deus quis fazer conhecer quais são as riquezas da glória deste mistério entre os gentios, que é Cristo em vós, esperança da glória;' },
-  { book: 'Colossenses', chapter: 2, verse: 9, reference: 'Colossenses 2:9', text: 'Porque nele habita corporalmente toda a plenitude da divindade;' },
-  { book: 'Colossenses', chapter: 2, verse: 10, reference: 'Colossenses 2:10', text: 'E estais perfeitos nele, que é a cabeça de todo o principado e potestade,' },
-  { book: 'Colossenses', chapter: 3, verse: 1, reference: 'Colossenses 3:1', text: 'Portanto, se já ressuscitastes com Cristo, buscai as coisas que são de cima, onde Cristo está assentado à destra de Deus.' },
-  { book: 'Colossenses', chapter: 3, verse: 3, reference: 'Colossenses 3:3', text: 'Porque já estais mortos, e a vossa vida está escondida com Cristo em Deus.' },
-  { book: 'Colossenses', chapter: 3, verse: 4, reference: 'Colossenses 3:4', text: 'Quando Cristo, que é a nossa vida, se manifestar, então também vós vos manifestareis com ele em glória.' },
-  { book: 'Colossenses', chapter: 3, verse: 13, reference: 'Colossenses 3:13', text: 'Suportando-vos uns aos outros, e perdoando-vos uns aos outros, se alguém tiver queixa contra outro; assim como Cristo vos perdoou, assim fazei vós também.' },
-  { book: 'Colossenses', chapter: 3, verse: 16, reference: 'Colossenses 3:16', text: 'A palavra de Cristo habite em vós abundantemente, em toda a sabedoria, ensinando-vos e admoestando-vos uns aos outros, com salmos, hinos e cânticos espirituais, cantando com graça em vosso coração ao Senhor.' },
-  { book: 'Colossenses', chapter: 3, verse: 23, reference: 'Colossenses 3:23', text: 'E tudo quanto fizerdes, fazei-o de todo o coração, como ao Senhor, e não aos homens,' },
-  { book: 'Colossenses', chapter: 3, verse: 24, reference: 'Colossenses 3:24', text: 'Sabendo que recebereis do Senhor o galardão da herança, porque a Cristo, o Senhor, servis.' },
-  { book: 'Colossenses', chapter: 4, verse: 5, reference: 'Colossenses 4:5', text: 'Andai com sabedoria para com os que estão de fora, remindo o tempo.' },
-  { book: '1 Tessalonicenses', chapter: 1, verse: 3, reference: '1 Tessalonicenses 1:3', text: 'Lembrando-nos sem cessar da obra da vossa fé, do trabalho da vossa caridade e da paciência da vossa esperança no nosso Senhor Jesus Cristo, diante de nosso Deus e Pai,' },
-  { book: '1 Tessalonicenses', chapter: 2, verse: 4, reference: '1 Tessalonicenses 2:4', text: 'Mas, como fomos aprovados de Deus para que o evangelho nos fosse confiado, assim falamos, não como que agradando aos homens, mas a Deus, que prova os nossos corações.' },
-  { book: '1 Tessalonicenses', chapter: 4, verse: 11, reference: '1 Tessalonicenses 4:11', text: 'E procureis viver quietos, e tratar dos vossos próprios negócios, e trabalhar com vossas próprias mãos, como já vo-lo temos mandado;' },
-  { book: '1 Tessalonicenses', chapter: 4, verse: 13, reference: '1 Tessalonicenses 4:13', text: 'Não quero, porém, irmãos, que sejais ignorantes acerca dos que já dormem, para que não vos entristeçais, como os demais, que não têm esperança.' },
-  { book: '1 Tessalonicenses', chapter: 5, verse: 11, reference: '1 Tessalonicenses 5:11', text: 'Por isso exortai-vos uns aos outros, e edificai-vos uns aos outros, como também o fazeis.' },
-  { book: '1 Tessalonicenses', chapter: 5, verse: 14, reference: '1 Tessalonicenses 5:14', text: 'Exortamo-vos também, irmãos, que admoesteis os desordeiros, consoleis os de pouco ânimo, sustenteis os fracos, e sejais pacientes para com todos.' },
-  { book: '1 Tessalonicenses', chapter: 5, verse: 15, reference: '1 Tessalonicenses 5:15', text: 'Vede que ninguém dê a outrem mal por mal, mas segui sempre o bem, assim entre vós como para com todos.' },
-  { book: '1 Tessalonicenses', chapter: 5, verse: 21, reference: '1 Tessalonicenses 5:21', text: 'Examinai tudo. Retende o bem.' },
-  { book: '1 Tessalonicenses', chapter: 5, verse: 22, reference: '1 Tessalonicenses 5:22', text: 'Abstende-vos de toda a aparência do mal.' },
-  { book: '2 Tessalonicenses', chapter: 1, verse: 11, reference: '2 Tessalonicenses 1:11', text: 'Pelo que também oramos sempre por vós, para que o nosso Deus vos faça dignos da sua vocação, e cumpra com poder todo o desejo da sua bondade, e a obra da fé;' },
-  { book: '2 Tessalonicenses', chapter: 2, verse: 15, reference: '2 Tessalonicenses 2:15', text: 'Assim, pois, irmãos, estai firmes, e retende as tradições que vos foram ensinadas, seja por palavra, seja por epístola nossa.' },
-  { book: '2 Tessalonicenses', chapter: 3, verse: 10, reference: '2 Tessalonicenses 3:10', text: 'Porque, quando ainda estávamos convosco, vos mandamos isto, que, se alguém não quiser trabalhar, não coma também.' },
-  { book: '1 Timóteo', chapter: 1, verse: 5, reference: '1 Timóteo 1:5', text: 'Ora, o fim do mandamento é o amor de um coração puro, e de uma boa consciência, e de uma fé não fingida.' },
-  { book: '1 Timóteo', chapter: 1, verse: 19, reference: '1 Timóteo 1:19', text: 'Conservando a fé e a boa consciência, rejeitando a qual alguns fizeram naufrágio na fé.' },
-  { book: '1 Timóteo', chapter: 2, verse: 1, reference: '1 Timóteo 2:1', text: 'Admoesto-te, pois, antes de tudo, que se façam deprecações, orações, intercessões, e ações de graças, por todos os homens;' },
-  { book: '1 Timóteo', chapter: 2, verse: 4, reference: '1 Timóteo 2:4', text: 'Que quer que todos os homens se salvem, e venham ao conhecimento da verdade.' },
-  { book: '1 Timóteo', chapter: 2, verse: 8, reference: '1 Timóteo 2:8', text: 'Quero, pois, que os homens orem em todo o lugar, levantando mãos santas, sem ira nem contenda.' },
-  { book: '1 Timóteo', chapter: 4, verse: 7, reference: '1 Timóteo 4:7', text: 'Mas rejeita as fábulas profanas e de velhas, e exercita-te a ti mesmo em piedade.' },
-  { book: '1 Timóteo', chapter: 4, verse: 8, reference: '1 Timóteo 4:8', text: 'Porque o exercício corporal para pouco aproveita, mas a piedade para tudo é proveitosa, tendo a promessa da vida presente e da que há de vir.' },
-  { book: '1 Timóteo', chapter: 4, verse: 12, reference: '1 Timóteo 4:12', text: 'Ninguém despreze a tua mocidade; mas sê o exemplo dos fiéis, na palavra, no trato, no amor, no espírito, na fé, na pureza.' },
-  { book: '1 Timóteo', chapter: 6, verse: 6, reference: '1 Timóteo 6:6', text: 'Mas é grande ganho a piedade com contentamento.' },
-  { book: '1 Timóteo', chapter: 6, verse: 11, reference: '1 Timóteo 6:11', text: 'Mas tu, ó homem de Deus, foge destas coisas, e segue a justiça, a piedade, a fé, o amor, a paciência, a mansidão.' },
-  { book: '1 Timóteo', chapter: 6, verse: 12, reference: '1 Timóteo 6:12', text: 'Milita a boa milícia da fé, toma posse da vida eterna, para a qual também foste chamado, tendo já feito boa confissão diante de muitas testemunhas.' },
-  { book: '2 Timóteo', chapter: 1, verse: 7, reference: '2 Timóteo 1:7', text: 'Porque Deus não nos deu o espírito de covardia, mas de fortaleza, e de amor, e de moderação.' },
-  { book: '2 Timóteo', chapter: 1, verse: 8, reference: '2 Timóteo 1:8', text: 'Portanto não te envergonhes do testemunho de nosso Senhor, nem de mim, que sou prisioneiro seu; antes participa das aflições do evangelho segundo o poder de Deus,' },
-  { book: '2 Timóteo', chapter: 2, verse: 2, reference: '2 Timóteo 2:2', text: 'E o que de mim, entre muitas testemunhas, ouviste, confia-o a homens fiéis, que sejam idôneos para também ensinarem os outros.' },
-  { book: '2 Timóteo', chapter: 2, verse: 3, reference: '2 Timóteo 2:3', text: 'Sofre, pois, comigo, as aflições, como bom soldado de Jesus Cristo.' },
-  { book: '2 Timóteo', chapter: 2, verse: 4, reference: '2 Timóteo 2:4', text: 'Ninguém que milita se embaraça com negócios desta vida, a fim de agradar àquele que o alistou para a guerra.' },
-  { book: '2 Timóteo', chapter: 2, verse: 19, reference: '2 Timóteo 2:19', text: 'Todavia o fundamento de Deus fica firme, tendo este selo: O Senhor conhece os que são seus, e qualquer que profere o nome de Cristo aparte-se da iniqüidade.' },
-  { book: '2 Timóteo', chapter: 2, verse: 22, reference: '2 Timóteo 2:22', text: 'Foge também das paixões da mocidade; e segue a justiça, a fé, o amor, e a paz com os que, de coração puro, invocam o Senhor.' },
-  { book: '2 Timóteo', chapter: 3, verse: 1, reference: '2 Timóteo 3:1', text: 'Sabe, porém, isto: que nos últimos dias sobrevirão tempos trabalhosos.' },
-  { book: '2 Timóteo', chapter: 3, verse: 15, reference: '2 Timóteo 3:15', text: 'E que desde a tua meninice sabes as sagradas Escrituras, que podem fazer-te sábio para a salvação, pela fé que há em Cristo Jesus.' },
-  { book: '2 Timóteo', chapter: 3, verse: 16, reference: '2 Timóteo 3:16', text: 'Toda a Escritura é divinamente inspirada, e proveitosa para ensinar, para redargüir, para corrigir, para instruir em justiça;' },
-  { book: '2 Timóteo', chapter: 3, verse: 17, reference: '2 Timóteo 3:17', text: 'Para que o homem de Deus seja perfeito, e perfeitamente instruído para toda a boa obra.' },
-  { book: '2 Timóteo', chapter: 4, verse: 3, reference: '2 Timóteo 4:3', text: 'Porque virá tempo em que não suportarão a sã doutrina; mas, tendo comichão nos ouvidos, amontoarão para si doutores conforme as suas próprias concupiscências;' },
-  { book: '2 Timóteo', chapter: 4, verse: 7, reference: '2 Timóteo 4:7', text: 'Combati o bom combate, acabei a carreira, guardei a fé.' },
-  { book: '2 Timóteo', chapter: 4, verse: 8, reference: '2 Timóteo 4:8', text: 'Desde agora, a coroa da justiça me está guardada, a qual o Senhor, justo juiz, me dará naquele dia; e não somente a mim, mas também a todos os que amarem a sua vinda.' },
-  { book: 'Tito', chapter: 2, verse: 7, reference: 'Tito 2:7', text: 'Em tudo te dá por exemplo de boas obras; na doutrina mostra incorrupção, gravidade, sinceridade,' },
-  { book: 'Tito', chapter: 2, verse: 12, reference: 'Tito 2:12', text: 'Ensinando-nos que, renunciando à impiedade e às concupiscências mundanas, vivamos neste presente século sóbria, e justa, e piamente,' },
-  { book: 'Tito', chapter: 2, verse: 14, reference: 'Tito 2:14', text: 'O qual se deu a si mesmo por nós para nos remir de toda a iniqüidade, e purificar para si um povo seu especial, zeloso de boas obras.' },
-  { book: 'Tito', chapter: 3, verse: 8, reference: 'Tito 3:8', text: 'Fiel é a palavra, e quero que deveras afirmes estas coisas, para que os que crêem em Deus procurem aplicar-se às boas obras; estas coisas são boas e proveitosas aos homens.' },
-  { book: 'Filemom', chapter: 1, verse: 6, reference: 'Filemom 1:6', text: 'Para que a comunicação da tua fé se torne eficaz, no pleno conhecimento de todo o bem que em vós há por Cristo Jesus.' },
-  { book: 'Hebreus', chapter: 1, verse: 14, reference: 'Hebreus 1:14', text: 'Não são porventura todos eles espíritos ministradores, enviados para servir a favor daqueles que hão de herdar a salvação?' },
-  { book: 'Hebreus', chapter: 2, verse: 1, reference: 'Hebreus 2:1', text: 'Portanto, convém-nos atentar com mais diligência para as coisas que já temos ouvido, para que em tempo algum nos desviemos delas.' },
-  { book: 'Hebreus', chapter: 2, verse: 3, reference: 'Hebreus 2:3', text: 'Como escaparemos nós, se não atentarmos para uma tão grande salvação, a qual, começando a ser anunciada pelo Senhor, foi-nos depois confirmada pelos que a ouviram,' },
-  { book: 'Hebreus', chapter: 3, verse: 13, reference: 'Hebreus 3:13', text: 'Antes exortai-vos uns aos outros todos os dias, durante o tempo que se chama Hoje, para que nenhum de vós se endureça pelo engano do pecado;' },
-  { book: 'Hebreus', chapter: 4, verse: 9, reference: 'Hebreus 4:9', text: 'Portanto, resta ainda um repouso para o povo de Deus.' },
-  { book: 'Hebreus', chapter: 4, verse: 14, reference: 'Hebreus 4:14', text: 'Visto que temos um grande sumo sacerdote, Jesus, Filho de Deus, que penetrou nos céus, retenhamos firmemente a nossa confissão.' },
-  { book: 'Hebreus', chapter: 4, verse: 15, reference: 'Hebreus 4:15', text: 'Porque não temos um sumo sacerdote que não possa compadecer-se das nossas fraquezas; porém, um que, como nós, em tudo foi tentado, mas sem pecado.' },
-  { book: 'Hebreus', chapter: 5, verse: 9, reference: 'Hebreus 5:9', text: 'E, sendo ele consumado, veio a ser causa de eterna salvação para todos os que lhe obedecem;' },
-  { book: 'Hebreus', chapter: 6, verse: 10, reference: 'Hebreus 6:10', text: 'Porque Deus não é injusto para se esquecer da vossa obra, e do trabalho de amor que para com o seu nome mostrastes, enquanto servistes aos santos e ainda servis.' },
-  { book: 'Hebreus', chapter: 7, verse: 25, reference: 'Hebreus 7:25', text: 'Portanto, pode também salvar perfeitamente os que por ele se chegam a Deus, vivendo sempre para interceder por eles.' },
-  { book: 'Hebreus', chapter: 9, verse: 14, reference: 'Hebreus 9:14', text: 'Quanto mais o sangue de Cristo, que pelo Espírito eterno se ofereceu a si mesmo imaculado a Deus, purificará as vossas consciências das obras mortas, para servirdes ao Deus vivo?' },
-  { book: 'Hebreus', chapter: 9, verse: 22, reference: 'Hebreus 9:22', text: 'E quase todas as coisas, segundo a lei, se purificam com sangue; e sem derramamento de sangue não há remissão.' },
-  { book: 'Hebreus', chapter: 10, verse: 19, reference: 'Hebreus 10:19', text: 'Tendo, pois, irmãos, ousadia para entrar no santuário, pelo sangue de Jesus,' },
-  { book: 'Hebreus', chapter: 10, verse: 22, reference: 'Hebreus 10:22', text: 'Cheguemo-nos com verdadeiro coração, em inteira certeza de fé, tendo os corações purificados da má consciência, e o corpo lavado com água limpa,' },
-  { book: 'Hebreus', chapter: 10, verse: 23, reference: 'Hebreus 10:23', text: 'Retenhamos firmes a confissão da nossa esperança, porque fiel é o que prometeu.' },
-  { book: 'Hebreus', chapter: 10, verse: 35, reference: 'Hebreus 10:35', text: 'Não rejeiteis, pois, a vossa confiança, que tem grande galardão.' },
-  { book: 'Hebreus', chapter: 10, verse: 36, reference: 'Hebreus 10:36', text: 'Porque necessitais de paciência, para que, depois de haverdes feito a vontade de Deus, possais alcançar a promessa.' },
-  { book: 'Hebreus', chapter: 11, verse: 1, reference: 'Hebreus 11:1', text: 'Ora, a fé é o firme fundamento das coisas que se esperam, e a prova das coisas que se não vêem.' },
-  { book: 'Hebreus', chapter: 11, verse: 6, reference: 'Hebreus 11:6', text: 'Ora, sem fé é impossível agradar-lhe; porque é necessário que aquele que se aproxima de Deus creia que ele existe, e que é galardoador dos que o buscam.' },
-  { book: 'Hebreus', chapter: 12, verse: 1, reference: 'Hebreus 12:1', text: 'Portanto nós também, pois que estamos rodeados de uma tão grande nuvem de testemunhas, deixemos todo o embaraço, e o pecado que tão de perto nos rodeia, e corramos com paciência a carreira que nos está proposta,' },
-  { book: 'Hebreus', chapter: 12, verse: 2, reference: 'Hebreus 12:2', text: 'Olhando para Jesus, autor e consumador da fé, o qual, pelo gozo que lhe estava proposto, suportou a cruz, desprezando a afronta, e assentou-se à destra do trono de Deus.' },
-  { book: 'Hebreus', chapter: 12, verse: 5, reference: 'Hebreus 12:5', text: 'E já vos esquecestes da exortação que como a filhos se vos dirige, dizendo: Filho meu, não desprezes a correção do Senhor, e não desmaies quando por ele fores repreendido;' },
-  { book: 'Hebreus', chapter: 12, verse: 6, reference: 'Hebreus 12:6', text: 'Porque o Senhor corrige o que ama, e açoita a qualquer que recebe por filho.' },
-  { book: 'Hebreus', chapter: 12, verse: 11, reference: 'Hebreus 12:11', text: 'Na verdade, toda a correção, ao presente, não parece ser de gozo, senão de tristeza, mas depois produz um fruto pacífico de justiça nos exercitados por ela.' },
-  { book: 'Hebreus', chapter: 12, verse: 14, reference: 'Hebreus 12:14', text: 'Segui a paz com todos, e a santificação, sem a qual ninguém verá o Senhor.' },
-  { book: 'Hebreus', chapter: 12, verse: 28, reference: 'Hebreus 12:28', text: 'Por isso, tendo recebido um reino que não pode ser abalado, retenhamos a graça, pela qual sirvamos a Deus agradavelmente, com reverência e piedade.' },
-  { book: 'Hebreus', chapter: 13, verse: 5, reference: 'Hebreus 13:5', text: 'Sejam os vossos costumes sem avareza, contentando-vos com o que tendes; porque ele disse: Não te deixarei, nem te desampararei.' },
-  { book: 'Hebreus', chapter: 13, verse: 8, reference: 'Hebreus 13:8', text: 'Jesus Cristo é o mesmo ontem, e hoje, e eternamente.' },
-  { book: 'Hebreus', chapter: 13, verse: 15, reference: 'Hebreus 13:15', text: 'Portanto ofereçamos sempre por ele a Deus sacrifício de louvor, isto é, o fruto dos lábios que confessam o seu nome.' },
-  { book: 'Hebreus', chapter: 13, verse: 17, reference: 'Hebreus 13:17', text: 'Obedecei a vossos pastores, e sujeitai-vos a eles; porque velam por vossas almas, como aqueles que hão de dar conta delas; para que o façam com alegria e não gemendo, porque isso não vos seria útil.' },
-  { book: 'Tiago', chapter: 1, verse: 2, reference: 'Tiago 1:2', text: 'Meus irmãos, tende grande gozo quando cairdes em várias tentações;' },
-  { book: 'Tiago', chapter: 1, verse: 3, reference: 'Tiago 1:3', text: 'Sabendo que a prova da vossa fé opera a paciência.' },
-  { book: 'Tiago', chapter: 1, verse: 4, reference: 'Tiago 1:4', text: 'Tenha, porém, a paciência a sua obra perfeita, para que sejais perfeitos e completos, não faltando em coisa alguma.' },
-  { book: 'Tiago', chapter: 1, verse: 5, reference: 'Tiago 1:5', text: 'E, se algum de vós tem falta de sabedoria, peça-a a Deus, que a todos dá liberalmente, e o não lança em rosto, e ser-lhe-á dada.' },
-  { book: 'Tiago', chapter: 1, verse: 12, reference: 'Tiago 1:12', text: 'Bem-aventurado o homem que sofre a tentação; porque, quando for provado, receberá a coroa da vida, a qual o Senhor prometeu aos que o amam.' },
-  { book: 'Tiago', chapter: 1, verse: 17, reference: 'Tiago 1:17', text: 'Toda a boa dádiva e todo o dom perfeito vem do alto, descendo do Pai das luzes, em quem não há mudança nem sombra de variação.' },
-  { book: 'Tiago', chapter: 1, verse: 19, reference: 'Tiago 1:19', text: 'Sabeis isto, meus amados irmãos; mas todo o homem seja pronto para ouvir, tardio para falar, tardio para se irar.' },
-  { book: 'Tiago', chapter: 1, verse: 22, reference: 'Tiago 1:22', text: 'E sede cumpridores da palavra, e não somente ouvintes, enganando-vos com falsos discursos.' },
-  { book: 'Tiago', chapter: 1, verse: 27, reference: 'Tiago 1:27', text: 'A religião pura e imaculada diante de Deus e Pai é esta: Visitar os órfãos e as viúvas nas suas tribulações, e guardar-se da corrupção do mundo.' },
-  { book: 'Tiago', chapter: 2, verse: 10, reference: 'Tiago 2:10', text: 'Porque qualquer que guardar toda a lei, e tropeçar em um só ponto, tornou-se culpado de todos.' },
-  { book: 'Tiago', chapter: 2, verse: 26, reference: 'Tiago 2:26', text: 'Porque, assim como o corpo sem o espírito está morto, assim também a fé sem obras é morta.' },
-  { book: 'Tiago', chapter: 3, verse: 2, reference: 'Tiago 3:2', text: 'Porque todos tropeçamos em muitas coisas. Se alguém não tropeça em palavra, o tal é perfeito, e poderoso para também refrear todo o corpo.' },
-  { book: 'Tiago', chapter: 3, verse: 18, reference: 'Tiago 3:18', text: 'Ora, o fruto da justiça semeia-se na paz, para os que exercitam a paz.' },
-  { book: 'Tiago', chapter: 4, verse: 6, reference: 'Tiago 4:6', text: 'Mas dá maior graça. Por isso diz: Deus resiste aos soberbos, mas dá graça aos humildes.' },
-  { book: 'Tiago', chapter: 4, verse: 7, reference: 'Tiago 4:7', text: 'Sujeitai-vos, pois, a Deus, resisti ao diabo, e ele fugirá de vós.' },
-  { book: 'Tiago', chapter: 4, verse: 10, reference: 'Tiago 4:10', text: 'Humilhai-vos perante o Senhor, e ele vos exaltará.' },
-  { book: 'Tiago', chapter: 4, verse: 17, reference: 'Tiago 4:17', text: 'Aquele, pois, que sabe fazer o bem e não o faz, comete pecado.' },
-  { book: 'Tiago', chapter: 5, verse: 7, reference: 'Tiago 5:7', text: 'Sede pois, irmãos, pacientes até à vinda do Senhor. Eis que o lavrador espera o precioso fruto da terra, aguardando-o com paciência, até que receba a chuva temporã e a serôdia.' },
-  { book: 'Tiago', chapter: 5, verse: 8, reference: 'Tiago 5:8', text: 'Sede vós também pacientes, fortalecei os vossos corações; porque já a vinda do Senhor está próxima.' },
-  { book: 'Tiago', chapter: 5, verse: 16, reference: 'Tiago 5:16', text: 'Confessai as vossas culpas uns aos outros, e orai uns pelos outros, para que sareis. A oração feita por um justo pode muito.' },
-  { book: '1 Pedro', chapter: 1, verse: 6, reference: '1 Pedro 1:6', text: 'Em que vós grandemente vos alegrais, ainda que agora, se necessário for, sejais contristados por um pouco de tempo, com várias tentações,' },
-  { book: '1 Pedro', chapter: 1, verse: 7, reference: '1 Pedro 1:7', text: 'Para que a prova da vossa fé, sendo muito mais preciosa do que o ouro que perece e é provado pelo fogo, se ache em louvor, e honra, e glória, na revelação de Jesus Cristo;' },
-  { book: '1 Pedro', chapter: 1, verse: 8, reference: '1 Pedro 1:8', text: 'A quem, não havendo visto, amais; no qual, não vendo agora, mas crendo, vos alegrais com gozo inefável e glorioso;' },
-  { book: '1 Pedro', chapter: 1, verse: 13, reference: '1 Pedro 1:13', text: 'Portanto, cingindo os lombos do vosso entendimento, sede sóbrios, e esperai inteiramente na graça que se vos ofereceu na revelação de Jesus Cristo,' },
-  { book: '1 Pedro', chapter: 1, verse: 15, reference: '1 Pedro 1:15', text: 'Mas, como é santo aquele que vos chamou, sede vós também santos em toda a vossa maneira de viver;' },
-  { book: '1 Pedro', chapter: 1, verse: 16, reference: '1 Pedro 1:16', text: 'Porquanto escrito está: Sede santos, porque eu sou santo.' },
-  { book: '1 Pedro', chapter: 1, verse: 18, reference: '1 Pedro 1:18', text: 'Sabendo que não foi com coisas corruptíveis, como prata ou ouro, que fostes resgatados da vossa vã maneira de viver que por tradição recebestes dos vossos pais,' },
-  { book: '1 Pedro', chapter: 1, verse: 24, reference: '1 Pedro 1:24', text: 'Porque toda a carne é como a erva, e toda a glória do homem como a flor da erva. Secou-se a erva, e caiu a sua flor;' },
-  { book: '1 Pedro', chapter: 2, verse: 2, reference: '1 Pedro 2:2', text: 'Desejai afetuosamente, como meninos novamente nascidos, o leite racional, não falsificado, para que por ele vades crescendo;' },
-  { book: '1 Pedro', chapter: 2, verse: 5, reference: '1 Pedro 2:5', text: 'Vós também, como pedras vivas, sois edificados casa espiritual e sacerdócio santo, para oferecer sacrifícios espirituais agradáveis a Deus por Jesus Cristo.' },
-  { book: '1 Pedro', chapter: 2, verse: 9, reference: '1 Pedro 2:9', text: 'Mas vós sois a geração eleita, o sacerdócio real, a nação santa, o povo adquirido, para que anuncieis as virtudes daquele que vos chamou das trevas para a sua maravilhosa luz;' },
-  { book: '1 Pedro', chapter: 2, verse: 11, reference: '1 Pedro 2:11', text: 'Amados, peço-vos, como a peregrinos e forasteiros, que vos abstenhais das concupiscências carnais, que combatem contra a alma,' },
-  { book: '1 Pedro', chapter: 2, verse: 17, reference: '1 Pedro 2:17', text: 'Honrai a todos. Amai a fraternidade. Temei a Deus. Honrai ao rei.' },
-  { book: '1 Pedro', chapter: 2, verse: 21, reference: '1 Pedro 2:21', text: 'Porque para isto sois chamados; pois também Cristo padeceu por nós, deixando-nos o exemplo, para que sigais as suas pisadas.' },
-  { book: '1 Pedro', chapter: 2, verse: 24, reference: '1 Pedro 2:24', text: 'Levando ele mesmo em seu corpo os nossos pecados sobre o madeiro, para que, mortos para os pecados, pudéssemos viver para a justiça; e pelas suas pisaduras fostes sarados.' },
-  { book: '1 Pedro', chapter: 3, verse: 8, reference: '1 Pedro 3:8', text: 'E, finalmente, sede todos de um mesmo sentimento, compassivos, amando os irmãos, entranhavelmente misericordiosos e afáveis,' },
-  { book: '1 Pedro', chapter: 3, verse: 9, reference: '1 Pedro 3:9', text: 'Não tornando mal por mal, ou injúria por injúria; antes, pelo contrário, bendizendo; sabendo que para isto fostes chamados, para que por herança alcanceis a bênção.' },
-  { book: '1 Pedro', chapter: 3, verse: 10, reference: '1 Pedro 3:10', text: 'Porque quem quer amar a vida, e ver os dias bons, refreie a sua língua do mal, e os seus lábios não falem engano.' },
-  { book: '1 Pedro', chapter: 3, verse: 15, reference: '1 Pedro 3:15', text: 'Antes santificai a Cristo, como Senhor, em vossos corações; e estai sempre preparados para responder com mansidão e temor a qualquer que vos pedir a razão da esperança que há em vós.' },
-  { book: '1 Pedro', chapter: 4, verse: 1, reference: '1 Pedro 4:1', text: 'Ora, pois, já que Cristo padeceu por nós na carne, armai-vos também vós com este mesmo pensamento, que aquele que padeceu na carne já cessou do pecado;' },
-  { book: '1 Pedro', chapter: 4, verse: 7, reference: '1 Pedro 4:7', text: 'Mas já está próximo o fim de todas as coisas; portanto sede sóbrios; e vigiai em oração.' },
-  { book: '1 Pedro', chapter: 4, verse: 8, reference: '1 Pedro 4:8', text: 'E, sobretudo, tende ardente caridade uns para com os outros; porque a caridade cobrirá a multidão dos pecados.' },
-  { book: '1 Pedro', chapter: 4, verse: 10, reference: '1 Pedro 4:10', text: 'Cada um administre aos outros o dom como o recebeu, como bons despenseiros da multiforme graça de Deus.' },
-  { book: '1 Pedro', chapter: 4, verse: 12, reference: '1 Pedro 4:12', text: 'Amados, não estranheis a ardente prova que vem sobre vós para vos tentar, como se coisa estranha vos acontecesse;' },
-  { book: '1 Pedro', chapter: 4, verse: 19, reference: '1 Pedro 4:19', text: 'Por isso também os que sofrem segundo a vontade de Deus encomendem-lhe as suas almas, como ao fiel Criador, fazendo o bem.' },
-  { book: '1 Pedro', chapter: 5, verse: 5, reference: '1 Pedro 5:5', text: 'Semelhantemente, vós, jovens, sede sujeitos aos anciãos; sede todos sujeitos uns aos outros, e revesti-vos de humildade, porque Deus resiste aos soberbos, mas dá graça aos humildes.' },
-  { book: '1 Pedro', chapter: 5, verse: 6, reference: '1 Pedro 5:6', text: 'Humilhai-vos, pois, debaixo da potente mão de Deus, para que a seu tempo vos exalte;' },
-  { book: '1 Pedro', chapter: 5, verse: 7, reference: '1 Pedro 5:7', text: 'Lançando sobre ele toda a vossa ansiedade, porque ele tem cuidado de vós.' },
-  { book: '1 Pedro', chapter: 5, verse: 8, reference: '1 Pedro 5:8', text: 'Sede sóbrios; vigiai; porque o vosso adversário, o diabo, anda em derredor, bramando como leão, buscando a quem possa tragar.' },
-  { book: '1 Pedro', chapter: 5, verse: 10, reference: '1 Pedro 5:10', text: 'E o Deus de toda a graça, que em Cristo Jesus vos chamou à sua eterna glória, depois de haverdes padecido um pouco, ele mesmo vos aperfeiçoará, confirmará, fortificará e fortalecerá.' },
-  { book: '2 Pedro', chapter: 1, verse: 5, reference: '2 Pedro 1:5', text: 'E vós também, pondo nisto mesmo toda a diligência, acrescentai à vossa fé a virtude, e à virtude a ciência,' },
-  { book: '2 Pedro', chapter: 1, verse: 8, reference: '2 Pedro 1:8', text: 'Porque, se em vós houver, e abundarem estas coisas, não vos deixarão ociosos nem estéreis no conhecimento de nosso Senhor Jesus Cristo.' },
-  { book: '2 Pedro', chapter: 1, verse: 10, reference: '2 Pedro 1:10', text: 'Portanto, irmãos, procurai fazer cada vez mais firme a vossa vocação e eleição; porque, fazendo isto, nunca jamais tropeçareis.' },
-  { book: '2 Pedro', chapter: 1, verse: 21, reference: '2 Pedro 1:21', text: 'Porque a profecia nunca foi produzida por vontade de homem algum, mas os homens santos de Deus falaram inspirados pelo Espírito Santo.' },
-  { book: '2 Pedro', chapter: 3, verse: 8, reference: '2 Pedro 3:8', text: 'Mas, amados, não ignoreis uma coisa, que um dia para o Senhor é como mil anos, e mil anos como um dia.' },
-  { book: '2 Pedro', chapter: 3, verse: 9, reference: '2 Pedro 3:9', text: 'O Senhor não retarda a sua promessa, ainda que alguns a têm por tardia; mas é longânimo para conosco, não querendo que alguns se percam, senão que todos venham a arrepender-se.' },
-  { book: '2 Pedro', chapter: 3, verse: 18, reference: '2 Pedro 3:18', text: 'Antes crescei na graça e conhecimento de nosso Senhor e Salvador, Jesus Cristo. A ele seja dada glória, assim agora, como até ao dia da eternidade. Amém.' },
-  { book: '1 João', chapter: 1, verse: 5, reference: '1 João 1:5', text: 'E esta é a mensagem que dele ouvimos, e vos anunciamos: que Deus é luz, e nele não há trevas nenhumas.' },
-  { book: '1 João', chapter: 1, verse: 7, reference: '1 João 1:7', text: 'Mas, se andarmos na luz, como ele na luz está, temos comunhão uns com os outros, e o sangue de Jesus Cristo, seu Filho, nos purifica de todo o pecado.' },
-  { book: '1 João', chapter: 1, verse: 8, reference: '1 João 1:8', text: 'Se dissermos que não temos pecado, enganamo-nos a nós mesmos, e não há verdade em nós.' },
-  { book: '1 João', chapter: 1, verse: 9, reference: '1 João 1:9', text: 'Se confessarmos os nossos pecados, ele é fiel e justo para nos perdoar os pecados, e nos purificar de toda a injustiça.' },
-  { book: '1 João', chapter: 2, verse: 1, reference: '1 João 2:1', text: 'Meus filhinhos, estas coisas vos escrevo, para que não pequeis; e, se alguém pecar, temos um Advogado para com o Pai, Jesus Cristo, o justo.' },
-  { book: '1 João', chapter: 2, verse: 6, reference: '1 João 2:6', text: 'Aquele que diz que está nele, também deve andar como ele andou.' },
-  { book: '1 João', chapter: 2, verse: 15, reference: '1 João 2:15', text: 'Não ameis o mundo, nem o que no mundo há. Se alguém ama o mundo, o amor do Pai não está nele.' },
-  { book: '1 João', chapter: 2, verse: 17, reference: '1 João 2:17', text: 'E o mundo passa, e a sua concupiscência; mas aquele que faz a vontade de Deus permanece para sempre.' },
-  { book: '1 João', chapter: 3, verse: 1, reference: '1 João 3:1', text: 'Vede quão grande amor nos tem concedido o Pai, que fôssemos chamados filhos de Deus.' },
-  { book: '1 João', chapter: 3, verse: 2, reference: '1 João 3:2', text: 'Amados, agora somos filhos de Deus, e ainda não é manifestado o que havemos de ser. Mas sabemos que, quando ele se manifestar, seremos semelhantes a ele; porque assim como é o veremos.' },
-  { book: '1 João', chapter: 3, verse: 16, reference: '1 João 3:16', text: 'Nisto conhecemos o amor, que ele deu a sua vida por nós; também nós devemos dar a vida pelos irmãos.' },
-  { book: '1 João', chapter: 3, verse: 18, reference: '1 João 3:18', text: 'Meus filhinhos, não amemos de palavra, nem de língua, mas por obra e em verdade.' },
-  { book: '1 João', chapter: 4, verse: 1, reference: '1 João 4:1', text: 'Amados, não creiais a todo o espírito, mas provai se os espíritos são de Deus, porque já muitos falsos profetas se têm levantado no mundo.' },
-  { book: '1 João', chapter: 4, verse: 4, reference: '1 João 4:4', text: 'Filhinhos, sois de Deus, e já os tendes vencido; porque maior é o que está em vós do que o que está no mundo.' },
-  { book: '1 João', chapter: 4, verse: 7, reference: '1 João 4:7', text: 'Amados, amemo-nos uns aos outros; porque o amor é de Deus; e qualquer que ama é nascido de Deus e conhece a Deus.' },
-  { book: '1 João', chapter: 4, verse: 8, reference: '1 João 4:8', text: 'Aquele que não ama não conhece a Deus; porque Deus é amor.' },
-  { book: '1 João', chapter: 4, verse: 10, reference: '1 João 4:10', text: 'Nisto está o amor, não em que nós tenhamos amado a Deus, mas em que ele nos amou a nós, e enviou seu Filho para propiciação pelos nossos pecados.' },
-  { book: '1 João', chapter: 4, verse: 16, reference: '1 João 4:16', text: 'E nós conhecemos, e cremos no amor que Deus nos tem. Deus é amor; e quem está em amor está em Deus, e Deus nele.' },
-  { book: '1 João', chapter: 4, verse: 18, reference: '1 João 4:18', text: 'No amor não há temor, antes o perfeito amor lança fora o temor; porque o temor tem consigo a pena. Ora, aquele que teme não é perfeito em amor.' },
-  { book: '1 João', chapter: 4, verse: 19, reference: '1 João 4:19', text: 'Nós o amamos a ele porque ele nos amou primeiro.' },
-  { book: '1 João', chapter: 4, verse: 21, reference: '1 João 4:21', text: 'E temos este mandamento dele: Que quem ama a Deus, ame também a seu irmão.' },
-  { book: '1 João', chapter: 5, verse: 3, reference: '1 João 5:3', text: 'Porque este é o amor de Deus: que guardemos os seus mandamentos; e os seus mandamentos não são pesados.' },
-  { book: '1 João', chapter: 5, verse: 4, reference: '1 João 5:4', text: 'Porque todo o que é nascido de Deus vence o mundo; e esta é a vitória que vence o mundo, a nossa fé.' },
-  { book: '1 João', chapter: 5, verse: 12, reference: '1 João 5:12', text: 'Aquele que tem o Filho tem a vida; aquele que não tem o Filho de Deus não tem a vida.' },
-  { book: '1 João', chapter: 5, verse: 14, reference: '1 João 5:14', text: 'E esta é a confiança que temos nele, que, se pedirmos alguma coisa segundo a sua vontade, ele nos ouve.' },
-  { book: '2 João', chapter: 1, verse: 6, reference: '2 João 1:6', text: 'E o amor é este: que andemos segundo os seus mandamentos. Este é o mandamento, como já desde o princípio ouvistes, que andeis nele.' },
-  { book: '2 João', chapter: 1, verse: 9, reference: '2 João 1:9', text: 'Todo aquele que prevarica, e não persevera na doutrina de Cristo, não tem a Deus. Quem persevera na doutrina de Cristo, esse tem tanto o Pai como o Filho.' },
-  { book: '3 João', chapter: 1, verse: 2, reference: '3 João 1:2', text: 'Amado, desejo que te vá bem em todas as coisas, e que tenhas saúde, assim como bem vai à tua alma.' },
-  { book: '3 João', chapter: 1, verse: 11, reference: '3 João 1:11', text: 'Amado, não sigas o mal, mas o bem. Quem faz o bem é de Deus; mas quem faz o mal não tem visto a Deus.' },
-  { book: 'Judas', chapter: 1, verse: 20, reference: 'Judas 1:20', text: 'Mas vós, amados, edificando-vos a vós mesmos sobre a vossa santíssima fé, orando no Espírito Santo,' },
-  { book: 'Judas', chapter: 1, verse: 21, reference: 'Judas 1:21', text: 'Conservai-vos a vós mesmos no amor de Deus, esperando a misericórdia de nosso Senhor Jesus Cristo para a vida eterna.' },
-  { book: 'Judas', chapter: 1, verse: 24, reference: 'Judas 1:24', text: 'Ora, àquele que é poderoso para vos guardar de tropeçar, e apresentar-vos irrepreensíveis, com alegria, perante a sua glória,' },
-  { book: 'Apocalipse', chapter: 1, verse: 5, reference: 'Apocalipse 1:5', text: 'E da parte de Jesus Cristo, que é a fiel testemunha, o primogênito dentre os mortos e o Príncipe dos reis da terra. Aquele que nos amou, e em seu sangue nos lavou dos nossos pecados,' },
-  { book: 'Apocalipse', chapter: 1, verse: 7, reference: 'Apocalipse 1:7', text: 'Eis que vem com as nuvens, e todo o olho o verá, até os que o traspassaram; e todas as tribos da terra se lamentarão sobre ele. Sim. Amém.' },
-  { book: 'Apocalipse', chapter: 2, verse: 4, reference: 'Apocalipse 2:4', text: 'Tenho, porém, contra ti que deixaste o teu primeiro amor.' },
-  { book: 'Apocalipse', chapter: 2, verse: 7, reference: 'Apocalipse 2:7', text: 'Quem tem ouvidos, ouça o que o Espírito diz às igrejas: Ao que vencer, dar-lhe-ei a comer da árvore da vida que está no meio do paraíso de Deus.' },
-  { book: 'Apocalipse', chapter: 3, verse: 5, reference: 'Apocalipse 3:5', text: 'O que vencer será vestido de vestes brancas, e de maneira nenhuma riscarei o seu nome do livro da vida; e confessarei o seu nome diante de meu Pai e diante dos seus anjos.' },
-  { book: 'Apocalipse', chapter: 3, verse: 11, reference: 'Apocalipse 3:11', text: 'Eis que venho sem demora; guarda o que tens, para que ninguém tome a tua coroa.' },
-  { book: 'Apocalipse', chapter: 3, verse: 15, reference: 'Apocalipse 3:15', text: 'Conheço as tuas obras, que nem és frio nem quente; oxalá foras frio ou quente!' },
-  { book: 'Apocalipse', chapter: 3, verse: 16, reference: 'Apocalipse 3:16', text: 'Assim, porque és morno, e não és frio nem quente, vomitar-te-ei da minha boca.' },
-  { book: 'Apocalipse', chapter: 3, verse: 19, reference: 'Apocalipse 3:19', text: 'Eu repreendo e castigo a todos quantos amo; sê pois zeloso, e arrepende-te.' },
-  { book: 'Apocalipse', chapter: 3, verse: 20, reference: 'Apocalipse 3:20', text: 'Eis que estou à porta, e bato; se alguém ouvir a minha voz, e abrir a porta, entrarei em sua casa, e com ele cearei, e ele comigo.' },
-  { book: 'Apocalipse', chapter: 4, verse: 8, reference: 'Apocalipse 4:8', text: 'E os quatro animais tinham, cada um de per si, seis asas, e em roda, e por dentro, estavam cheios de olhos; e não descansavam nem de dia nem de noite, dizendo: Santo, Santo, Santo, é o Senhor Deus, o Todo-Poderoso, que era, e que é, e que há de vir.' },
-  { book: 'Apocalipse', chapter: 5, verse: 9, reference: 'Apocalipse 5:9', text: 'E cantavam um novo cântico, dizendo: Digno és de tomar o livro, e de abrir os seus selos; porque foste morto, e com o teu sangue nos compraste para Deus de toda a tribo, e língua, e povo, e nação;' },
-  { book: 'Apocalipse', chapter: 5, verse: 12, reference: 'Apocalipse 5:12', text: 'Dizendo com grande voz: Digno é o Cordeiro, que foi morto, de receber o poder, e riquezas, e sabedoria, e força, e honra, e glória, e ações de graças.' },
-  { book: 'Apocalipse', chapter: 7, verse: 9, reference: 'Apocalipse 7:9', text: 'Depois destas coisas olhei, e eis aqui uma multidão, a qual ninguém podia contar, de todas as nações, e tribos, e povos, e línguas, que estavam diante do trono, e perante o Cordeiro, trajando vestes brancas e com palmas nas suas mãos;' },
-  { book: 'Apocalipse', chapter: 12, verse: 11, reference: 'Apocalipse 12:11', text: 'E eles o venceram pelo sangue do Cordeiro e pela palavra do seu testemunho; e não amaram as suas vidas até à morte.' },
-  { book: 'Apocalipse', chapter: 14, verse: 13, reference: 'Apocalipse 14:13', text: 'E ouvi uma voz do céu, que me dizia: Escreve: Bem-aventurados os mortos que desde agora morrem no Senhor. Sim, diz o Espírito, para que descansem dos seus trabalhos, e as suas obras os seguem.' },
-  { book: 'Apocalipse', chapter: 19, verse: 9, reference: 'Apocalipse 19:9', text: 'E disse-me: Escreve: Bem-aventurados aqueles que são chamados à ceia das bodas do Cordeiro. E disse-me: Estas são as verdadeiras palavras de Deus.' },
-  { book: 'Apocalipse', chapter: 21, verse: 3, reference: 'Apocalipse 21:3', text: 'E ouvi uma grande voz do céu, que dizia: Eis aqui o tabernáculo de Deus com os homens, pois com eles habitará, e eles serão o seu povo, e o mesmo Deus estará com eles, e será o seu Deus.' },
-  { book: 'Apocalipse', chapter: 21, verse: 4, reference: 'Apocalipse 21:4', text: 'E Deus limpará de seus olhos toda a lágrima; e não haverá mais morte, nem pranto, nem clamor, nem dor; porque já as primeiras coisas são passadas.' },
-  { book: 'Apocalipse', chapter: 21, verse: 6, reference: 'Apocalipse 21:6', text: 'E disse-me mais: Está cumprido. Eu sou o Alfa e o Ômega, o princípio e o fim. A quem tiver sede, de graça lhe darei da fonte da água da vida.' },
-  { book: 'Apocalipse', chapter: 22, verse: 12, reference: 'Apocalipse 22:12', text: 'E eis que cedo venho, e o meu galardão está comigo, para dar a cada um segundo a sua obra.' },
-  { book: 'Apocalipse', chapter: 22, verse: 13, reference: 'Apocalipse 22:13', text: 'Eu sou o Alfa e o Ômega, o princípio e o fim, o primeiro e o derradeiro.' },
-  { book: 'Apocalipse', chapter: 22, verse: 14, reference: 'Apocalipse 22:14', text: 'Bem-aventurados aqueles que guardam os seus mandamentos, para que tenham direito à árvore da vida, e possam entrar na cidade pelas portas.' },
-  { book: 'Apocalipse', chapter: 22, verse: 17, reference: 'Apocalipse 22:17', text: 'E o Espírito e a esposa dizem: Vem. E quem ouve, diga: Vem. E quem tem sede, venha; e quem quiser, tome de graça da água da vida.' },
-  { book: 'Apocalipse', chapter: 22, verse: 20, reference: 'Apocalipse 22:20', text: 'Aquele que testifica estas coisas diz: Certamente cedo venho. Amém; ora, vem, Senhor Jesus.' }]
-
-// Função para buscar na base local
-function findInLocalDatabase(bookName: string, chapter: number, verse: number): BibleVerse | null {
-  const normalizedBookName = normalizeText(bookName)
-  console.log(' Buscando na base local:', { bookName, normalizedBookName, chapter, verse })
-  console.log('🔍 Buscando na base local:', { bookName, normalizedBookName, chapter, verse })
-  const found = localBibleDatabase.find(v => {
-    const bookMatch = normalizeText(v.book) === normalizedBookName
-    return bookMatch && v.chapter === chapter && v.verse === verse
-  })
-  if (found) {
-    console.log('✅ Encontrado na base local:', found)
-  } else {
-    console.log('❌ Não encontrado na base local')
-  }
-  return found || null
+// Função para normalizar texto
+function normalizeBookName(name: string): string {
+  return name.toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[º°]/g, '')
+    .replace(/\s+/g, '')
+    .trim()
 }
 
-// Mapeamento completo de livros para abreviações da ABíblia Digital
-// Todas as chaves devem estar sem acento (normalizadas)
-const bookAbbreviations: { [key: string]: string } = {
-  // Pentateuco
-  'genesis': 'gn',
-  'exodo': 'ex',
-  'levitico': 'lv',
-  'numeros': 'nm',
-  'deuteronomio': 'dt',
-  // Históricos
-  'josue': 'js',
-  'juizes': 'jz',
-  'rute': 'rt',
-  '1 samuel': '1sm',
-  '2 samuel': '2sm',
-  '1 reis': '1rs',
-  '2 reis': '2rs',
-  '1 cronicas': '1cr',
-  '2 cronicas': '2cr',
-  'esdras': 'ed',
-  'neemias': 'ne',
-  'ester': 'et',
-  // Poéticos
-  'job': 'job',
-  'salmos': 'sl',
-  'proverbios': 'pv',
-  'eclesiastes': 'ec',
-  'canticos': 'ct',
-  // Profetas Maiores
-  'isaias': 'is',
-  'jeremias': 'jr',
-  'lamentacoes': 'lm',
-  'ezequiel': 'ez',
-  'daniel': 'dn',
-  // Profetas Menores
-  'oseias': 'os',
-  'joel': 'jl',
-  'amos': 'am',
-  'obadias': 'ob',
-  'jonas': 'jn',
-  'miqueias': 'mq',
-  'naum': 'na',
-  'habacuque': 'hc',
-  'sofonias': 'sf',
-  'ageu': 'ag',
-  'zacarias': 'zc',
-  'malaquias': 'ml',
-  // Evangelhos
-  'mateus': 'mt',
-  'marcos': 'mc',
-  'lucas': 'lc',
-  'joao': 'jo',
-  // História da Igreja
-  'atos': 'at',
-  // Epístolas Paulinas
-  'romanos': 'rm',
-  '1 corintios': '1co',
-  '2 corintios': '2co',
-  'galatas': 'gl',
-  'efesios': 'ef',
-  'filipenses': 'fp',
-  'colossenses': 'cl',
-  '1 tessalonicenses': '1ts',
-  '2 tessalonicenses': '2ts',
-  '1 timoteo': '1tm',
-  '2 timoteo': '2tm',
-  'tito': 'tt',
-  'filemom': 'fm',
-  'hebreus': 'hb',
-  // Epístolas Gerais
-  'tiago': 'tg',
-  '1 pedro': '1pe',
-  '2 pedro': '2pe',
-  '1 joao': '1jo',
-  '2 joao': '2jo',
-  '3 joao': '3jo',
-  'judas': 'jd',
-  // Profético
-  'apocalipse': 'ap'
-}
-
-// Buscar versículo na ABíblia Digital (busca capítulo inteiro e filtra)
-async function fetchFromABibliaDigital(
-  bookAbbrev: string,
-  chapter: number,
-  verse: number,
-  version: string = 'nvi'
-): Promise<BibleVerse | null> {
+// Buscar versículo no Supabase
+async function getVerseFromSupabase(book: string, chapter: number, verse: number): Promise<string | null> {
   try {
-    // Buscar capítulo inteiro (endpoint que funciona)
-    const apiUrl = `https://www.abibliadigital.com.br/api/verses/${version}/${bookAbbrev}/${chapter}`
-    console.log('🌐 Buscando capítulo na ABíblia Digital:', apiUrl)
+    const normalizedBook = normalizeBookName(book)
+    const tableName = bookNameMap[normalizedBook]
     
-    const response = await fetch(apiUrl, {
-      headers: {
-        'Accept': 'application/json'
-      },
-      signal: AbortSignal.timeout(10000)
-    })
-    
-    if (!response.ok) {
-      console.log('❌ API retornou erro:', response.status, response.statusText)
+    if (!tableName) {
+      console.log('❌ Livro não encontrado:', book, '->', normalizedBook)
       return null
     }
     
-    const data = await response.json()
-    console.log('✅ Resposta da API:', data)
+    const supabase = createClient(supabaseUrl, supabaseKey)
     
-    // Extrair versículo específico do capítulo
-    if (data && data.verses && Array.isArray(data.verses)) {
-      console.log('📊 Total de versículos no capítulo:', data.verses.length)
-      console.log('🔍 Buscando versículo número:', verse)
-      console.log('📋 Primeiros versículos:', data.verses.slice(0, 3).map((v: any) => ({ number: v.number, text: v.text?.substring(0, 50) })))
-      
-      const targetVerse = data.verses.find((v: any) => v.number === verse)
-      if (targetVerse) {
-        console.log('✅ Versículo encontrado:', targetVerse.number, targetVerse.text?.substring(0, 50))
-        return {
-          book: data.book.name,
-          chapter: data.chapter.number,
-          verse: targetVerse.number,
-          text: targetVerse.text,
-          reference: `${data.book.name} ${data.chapter.number}:${targetVerse.number}`
-        }
-      } else {
-        console.log('❌ Versículo', verse, 'não encontrado. Versículos disponíveis:', data.verses.map((v: any) => v.number).join(', '))
-      }
-    } else {
-      console.log('❌ Estrutura de dados inválida:', { hasData: !!data, hasVerses: !!(data && data.verses), isArray: Array.isArray(data?.verses) })
+    const { data, error } = await supabase
+      .from(tableName)
+      .select('texto')
+      .eq('capitulo', chapter)
+      .eq('versiculo', verse)
+      .single()
+    
+    if (error) {
+      console.log('⚠️ Erro Supabase:', error.message)
+      return null
     }
     
-    return null
-  } catch (error) {
-    console.log('⚠️ Erro ao buscar na ABíblia Digital:', error)
+    return data?.texto || null
+  } catch (err) {
+    console.error('💥 Erro ao buscar no Supabase:', err)
     return null
   }
 }
 
-// Função para buscar referências diretas
-async function findDirectReference(text: string): Promise<BibleVerse[]> {
-  const cleanText = text.replace(/[()]/g, '').trim()
-  const normalizedText = normalizeText(cleanText)
-  
-  console.log('🔍 Texto original:', text)
-  console.log('🔍 Texto normalizado:', normalizedText)
-  
-  // Padrões para diferentes formatos
-  const patterns = [
-    // Formato: 1 Timóteo 2:9, 1 João 3:16, etc. (COM NÚMERO)
-    { 
-      pattern: /(\d+)\s+([\wáàâãéèêíïóôõöúçñÁÀÂÃÉÈÊÍÏÓÔÕÖÚÇÑ]+)\s+(\d+):(\d+)(?:-(\d+))?/i,
-      extractor: (match: RegExpMatchArray) => ({
-        bookName: `${match[1]} ${match[2]}`,
-        chapter: parseInt(match[3]),
-        startVerse: parseInt(match[4]),
-        endVerse: match[5] ? parseInt(match[5]) : parseInt(match[4])
-      })
-    },
-    // Formato: João 3:16, Atos 2:38 (SEM NÚMERO)
-    { 
-      pattern: /([\wáàâãéèêíïóôõöúçñÁÀÂÃÉÈÊÍÏÓÔÕÖÚÇÑ]+)\s+(\d+):(\d+)(?:-(\d+))?/i,
-      extractor: (match: RegExpMatchArray) => ({
-        bookName: match[1],
-        chapter: parseInt(match[2]),
-        startVerse: parseInt(match[3]),
-        endVerse: match[4] ? parseInt(match[4]) : parseInt(match[3])
-      })
+// Buscar no fallback local
+function getVerseFromFallback(book: string, chapter: number, verse: number): string | null {
+  const normalizedBook = normalizeBookName(book)
+  const tableName = bookNameMap[normalizedBook] || normalizedBook
+  const key = `${tableName}_${chapter}:${verse}`
+  return fallbackBibleVerses[key] || null
+}
+
+// Endpoint principal POST
+export async function POST(request: NextRequest) {
+  try {
+    const body = await request.json()
+    const { references } = body
+    
+    if (!references || !Array.isArray(references) || references.length === 0) {
+      return NextResponse.json(
+        { error: 'Nenhuma referência fornecida' },
+        { status: 400 }
+      )
     }
-  ]
-  
-  for (const { pattern, extractor } of patterns) {
-    const match = cleanText.match(pattern)
-    if (match) {
-      const { bookName, chapter, startVerse } = extractor(match)
+    
+    console.log('📖 Buscando referências:', references)
+    
+    const results: Array<{
+      reference: string
+      found: boolean
+      text?: string
+      book?: string
+      chapter?: number
+      verse?: number
+      source?: string
+    }> = []
+    
+    for (const ref of references) {
+      // Parse referência (formato: "João 3:16" ou "Joao 3:16")
+      const match = ref.match(/^(.+?)\s*(\d+):(\d+)$/)
       
-      console.log('📖 Padrão encontrado:', { bookName, chapter, startVerse })
-      
-      // Normalizar nome do livro (remover acentos e converter para lowercase)
-      const normalizedBookName = normalizeText(bookName)
-      console.log('📖 Nome normalizado:', normalizedBookName)
-      
-      // Buscar abreviação do livro
-      const bookAbbrev = bookAbbreviations[normalizedBookName]
-      
-      if (!bookAbbrev) {
-        console.log('❌ Livro não encontrado no mapeamento:', normalizedBookName)
-        console.log('🔍 Chaves disponíveis:', Object.keys(bookAbbreviations).filter(k => k.includes('tim') || k.includes('jo')))
+      if (!match) {
+        results.push({ reference: ref, found: false })
         continue
       }
       
-      console.log('📚 Abreviação:', bookAbbrev)
+      const [, book, chapter, verse] = match
       
-      // Buscar na API (tentar NVI primeiro, depois ARA)
-      let verse = await fetchFromABibliaDigital(bookAbbrev, chapter, startVerse, 'nvi')
+      // Tentar Supabase primeiro
+      let text = await getVerseFromSupabase(book, parseInt(chapter), parseInt(verse))
+      let source = 'supabase'
       
-      if (!verse) {
-        console.log('🔄 Tentando versão ARA...')
-        verse = await fetchFromABibliaDigital(bookAbbrev, chapter, startVerse, 'ara')
+      // Se não encontrou, tentar fallback
+      if (!text) {
+        text = getVerseFromFallback(book, parseInt(chapter), parseInt(verse))
+        source = 'fallback'
       }
       
-      // Se API falhou, usar base local como fallback
-      if (!verse) {
-        console.log('🔄 Tentando base local...')
-        console.log('🔍 Buscando na base local:', { bookName, normalizedBookName, chapter, startVerse })
-        verse = findInLocalDatabase(bookName, chapter, startVerse)
-        if (verse) {
-          console.log('✅ Encontrado na base local:', verse)
-        } else {
-          console.log('❌ Não encontrado na base local para:', { bookName, chapter, startVerse })
-        }
-      }
-      
-      if (verse) {
-        return [verse]
+      if (text) {
+        results.push({
+          reference: ref,
+          found: true,
+          text,
+          book: book.trim(),
+          chapter: parseInt(chapter),
+          verse: parseInt(verse),
+          source
+        })
+      } else {
+        results.push({ reference: ref, found: false })
       }
     }
-  }
-  
-  console.log('❌ Nenhuma referência encontrada')
-  return []
-}
-
-export async function POST(req: NextRequest) {
-  try {
-    const { text } = await req.json()
     
-    if (!text || typeof text !== 'string') {
-      return NextResponse.json({ error: 'Text is required' }, { status: 400 })
-    }
+    const found = results.filter(r => r.found).length
+    console.log(`✅ ${found}/${references.length} referências encontradas`)
     
-    console.log('🔍 Buscando referências bíblicas para:', text.substring(0, 100) + '...')
-    
-    const relevantVerses = await findDirectReference(text)
-    
-    console.log(`📖 Encontrados ${relevantVerses.length} versículos relevantes`)
-    
-    // Retornar versículos diretamente (já estão em português via API ABíblia Digital)
     return NextResponse.json({
-      verses: relevantVerses,
-      count: relevantVerses.length
+      success: true,
+      found,
+      total: references.length,
+      verses: results
     })
     
   } catch (error) {
-    console.error('❌ Erro na API de referências bíblicas:', error)
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+    console.error('❌ Erro na API de referências:', error)
+    return NextResponse.json(
+      { error: 'Erro interno do servidor' },
+      { status: 500 }
+    )
   }
 }
 
-// Endpoint de teste simples
-export async function GET(req: NextRequest) {
-  console.log('👋 Requisição GET recebida')
-  return NextResponse.json({ status: 'API funcionando' })
+// Endpoint GET para teste
+export async function GET() {
+  return NextResponse.json({
+    status: 'API de Referências Bíblicas',
+    version: '2.0 - Supabase Edition',
+    books: 66,
+    message: 'Use POST com {references: ["João 3:16", "Romanos 6:23"]}'
+  })
 }
