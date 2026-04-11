@@ -1602,7 +1602,7 @@ export function ChatInterface({ conversationId, onConversationUpdate, user, appC
     if (versesToFetch.length > 0) {
       try {
         const fetchPromises = versesToFetch.map(async ({ id, text }) => {
-          const response = await fetch('/api/bible-complete', {
+          const response = await fetch('/api/bible-references', {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
@@ -1612,13 +1612,10 @@ export function ChatInterface({ conversationId, onConversationUpdate, user, appC
           
           if (response.ok) {
             const data = await response.json()
-            // Nova API retorna { results: [{ reference, verse, found }] }
-            if (data.results && data.results.length > 0) {
-              const result = data.results[0]
-              if (result.found && result.verse) {
-                const fullVerseText = `${result.verse.reference} - "${result.verse.text}"`
-                return { id, fullText: fullVerseText }
-              }
+            if (data.verses && data.verses.length > 0) {
+              const foundVerse = data.verses[0]
+              const fullVerseText = `${foundVerse.reference} - "${foundVerse.text}"`
+              return { id, fullText: fullVerseText }
             }
           }
           return null
@@ -1755,10 +1752,10 @@ export function ChatInterface({ conversationId, onConversationUpdate, user, appC
                                           if (!verseText.includes('"') && !verseTexts[verseId]) {
                                             console.log('🔍 Buscando versículo automaticamente:', verseText)
                                             
-                                            // Buscar PRIMEIRO na base de dados local completa
-                                            console.log('🌐 Buscando na base de dados completa...')
+                                            // Buscar PRIMEIRO na API (fonte mais completa)
+                                            console.log('🌐 Buscando na API da Bíblia...')
                                             try {
-                                              const response = await fetch('/api/bible-complete', {
+                                              const response = await fetch('/api/bible-references', {
                                                 method: 'POST',
                                                 headers: {
                                                   'Content-Type': 'application/json',
@@ -1768,30 +1765,38 @@ export function ChatInterface({ conversationId, onConversationUpdate, user, appC
                                               
                                               if (response.ok) {
                                                 const data = await response.json()
-                                                // Nova API retorna { results: [{ reference, verse, found }] }
-                                                if (data.results && data.results.length > 0) {
-                                                  const result = data.results[0]
-                                                  if (result.found && result.verse) {
-                                                    const fullVerseText = `${result.verse.reference} - "${result.verse.text}"`
-                                                    console.log('✅ Versículo encontrado na API:', result.verse.reference)
-                                                    setVerseTexts(prev => ({
-                                                      ...prev,
-                                                      [verseId]: fullVerseText
-                                                    }))
-                                                    return // Sai da função se encontrou na API
-                                                  }
+                                                if (data.verses && data.verses.length > 0) {
+                                                  const foundVerse = data.verses[0]
+                                                  const fullVerseText = `${foundVerse.reference} - "${foundVerse.text}"`
+                                                  console.log('✅ Versículo encontrado na API:', foundVerse.reference)
+                                                  setVerseTexts(prev => ({
+                                                    ...prev,
+                                                    [verseId]: fullVerseText
+                                                  }))
+                                                  return // Sai da função se encontrou na API
                                                 }
                                               }
                                             } catch (error) {
-                                              console.error('❌ Erro ao buscar na base local:', error)
+                                              console.error('❌ Erro na API, tentando base local:', error)
                                             }
                                             
-                                            // Se não encontrou na base de dados completa
-                                            console.log('❌ Versículo não encontrado na base de dados')
-                                            setVerseTexts(prev => ({
-                                              ...prev,
-                                              [verseId]: `"${verseText}" - Este versículo ainda não foi adicionado à base de dados local. Adicione em app/api/bible-complete/route.ts`
-                                            }))
+                                            // Fallback para base local apenas se API falhou
+                                            console.log('🔄 Fallback: Buscando na base local...')
+                                            const foundVerse = findBibleVerseDirectly(verseText)
+                                            if (foundVerse) {
+                                              console.log('✅ Versículo encontrado na base local:', foundVerse)
+                                              setVerseTexts(prev => ({
+                                                ...prev,
+                                                [verseId]: `${foundVerse.reference} - "${foundVerse.text}"`
+                                              }))
+                                            } else {
+                                              // Se não encontrou nem na API nem na base local
+                                              console.log('❌ Versículo não encontrado em nenhuma fonte')
+                                              setVerseTexts(prev => ({
+                                                ...prev,
+                                                [verseId]: `"${verseText}" - Esta referência não foi encontrada como um versículo bíblico válido.`
+                                              }))
+                                            }
                                           }
                                         
                                         setExpandedVerses(prev => {
