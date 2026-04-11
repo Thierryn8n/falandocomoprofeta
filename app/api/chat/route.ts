@@ -1539,15 +1539,24 @@ IMPORTANTE:
         if (!hasReferences) {
           console.log("🔧 Adicionando referências programaticamente à resposta...")
           
-          // Construir seção de referências baseada nos documentos
+          // Construir seção de referências baseada nos documentos (MAIS DETALHADA - igual chat-gemini)
           let referencesSection = "\n\n**Referências:**\n"
           relevantDocuments.forEach((doc, index) => {
             const title = doc.title || `Documento ${index + 1}`
-            // Extrair números de parágrafos do conteúdo se disponível
+            // Extrair TODOS os números de parágrafos do conteúdo (sem limite!)
             const paragraphMatches = doc.content.match(/\[PARÁGRAFO (\d+)\]/g)
             if (paragraphMatches) {
-              const paragraphNumbers = paragraphMatches.map(match => match.match(/\d+/)?.[0]).filter(Boolean).slice(0, 5)
-              referencesSection += `- ${title}, parágrafos ${paragraphNumbers.join(', ')}\n`
+              // Pegar TODOS os parágrafos, não só 5
+              const allParagraphNumbers = paragraphMatches
+                .map(match => match.match(/\d+/)?.[0])
+                .filter((value, index, self) => self.indexOf(value) === index) // remover duplicados
+                .filter(Boolean)
+              
+              if (allParagraphNumbers.length > 0) {
+                referencesSection += `- ${title}, parágrafos ${allParagraphNumbers.join(', ')}\n`
+              } else {
+                referencesSection += `- ${title}\n`
+              }
             } else {
               referencesSection += `- ${title}\n`
             }
