@@ -1416,7 +1416,7 @@ Utilize EXCLUSIVAMENTE as informações dos documentos analisados E o contexto d
               temperature: 0.5,
               topK: 10,
               topP: 0.7,
-              maxOutputTokens: 4000,
+              maxOutputTokens: 8192,
             },
           }),
         },
