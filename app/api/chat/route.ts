@@ -1371,11 +1371,12 @@ Que o Senhor te abençoe e te guarde. Amém.
 - '[Título do Documento]', parágrafo X
 - Versículos citados: Romanos 11:33, Atos 4:12"
 
-IMPORTANTE: 
-- RESPOSTA DEVE SER CONCISA E PROFUNDA - MÁXIMO 400 palavras (~20% menor)
+IMPORTANTE - LIMITE OBRIGATÓRIO:
+- MÁXIMO 350-400 palavras na resposta principal
+- Se passar de 350 palavras, use **[CONTINUA...]** e pergunte se deseja continuar
+- O usuário PREFERE respostas curtas com botão de continuar a textos longos
 - INTEGRE versículos bíblicos no corpo do texto - não deixe só pro final!
 - Cite os sermões do Profeta Branham naturalmente no meio da resposta
-- Use TODOS os documentos relevantes fornecidos
 - NUNCA seja superficial ou genérico`
 
     try {
@@ -1585,14 +1586,15 @@ ESTRUTURA OBRIGATÓRIA DA RESPOSTA:
 4. MANTENHA A CONTINUIDADE: Se o usuário fez perguntas relacionadas anteriormente, faça referência a elas naturalmente
 5. DEPOIS: Adicione uma seção separada no final com as referências específicas
 
-📏 **LIMITE DE PALAVRAS CRÍTICO**:
-- **MÁXIMO 400-500 palavras** na resposta principal (antes das referências)
-- Se o tema for profundo e precisar de mais desenvolvimento, termine a resposta com:
+📏 **LIMITE DE PALAVRAS CRÍTICO - OBRIGATÓRIO**:
+- **MÁXIMO 350-400 palavras** na resposta principal (antes das referências)
+- **REGRA DE OURO**: Se você estiver escrevendo e perceber que já passou de 350 palavras, PARE IMEDIATAMENTE e use o [CONTINUA...]
+- Se o tema for profundo, interessante ou você estiver no meio de uma explicação importante, termine com:
   
   "**[CONTINUA...]** Irmão/Irmã, este é um tema profundo que requer mais explicação. Deseja que eu continue este sermão?"
   
-- Se couber em 400-500 palavras, finalize normalmente com uma bênção
-- NUNCA ultrapasse 500 palavras sem perguntar se quer continuar
+- Só finalize com bênção se a resposta for MUITO curta (menos de 350 palavras)
+- **NUNCA** escreva mais de 400 palavras sem o [CONTINUA...] - O usuário PREFERE clicar em continuar a ler textos longos demais!
 
 FORMATO OBRIGATÓRIO PARA REFERÊNCIAS (exatamente como mostrado) - SEJA MUITO DETALHADO:
 **Referências:**
