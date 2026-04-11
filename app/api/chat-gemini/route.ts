@@ -4,7 +4,7 @@ import { createClient } from '@supabase/supabase-js'
 import { getSupabaseAdmin } from '@/lib/supabase'
 import { filterHeresyInTranscription, logHeresyDetection } from '@/lib/heresy-filter'
 
-export const maxDuration = 600
+export const maxDuration = 300
 
 // Initialize Supabase client
 const supabaseUrl = process.env.SUPABASE_URL!
