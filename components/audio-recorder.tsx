@@ -96,12 +96,9 @@ export default function AudioRecorder({ onAudioRecorded, onRecordingStateChange,
         // Parar todas as faixas do stream
         stream.getTracks().forEach(track => track.stop())
         
-        // Criar URL para reproducao
+        // Criar URL para reproducao (sem auto-play)
         const url = URL.createObjectURL(audioBlob)
         setAudioUrl(url)
-        
-        // Reproduzir automaticamente o audio gravado
-        playRecordedAudio(url)
         
         // Enviar o áudio diretamente para o chat
         sendAudioBlob(audioBlob)
