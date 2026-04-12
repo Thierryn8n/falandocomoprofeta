@@ -1752,23 +1752,17 @@ export function ChatInterface({ conversationId, onConversationUpdate, user, appC
                                           if (!verseText.includes('"') && !verseTexts[verseId]) {
                                             console.log('🔍 Buscando versículo automaticamente:', verseText)
                                             
-                                            // Buscar PRIMEIRO na API (fonte mais completa)
-                                            console.log('🌐 Buscando na API da Bíblia...')
+                                            // Buscar PRIMEIRO na API do Supabase (fonte mais completa)
+                                            console.log('🌐 Buscando na API bible-references...')
                                             try {
-                                              const response = await fetch('/api/bible-references', {
-                                                method: 'POST',
-                                                headers: {
-                                                  'Content-Type': 'application/json',
-                                                },
-                                                body: JSON.stringify({ text: verseText })
-                                              })
+                                              const encodedRef = encodeURIComponent(verseText)
+                                              const response = await fetch(`/api/bible-references?reference=${encodedRef}`)
                                               
                                               if (response.ok) {
                                                 const data = await response.json()
-                                                if (data.verses && data.verses.length > 0) {
-                                                  const foundVerse = data.verses[0]
-                                                  const fullVerseText = `${foundVerse.reference} - "${foundVerse.text}"`
-                                                  console.log('✅ Versículo encontrado na API:', foundVerse.reference)
+                                                if (data.found && data.verse) {
+                                                  const fullVerseText = `${data.reference} - "${data.verse.text}"`
+                                                  console.log('✅ Versículo encontrado na API:', data.reference)
                                                   setVerseTexts(prev => ({
                                                     ...prev,
                                                     [verseId]: fullVerseText
