@@ -50,6 +50,15 @@ export function ChatInterface({ conversationId, onConversationUpdate, user, appC
   const [expandedReferences, setExpandedReferences] = useState<{ [key: number]: boolean }>({})
   const [expandedVerses, setExpandedVerses] = useState<{ [key: string]: boolean }>({})
   const [verseTexts, setVerseTexts] = useState<{ [key: string]: string }>({})
+  
+  // Estado para logs visuais de busca de versículos
+  const [verseSearchLogs, setVerseSearchLogs] = useState<Array<{
+    id: string
+    verseId: string
+    status: 'searching' | 'success' | 'error' | 'not-found'
+    message: string
+    timestamp: number
+  }>>([])
   const [isRecordingActive, setIsRecordingActive] = useState(false)
   const [progress, setProgress] = useState(0)
 
@@ -1746,10 +1755,36 @@ export function ChatInterface({ conversationId, onConversationUpdate, user, appC
                                         e.preventDefault()
                                         e.stopPropagation()
                                         console.log('Toggle clicked for verse:', verseId, 'Current state:', isExpanded)
-                                          console.log('Verse text:', verseText)
+                                        console.log('Verse text:', verseText)
+                                        
+                                        // Log visual imediato do clique no toggle
+                                        const clickLogId = `click-${verseId}-${Date.now()}`
+                                        setVerseSearchLogs(prev => [...prev, {
+                                          id: clickLogId,
+                                          verseId,
+                                          status: 'searching',
+                                          message: `👆 Clique em ${verseText} registrado`,
+                                          timestamp: Date.now()
+                                        }])
+                                        
+                                        // Remover log de clique após 1 segundo
+                                        setTimeout(() => {
+                                          setVerseSearchLogs(prev => prev.filter(log => log.id !== clickLogId))
+                                        }, 1000)
                                           
                                           // Algoritmo para buscar versículo - API primeiro, depois base local
                                           if (!verseText.includes('"') && !verseTexts[verseId]) {
+                                            const logId = `${verseId}-${Date.now()}`
+                                            
+                                            // Adicionar log visual de busca iniciada
+                                            setVerseSearchLogs(prev => [...prev, {
+                                              id: logId,
+                                              verseId,
+                                              status: 'searching',
+                                              message: `🔍 Buscando ${verseText} na base de dados...`,
+                                              timestamp: Date.now()
+                                            }])
+                                            
                                             console.log('🔍 Buscando versículo automaticamente:', verseText)
                                             
                                             // Buscar PRIMEIRO na API do Supabase (fonte mais completa)
@@ -1763,15 +1798,41 @@ export function ChatInterface({ conversationId, onConversationUpdate, user, appC
                                                 if (data.found && data.verse) {
                                                   const fullVerseText = `${data.reference} - "${data.verse.text}"`
                                                   console.log('✅ Versículo encontrado na API:', data.reference)
+                                                  
+                                                  // Atualizar log visual para sucesso
+                                                  setVerseSearchLogs(prev => prev.map(log => 
+                                                    log.id === logId 
+                                                      ? { ...log, status: 'success', message: `✅ ${verseText} encontrado no Supabase!` }
+                                                      : log
+                                                  ))
+                                                  
                                                   setVerseTexts(prev => ({
                                                     ...prev,
                                                     [verseId]: fullVerseText
                                                   }))
+                                                  
+                                                  // Remover log após 3 segundos
+                                                  setTimeout(() => {
+                                                    setVerseSearchLogs(prev => prev.filter(log => log.id !== logId))
+                                                  }, 3000)
+                                                  
                                                   return // Sai da função se encontrou na API
                                                 }
                                               }
+                                              
+                                              // API respondeu mas versículo não encontrado
+                                              if (response.status === 404) {
+                                                console.log('❌ Versículo não encontrado na API (404)')
+                                              }
                                             } catch (error) {
                                               console.error('❌ Erro na API, tentando base local:', error)
+                                              
+                                              // Atualizar log visual para erro na API
+                                              setVerseSearchLogs(prev => prev.map(log => 
+                                                log.id === logId 
+                                                  ? { ...log, status: 'error', message: `⚠️ Erro na API, tentando base local...` }
+                                                  : log
+                                              ))
                                             }
                                             
                                             // Fallback para base local apenas se API falhou
@@ -1779,17 +1840,43 @@ export function ChatInterface({ conversationId, onConversationUpdate, user, appC
                                             const foundVerse = findBibleVerseDirectly(verseText)
                                             if (foundVerse) {
                                               console.log('✅ Versículo encontrado na base local:', foundVerse)
+                                              
+                                              // Atualizar log visual para sucesso na base local
+                                              setVerseSearchLogs(prev => prev.map(log => 
+                                                log.id === logId 
+                                                  ? { ...log, status: 'success', message: `✅ ${verseText} encontrado na base local!` }
+                                                  : log
+                                              ))
+                                              
                                               setVerseTexts(prev => ({
                                                 ...prev,
                                                 [verseId]: `${foundVerse.reference} - "${foundVerse.text}"`
                                               }))
+                                              
+                                              // Remover log após 3 segundos
+                                              setTimeout(() => {
+                                                setVerseSearchLogs(prev => prev.filter(log => log.id !== logId))
+                                              }, 3000)
                                             } else {
                                               // Se não encontrou nem na API nem na base local
                                               console.log('❌ Versículo não encontrado em nenhuma fonte')
+                                              
+                                              // Atualizar log visual para não encontrado
+                                              setVerseSearchLogs(prev => prev.map(log => 
+                                                log.id === logId 
+                                                  ? { ...log, status: 'not-found', message: `❌ ${verseText} não encontrado em nenhuma fonte` }
+                                                  : log
+                                              ))
+                                              
                                               setVerseTexts(prev => ({
                                                 ...prev,
                                                 [verseId]: `"${verseText}" - Esta referência não foi encontrada como um versículo bíblico válido.`
                                               }))
+                                              
+                                              // Remover log após 5 segundos
+                                              setTimeout(() => {
+                                                setVerseSearchLogs(prev => prev.filter(log => log.id !== logId))
+                                              }, 5000)
                                             }
                                           }
                                         
@@ -2268,6 +2355,42 @@ export function ChatInterface({ conversationId, onConversationUpdate, user, appC
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Painel de Logs de Busca de Versículos - visível na interface */}
+      {verseSearchLogs.length > 0 && (
+        <div className="fixed bottom-20 right-4 z-50 space-y-2 max-w-sm">
+          {verseSearchLogs.map((log) => (
+            <div
+              key={log.id}
+              className={`px-4 py-3 rounded-lg shadow-lg border text-sm animate-in slide-in-from-right-2 fade-in duration-300 ${
+                log.status === 'searching'
+                  ? 'bg-blue-50 border-blue-200 text-blue-800 dark:bg-blue-900/50 dark:border-blue-700 dark:text-blue-200'
+                  : log.status === 'success'
+                  ? 'bg-green-50 border-green-200 text-green-800 dark:bg-green-900/50 dark:border-green-700 dark:text-green-200'
+                  : log.status === 'error'
+                  ? 'bg-amber-50 border-amber-200 text-amber-800 dark:bg-amber-900/50 dark:border-amber-700 dark:text-amber-200'
+                  : 'bg-red-50 border-red-200 text-red-800 dark:bg-red-900/50 dark:border-red-700 dark:text-red-200'
+              }`}
+            >
+              <div className="flex items-center gap-2">
+                {log.status === 'searching' && (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                )}
+                {log.status === 'success' && (
+                  <span className="text-green-600 dark:text-green-400">✓</span>
+                )}
+                {log.status === 'error' && (
+                  <span className="text-amber-600 dark:text-amber-400">⚠</span>
+                )}
+                {log.status === 'not-found' && (
+                  <span className="text-red-600 dark:text-red-400">✗</span>
+                )}
+                <span className="font-medium">{log.message}</span>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   )
 }
