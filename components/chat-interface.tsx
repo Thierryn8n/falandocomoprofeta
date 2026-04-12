@@ -13,7 +13,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Send, Loader2, AlertCircle, BookOpen, Copy, Share2, ChevronDown, ChevronUp, Book, MessageSquare, Image as ImageIcon, Instagram, X, Download, Link } from "lucide-react"
 import { supabase } from "@/lib/supabase"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import AudioRecorder from "@/components/audio-recorder"
+import GrokVoiceInput from "@/components/GrokVoiceInput"
 import { AudioPlayer } from "@/components/audio-player"
 import { WhatsAppAudioPlayer } from "@/components/whatsapp-audio-player"
 import { useSubscription } from "@/hooks/use-tokens"
@@ -2252,37 +2252,18 @@ export function ChatInterface({ conversationId, onConversationUpdate, user, appC
       )}
 
       <div className="p-2 sm:p-4 border-t">
-        <div className="flex space-x-2 max-w-4xl mx-auto">
-          <div className="flex-1">
-            <Input
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              placeholder="Digite sua pergunta sobre a Palavra de Deus..."
-              onKeyPress={(e) => {
-                if (e.key === "Enter" && !e.shiftKey) {
-                  e.preventDefault()
-                  sendMessage()
-                }
-              }}
-              disabled={isLoading || isRecordingActive}
-              className="min-h-[40px] sm:min-h-[44px] text-sm sm:text-base"
-            />
-          </div>
-          
-          <AudioRecorder 
-            onAudioRecorded={handleAudioRecorded}
-            disabled={isLoading}
-            onRecordingStateChange={setIsRecordingActive}
+        <div className="max-w-4xl mx-auto">
+          <GrokVoiceInput
+            onSendText={(text) => {
+              setInput(text)
+              sendMessage(text)
+            }}
+            onSendAudio={(audioBlob) => {
+              handleAudioRecorded(audioBlob)
+            }}
+            disabled={isRecordingActive}
+            isLoading={isLoading}
           />
-          
-          <Button 
-            onClick={() => sendMessage()} 
-            disabled={isLoading || !input.trim() || isRecordingActive}
-            size="icon"
-            className="h-[40px] w-[40px] sm:h-[44px] sm:w-[44px]"
-          >
-            <Send className="w-4 h-4" />
-          </Button>
         </div>
         
         {!hasActiveSubscription && !isAdmin && shouldShowUpgradeOffer && (
