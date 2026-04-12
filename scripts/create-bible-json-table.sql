@@ -144,97 +144,114 @@ ON CONFLICT DO NOTHING;
 -- FUNÇÕES AUXILIARES PARA CONSULTA
 -- ═══════════════════════════════════════════════════════════════════════════
 
+-- Tabela de mapeamento de nomes de livros para colunas
+CREATE TABLE IF NOT EXISTS bible_book_mapping (
+    id SERIAL PRIMARY KEY,
+    normalized_name VARCHAR(50) UNIQUE NOT NULL,
+    column_name VARCHAR(50) NOT NULL
+);
+
+-- Inserir mapeamentos (rodar uma vez só)
+INSERT INTO bible_book_mapping (normalized_name, column_name) VALUES
+    -- Antigo Testamento
+    ('genesis', 'genesis'), ('gen', 'genesis'), ('gn', 'genesis'),
+    ('exodo', 'exodo'), ('êxodo', 'exodo'), ('ex', 'exodo'), ('exo', 'exodo'),
+    ('levitico', 'levitico'), ('levítico', 'levitico'), ('lev', 'levitico'), ('lv', 'levitico'),
+    ('numeros', 'numeros'), ('números', 'numeros'), ('num', 'numeros'), ('nm', 'numeros'), ('nu', 'numeros'),
+    ('deuteronomio', 'deuteronomio'), ('deuteronômio', 'deuteronomio'), ('deut', 'deuteronomio'), ('dt', 'deuteronomio'),
+    ('josue', 'josue'), ('josué', 'josue'), ('jos', 'josue'), ('js', 'josue'),
+    ('juizes', 'juizes'), ('juízes', 'juizes'), ('jz', 'juizes'), ('jui', 'juizes'),
+    ('rute', 'rute'), ('ruth', 'rute'), ('rt', 'rute'),
+    ('1samuel', 'primeiro_samuel'), ('isamuel', 'primeiro_samuel'), ('primeirosamuel', 'primeiro_samuel'), ('1sam', 'primeiro_samuel'), ('i samuel', 'primeiro_samuel'),
+    ('2samuel', 'segundo_samuel'), ('iisamuel', 'segundo_samuel'), ('segundosamuel', 'segundo_samuel'), ('2sam', 'segundo_samuel'), ('ii samuel', 'segundo_samuel'),
+    ('1reis', 'primeiro_reis'), ('ireis', 'primeiro_reis'), ('primeiroreis', 'primeiro_reis'), ('i reis', 'primeiro_reis'),
+    ('2reis', 'segundo_reis'), ('iireis', 'segundo_reis'), ('segundoreis', 'segundo_reis'), ('ii reis', 'segundo_reis'),
+    ('1cronicas', 'primeiro_cronicas'), ('icronicas', 'primeiro_cronicas'), ('1cr', 'primeiro_cronicas'), ('primeirocronicas', 'primeiro_cronicas'),
+    ('2cronicas', 'segundo_cronicas'), ('iicronicas', 'segundo_cronicas'), ('2cr', 'segundo_cronicas'), ('segundocronicas', 'segundo_cronicas'),
+    ('esdras', 'esdras'), ('esd', 'esdras'), ('es', 'esdras'),
+    ('neemias', 'neemias'), ('nee', 'neemias'), ('ne', 'neemias'),
+    ('ester', 'ester'), ('est', 'ester'), ('et', 'ester'),
+    ('jo', 'jo'), ('jó', 'jo'), ('job', 'jo'),
+    ('salmos', 'salmos'), ('salmo', 'salmos'), ('sl', 'salmos'), ('ps', 'salmos'),
+    ('proverbios', 'proverbios'), ('provérbios', 'proverbios'), ('prov', 'proverbios'), ('pr', 'proverbios'), ('pv', 'proverbios'),
+    ('eclesiastes', 'eclesiastes'), ('ecl', 'eclesiastes'), ('ec', 'eclesiastes'),
+    ('cantares', 'cantares'), ('cant', 'cantares'), ('ct', 'cantares'), ('canticos', 'cantares'), ('cânticos', 'cantares'),
+    ('isaias', 'isaias'), ('isaías', 'isaias'), ('is', 'isaias'), ('isa', 'isaias'),
+    ('jeremias', 'jeremias'), ('jer', 'jeremias'), ('jr', 'jeremias'),
+    ('lamentacoes', 'lamentacoes'), ('lamentações', 'lamentacoes'), ('lam', 'lamentacoes'), ('lm', 'lamentacoes'),
+    ('ezequiel', 'ezequiel'), ('eze', 'ezequiel'), ('ez', 'ezequiel'),
+    ('daniel', 'daniel'), ('dan', 'daniel'), ('dn', 'daniel'),
+    ('oseias', 'oseias'), ('oséias', 'oseias'), ('os', 'oseias'), ('ose', 'oseias'),
+    ('joel', 'joel'), ('jl', 'joel'),
+    ('amos', 'amos'), ('am', 'amos'),
+    ('obadias', 'obadias'), ('obd', 'obadias'), ('ob', 'obadias'),
+    ('jonas', 'jonas'), ('jon', 'jonas'), ('jns', 'jonas'),
+    ('miqueias', 'miqueias'), ('miq', 'miqueias'), ('mq', 'miqueias'),
+    ('naum', 'naum'), ('na', 'naum'),
+    ('habacuque', 'habacuque'), ('hab', 'habacuque'), ('hc', 'habacuque'),
+    ('sofonias', 'sofonias'), ('sofo', 'sofonias'), ('sf', 'sofonias'),
+    ('ageu', 'ageu'), ('ag', 'ageu'),
+    ('zacarias', 'zacarias'), ('zac', 'zacarias'), ('zc', 'zacarias'),
+    ('malaquias', 'malaquias'), ('mal', 'malaquias'), ('ml', 'malaquias'),
+    -- Novo Testamento
+    ('mateus', 'mateus'), ('mat', 'mateus'), ('mt', 'mateus'),
+    ('marcos', 'marcos'), ('mar', 'marcos'), ('mc', 'marcos'), ('mk', 'marcos'),
+    ('lucas', 'lucas'), ('luc', 'lucas'), ('lc', 'lucas'), ('lu', 'lucas'),
+    ('joao', 'joao'), ('joão', 'joao'), ('jn', 'joao'),
+    ('atos', 'atos'), ('at', 'atos'), ('act', 'atos'),
+    ('romanos', 'romanos'), ('rom', 'romanos'), ('rm', 'romanos'), ('ro', 'romanos'),
+    ('1corintios', 'primeiro_corintios'), ('icorintios', 'primeiro_corintios'), ('1cor', 'primeiro_corintios'), ('1co', 'primeiro_corintios'),
+    ('2corintios', 'segundo_corintios'), ('iicorintios', 'segundo_corintios'), ('2cor', 'segundo_corintios'), ('2co', 'segundo_corintios'),
+    ('galatas', 'galatas'), ('gal', 'galatas'), ('gl', 'galatas'), ('ga', 'galatas'),
+    ('efesios', 'efesios'), ('ef', 'efesios'), ('efe', 'efesios'),
+    ('filipenses', 'filipenses'), ('filip', 'filipenses'), ('fp', 'filipenses'), ('fl', 'filipenses'),
+    ('colossenses', 'colossenses'), ('col', 'colossenses'), ('cl', 'colossenses'), ('co', 'colossenses'),
+    ('1tessalonicenses', 'primeiro_tessalonicenses'), ('itessalonicenses', 'primeiro_tessalonicenses'), ('1tes', 'primeiro_tessalonicenses'), ('1ts', 'primeiro_tessalonicenses'),
+    ('2tessalonicenses', 'segundo_tessalonicenses'), ('iitessalonicenses', 'segundo_tessalonicenses'), ('2tes', 'segundo_tessalonicenses'), ('2ts', 'segundo_tessalonicenses'),
+    ('1timoteo', 'primeiro_timoteo'), ('itimoteo', 'primeiro_timoteo'), ('1tim', 'primeiro_timoteo'), ('1tm', 'primeiro_timoteo'), ('1ti', 'primeiro_timoteo'),
+    ('2timoteo', 'segundo_timoteo'), ('iitimoteo', 'segundo_timoteo'), ('2tim', 'segundo_timoteo'), ('2tm', 'segundo_timoteo'), ('2ti', 'segundo_timoteo'),
+    ('tito', 'tito'), ('tt', 'tito'), ('ti', 'tito'),
+    ('filemom', 'filemom'), ('filem', 'filemom'), ('flm', 'filemom'), ('fm', 'filemom'),
+    ('hebreus', 'hebreus'), ('heb', 'hebreus'), ('hb', 'hebreus'),
+    ('tiago', 'tiago'), ('tg', 'tiago'), ('ti', 'tiago'), ('james', 'tiago'),
+    ('1pedro', 'primeiro_pedro'), ('ipedro', 'primeiro_pedro'), ('1pe', 'primeiro_pedro'), ('1pd', 'primeiro_pedro'),
+    ('2pedro', 'segundo_pedro'), ('iipedro', 'segundo_pedro'), ('2pe', 'segundo_pedro'), ('2pd', 'segundo_pedro'),
+    ('1joao', 'primeiro_joao'), ('ijoao', 'primeiro_joao'), ('1joão', 'primeiro_joao'), ('1jn', 'primeiro_joao'),
+    ('2joao', 'segundo_joao'), ('iijoao', 'segundo_joao'), ('2joão', 'segundo_joao'), ('2jn', 'segundo_joao'),
+    ('3joao', 'terceiro_joao'), ('iiijoao', 'terceiro_joao'), ('3joão', 'terceiro_joao'), ('3jn', 'terceiro_joao'),
+    ('judas', 'judas'), ('jud', 'judas'), ('jd', 'judas'),
+    ('apocalipse', 'apocalipse'), ('apoc', 'apocalipse'), ('ap', 'apocalipse'), ('revelacao', 'apocalipse'), ('revelação', 'apocalipse'), ('rv', 'apocalipse')
+ON CONFLICT (normalized_name) DO NOTHING;
+
 -- Função para buscar versículo específico de um livro
 CREATE OR REPLACE FUNCTION get_verse_from_book(book_name TEXT, chapter_num INT, verse_num INT)
 RETURNS TABLE(verse JSONB) AS $$
 DECLARE
-    column_name TEXT;
-    query TEXT;
+    v_column_name TEXT;
+    v_query TEXT;
+    v_normalized TEXT;
 BEGIN
-    -- Mapear nomes para colunas
-    column_name := CASE LOWER(REPLACE(REPLACE(book_name, ' ', ''), 'º', ''))
-        -- Antigo Testamento
-        WHEN 'genesis' THEN 'genesis'
-        WHEN 'exodo', 'êxodo' THEN 'exodo'
-        WHEN 'levitico', 'levítico' THEN 'levitico'
-        WHEN 'numeros', 'números' THEN 'numeros'
-        WHEN 'deuteronomio', 'deuteronômio' THEN 'deuteronomio'
-        WHEN 'josue', 'josué' THEN 'josue'
-        WHEN 'juizes', 'juízes' THEN 'juizes'
-        WHEN 'rute' THEN 'rute'
-        WHEN '1samuel', 'isamuel', 'primeirosamuel', '1sam' THEN 'primeiro_samuel'
-        WHEN '2samuel', 'iisamuel', 'segundosamuel', '2sam' THEN 'segundo_samuel'
-        WHEN '1reis', 'ireis', 'primeiroreis' THEN 'primeiro_reis'
-        WHEN '2reis', 'iireis', 'segundoreis' THEN 'segundo_reis'
-        WHEN '1cronicas', 'icronicas', '1cr', 'primeirocronicas' THEN 'primeiro_cronicas'
-        WHEN '2cronicas', 'iicronicas', '2cr', 'segundocronicas' THEN 'segundo_cronicas'
-        WHEN 'esdras' THEN 'esdras'
-        WHEN 'neemias' THEN 'neemias'
-        WHEN 'ester' THEN 'ester'
-        WHEN 'jo', 'job' THEN 'jo'
-        WHEN 'salmos', 'salmo', 'sl', 'ps' THEN 'salmos'
-        WHEN 'proverbios', 'provérbios', 'prov' THEN 'proverbios'
-        WHEN 'eclesiastes', 'ecl', 'ec' THEN 'eclesiastes'
-        WHEN 'cantares', 'cant', 'ct', 'canticos' THEN 'cantares'
-        WHEN 'isaias', 'isaías', 'is', 'isa' THEN 'isaias'
-        WHEN 'jeremias', 'jer' THEN 'jeremias'
-        WHEN 'lamentacoes', 'lamentações', 'lam', 'lm' THEN 'lamentacoes'
-        WHEN 'ezequiel', 'eze', 'ez' THEN 'ezequiel'
-        WHEN 'daniel', 'dan', 'dn' THEN 'daniel'
-        WHEN 'oseias', 'oséias', 'os', 'ose' THEN 'oseias'
-        WHEN 'joel', 'jl' THEN 'joel'
-        WHEN 'amos', 'am' THEN 'amos'
-        WHEN 'obadias', 'obd', 'ob' THEN 'obadias'
-        WHEN 'jonas', 'jon' THEN 'jonas'
-        WHEN 'miqueias', 'miq', 'mq' THEN 'miqueias'
-        WHEN 'naum', 'na' THEN 'naum'
-        WHEN 'habacuque', 'hab', 'hc' THEN 'habacuque'
-        WHEN 'sofonias', 'sofo', 'sf' THEN 'sofonias'
-        WHEN 'ageu', 'ag' THEN 'ageu'
-        WHEN 'zacarias', 'zac', 'zc' THEN 'zacarias'
-        WHEN 'malaquias', 'mal', 'ml' THEN 'malaquias'
-        -- Novo Testamento
-        WHEN 'mateus', 'mat', 'mt' THEN 'mateus'
-        WHEN 'marcos', 'mar', 'mc', 'mk' THEN 'marcos'
-        WHEN 'lucas', 'luc', 'lc' THEN 'lucas'
-        WHEN 'joao', 'joão', 'jn', 'jo' THEN 'joao'
-        WHEN 'atos', 'at', 'act' THEN 'atos'
-        WHEN 'romanos', 'rom', 'rm', 'ro' THEN 'romanos'
-        WHEN '1corintios', 'icorintios', '1co', '1cor', 'primeirocorintios' THEN 'primeiro_corintios'
-        WHEN '2corintios', 'iicorintios', '2co', '2cor', 'segundocorintios' THEN 'segundo_corintios'
-        WHEN 'galatas', 'gal', 'gl', 'ga' THEN 'galatas'
-        WHEN 'efesios', 'efésios', 'ef', 'efe' THEN 'efesios'
-        WHEN 'filipenses', 'filip', 'fp', 'fl' THEN 'filipenses'
-        WHEN 'colossenses', 'col', 'cl', 'co' THEN 'colossenses'
-        WHEN '1tessalonicenses', 'itessalonicenses', '1tes', '1ts', 'primeirotessalonicenses' THEN 'primeiro_tessalonicenses'
-        WHEN '2tessalonicenses', 'iitessalonicenses', '2tes', '2ts', 'segundotessalonicenses' THEN 'segundo_tessalonicenses'
-        WHEN '1timoteo', 'itimoteo', '1tim', '1tm', '1ti', 'primeirotimoteo' THEN 'primeiro_timoteo'
-        WHEN '2timoteo', 'iitimoteo', '2tim', '2tm', '2ti', 'segundotimoteo' THEN 'segundo_timoteo'
-        WHEN 'tito', 'tt', 'ti' THEN 'tito'
-        WHEN 'filemom', 'filem', 'flm', 'fm' THEN 'filemom'
-        WHEN 'hebreus', 'heb', 'hb' THEN 'hebreus'
-        WHEN 'tiago', 'tg', 'ti', 'james' THEN 'tiago'
-        WHEN '1pedro', 'ipedro', '1pe', '1pd', 'primeiropedro' THEN 'primeiro_pedro'
-        WHEN '2pedro', 'iipedro', '2pe', '2pd', 'segundopedro' THEN 'segundo_pedro'
-        WHEN '1joao', 'ijoao', '1joão', '1jn', '3joao', 'iii joao' THEN 'terceiro_joao' -- Fix
-        WHEN '1joao', 'ijoao', '1joão', '1jn', 'primeirojoao' THEN 'primeiro_joao'
-        WHEN '2joao', 'iijoao', '2joão', '2jn', 'segundojoao' THEN 'segundo_joao'
-        WHEN '3joao', 'iiijoao', '3joão', '3jn', 'terceirojoao' THEN 'terceiro_joao'
-        WHEN 'judas', 'jud', 'jd' THEN 'judas'
-        WHEN 'apocalipse', 'apoc', 'ap', 'revelacao', 'revelação', 'rv' THEN 'apocalipse'
-        ELSE LOWER(REPLACE(REPLACE(book_name, ' ', '_'), 'º', ''))
-    END;
+    -- Normalizar o nome do livro
+    v_normalized := LOWER(REPLACE(REPLACE(book_name, ' ', ''), 'º', ''));
     
-    query := format('
-        SELECT jsonb_array_elements(%I) as verse 
-        FROM bible_json 
-        WHERE id = 1
-        AND jsonb_array_elements(%I) @> ''{"chapter": %s, "verse": %s}''::jsonb
-        LIMIT 1',
-        column_name, column_name, chapter_num, verse_num
+    -- Buscar o nome da coluna na tabela de mapeamento
+    SELECT bm.column_name INTO v_column_name
+    FROM bible_book_mapping bm
+    WHERE bm.normalized_name = v_normalized
+    LIMIT 1;
+    
+    -- Se não encontrou no mapeamento, tentar usar o nome normalizado diretamente
+    IF v_column_name IS NULL THEN
+        v_column_name := v_normalized;
+    END IF;
+    
+    -- Montar e executar a query dinâmica
+    v_query := format(
+        'SELECT elem as verse FROM bible_json, jsonb_array_elements(%I) as elem WHERE id = 1 AND (elem->>''chapter'')::int = %s AND (elem->>''verse'')::int = %s LIMIT 1',
+        v_column_name, chapter_num, verse_num
     );
     
-    RETURN QUERY EXECUTE query;
+    RETURN QUERY EXECUTE v_query;
 END;
 $$ LANGUAGE plpgsql;
 
