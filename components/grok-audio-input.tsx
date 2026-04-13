@@ -251,7 +251,7 @@ export function GrokAudioInput({
 
           {/* Menu dropdown de tamanho */}
           {showLengthMenu && (
-            <div className="absolute bottom-full right-0 mb-2 w-40 bg-background border border-border rounded-xl shadow-xl overflow-hidden dark:bg-slate-900 dark:border-slate-800">
+            <div className="absolute bottom-full right-0 mb-2 w-48 bg-background border border-border rounded-xl shadow-xl overflow-hidden dark:bg-slate-900 dark:border-slate-800 z-50">
               {(["short", "medium", "long"] as const).map((length) => (
                 <button
                   key={length}
