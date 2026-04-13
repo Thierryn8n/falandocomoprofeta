@@ -493,6 +493,8 @@ export function ChatInterface({ conversationId, onConversationUpdate, user, appC
       })
 
       // Verificar se a resposta pode ser continuada
+      console.log('🔍 data.canContinue:', data.canContinue)
+      console.log('🔍 Tipo de data.canContinue:', typeof data.canContinue)
       if (data.canContinue) {
         console.log('➡️ Resposta pode ser continuada - ativando botão "Continuar Sermão"')
         setCanContinueSermon(true)
@@ -1443,7 +1445,10 @@ export function ChatInterface({ conversationId, onConversationUpdate, user, appC
 
   const processMessageContent = async (content: string, messageIndex: number = 0) => {
     // Safety check - ensure content is a valid string
+    console.log(`[PROCESS ${messageIndex}] Tamanho original: ${content?.length || 0}`)
+    
     if (!content || typeof content !== 'string') {
+      console.log(`[PROCESS ${messageIndex}] Conteúdo inválido!`)
       return {
         cleanContent: '',
         references: [],
@@ -1452,6 +1457,9 @@ export function ChatInterface({ conversationId, onConversationUpdate, user, appC
         processedContent: ''
       }
     }
+    
+    console.log(`[PROCESS ${messageIndex}] Conteúdo (primeiros 100): ${content.substring(0, 100)}`)
+    console.log(`[PROCESS ${messageIndex}] Conteúdo (últimos 100): ${content.substring(content.length - 100)}`)
     
     const references: string[] = []
     const sources: string[] = []
@@ -1560,18 +1568,23 @@ export function ChatInterface({ conversationId, onConversationUpdate, user, appC
     let cleanContent = content
     
     // Remove all possible reference section formats (including Bible references)
+    // APENAS remove seções que aparecem no FINAL da mensagem (seguidas de fim de string)
     const cleanPatterns = [
-      /\*\*(Citações e )?Referências:\*\*[\s\S]*$/i,
-      /\*\*Referências utilizadas:\*\*[\s\S]*$/i,
-      /\*\*Referências:\*\*[\s\S]*$/i,
-      /\*\*Fontes da base de dados.*?:\*\*[\s\S]*$/i,
-      /\*\*Fontes utilizadas.*?:\*\*[\s\S]*$/i,
-      /\*\*Fontes da base de dados utilizadas.*?:\*\*[\s\S]*$/i,
-      /\*\*Referências Bíblicas \(King James 1611\):\*\*[\s\S]*$/i
+      /\*\*(Citações e )?Referências:\*\*[\s\S]*?$/i,
+      /\*\*Referências utilizadas:\*\*[\s\S]*?$/i,
+      /\*\*Referências:\*\*[\s\S]*?$/i,
+      /\*\*Fontes da base de dados.*?:\*\*[\s\S]*?$/i,
+      /\*\*Fontes utilizadas.*?:\*\*[\s\S]*?$/i,
+      /\*\*Fontes da base de dados utilizadas.*?:\*\*[\s\S]*?$/i,
+      /\*\*Referências Bíblicas \(King James 1611\):\*\*[\s\S]*?$/i
     ]
     
     for (const pattern of cleanPatterns) {
-      cleanContent = cleanContent.replace(pattern, "")
+      // Só remove se a seção estiver no final (dentro dos últimos 500 caracteres)
+      const lastIndex = cleanContent.search(pattern)
+      if (lastIndex !== -1 && lastIndex > cleanContent.length - 1000) {
+        cleanContent = cleanContent.replace(pattern, "")
+      }
     }
     
     // Clean up any trailing separators and whitespace
@@ -1685,13 +1698,18 @@ export function ChatInterface({ conversationId, onConversationUpdate, user, appC
       }
     }
     
-    return {
+    const result = {
       cleanContent: cleanContent.trim(),
       processedContent: processedContent.trim(),
       references: sortedReferences,
       sources: sources, // Already sorted by relevance score
       bibleReferences: bibleReferences
     }
+    
+    console.log(`[PROCESS ${messageIndex}] Resultado final - cleanContent: ${result.cleanContent.length}, processedContent: ${result.processedContent.length}`)
+    console.log(`[PROCESS ${messageIndex}] cleanContent (últimos 100): ${result.cleanContent.substring(Math.max(0, result.cleanContent.length - 100))}`)
+    
+    return result
   }
 
   if (!user) {
@@ -1727,8 +1745,8 @@ export function ChatInterface({ conversationId, onConversationUpdate, user, appC
 
   return (
     <div className="flex flex-col h-full">
-      <ScrollArea className="flex-1 p-4" ref={scrollAreaRef}>
-        <div className="space-y-4 max-w-4xl mx-auto">
+      <ScrollArea className="flex-1 p-2 sm:p-4 min-h-0" ref={scrollAreaRef}>
+        <div className="space-y-4 max-w-4xl mx-auto h-auto">
           {messages.map((message, index) => {
             const messageData = processedMessages[index] || {
               cleanContent: message.content,
@@ -1742,8 +1760,8 @@ export function ChatInterface({ conversationId, onConversationUpdate, user, appC
             
             return (
               <div key={index} className={`flex ${message.role === "user" ? "justify-end" : "justify-start"}`}>
-                <div className={`flex ${message.role === "user" ? "flex-row-reverse" : "flex-row"} items-start space-x-2 max-w-[85%] sm:max-w-[80%] md:max-w-[75%]`}>
-                  <Avatar className="w-7 h-7 sm:w-8 sm:h-8 flex-shrink-0">
+                <div className={`flex ${message.role === "user" ? "flex-row-reverse" : "flex-row"} items-start space-x-1.5 sm:space-x-2 max-w-[90%] sm:max-w-[85%] md:max-w-[80%] lg:max-w-[75%]`}>
+                  <Avatar className="w-6 h-6 sm:w-7 sm:h-7 md:w-8 md:h-8 flex-shrink-0">
                     <AvatarImage 
                       src={message.role === "user" ? (profile?.avatar_url || generateAvatarUrl(profile?.name || "", profile?.email)) : appConfig.prophetAvatar} 
                       alt={message.role === "user" ? (profile?.name || "User") : appConfig.prophetName}
@@ -1754,16 +1772,21 @@ export function ChatInterface({ conversationId, onConversationUpdate, user, appC
                     />
                     <AvatarFallback className="text-xs">{message.role === "user" ? "U" : "WB"}</AvatarFallback>
                   </Avatar>
-                  <Card className={`${message.role === "user" ? "bg-primary text-primary-foreground ml-2" : "mr-2"}`}>
-                    <CardContent className="p-2 sm:p-3">
-                      <div className="space-y-2">
+                  <Card className={`${message.role === "user" ? "bg-primary text-primary-foreground ml-2" : "mr-2"} overflow-visible`}>
+                    <CardContent className="p-1.5 sm:p-2 md:p-3 overflow-visible">
+                      <div className="space-y-2 overflow-visible">
                         {/* Renderizar áudio se existir */}
-                        {message.audioUrl && (
-                          <div className="mb-2">
-                            <WhatsAppAudioPlayer 
-                              src={message.audioUrl} 
-                              className="max-w-[250px] sm:max-w-xs"
-                            />
+                        {message.role === "assistant" && (
+                          console.log(`[RENDER ${index}] message.content length: ${message.content?.length || 0}`),
+                          console.log(`[RENDER ${index}] message.content (últimos 50): ${message.content?.substring(message.content.length - 50) || 'N/A'}`),
+                          console.log(`[RENDER ${index}] displayContent length: ${processedContent?.length || 0}`),
+                          <div className="flex gap-3">
+                            {message.audioUrl && (
+                              <WhatsAppAudioPlayer 
+                                src={message.audioUrl} 
+                                className="max-w-[250px] sm:max-w-xs"
+                              />
+                            )}
                           </div>
                         )}
                         
@@ -1775,7 +1798,7 @@ export function ChatInterface({ conversationId, onConversationUpdate, user, appC
                         )}
                         
                         {/* Renderizar conteúdo com versículos inline */}
-                        <div className="text-sm sm:text-base whitespace-pre-wrap leading-relaxed">
+                        <div className="text-xs sm:text-sm md:text-base whitespace-pre-wrap leading-relaxed break-words">
                           {processedContent.split(/(\{\{VERSE:[^}]+\}\})/).map((part, partIndex) => {
                             if (part.startsWith('{{VERSE:')) {
                               const match = part.match(/\{\{VERSE:([^:]+):(.+)\}\}/)

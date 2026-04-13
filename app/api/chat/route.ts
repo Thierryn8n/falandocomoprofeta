@@ -1386,13 +1386,23 @@ IMPORTANTE - LIMITE OBRIGATÓRIO:
 - Cite os sermões do Profeta Branham naturalmente no meio da resposta
 - NUNCA seja superficial ou genérico
 
-CONTROLE DE TAMANHO DA RESPOSTA:
-O usuário pode solicitar respostas em três tamanhos:
-- CURTA (short): 100-150 palavras. Resposta direta, objetiva e concisa. Foque no ponto central da pergunta.
-- MÉDIA (medium): 300-400 palavras. Resposta equilibrada com contexto e aplicação prática.
-- LONGA (long): 700-900 palávras. Resposta completa e aprofundada com múltiplos exemplos e desenvolvimento teológico detalhado.
+CONTROLE DE TAMANHO DA RESPOSTA - OBRIGATÓRIO:
+O usuário selecionou o tamanho da resposta. Você DEVE respeitar rigorosamente estes limites:
 
-Ajuste sua resposta de acordo com o tamanho solicitado pelo usuário.`
+🎯 TAMANHO SELECIONADO: ${responseLength.toUpperCase()}
+
+📏 LIMITES DE PALAVRAS:
+- SHORT (Sermão pequeno): EXATAMENTE 100-150 palavras. Seja direto, objetivo e conciso. Responda apenas o essencial.
+- MEDIUM (Sermão médio): EXATAMENTE 300-400 palavras. Resposta equilibrada com contexto, aplicação prática e exemplos.
+- LONG (Sermão longo): EXATAMENTE 700-900 palavras. Resposta completa, aprofundada, com múltiplos exemplos e desenvolvimento teológico detalhado.
+
+⚠️ REGRAS CRÍTICAS:
+1. CONTAR as palavras da sua resposta antes de enviar
+2. NUNCA exceder o limite máximo de palavras do tamanho selecionado
+3. Se a resposta estiver ficando longa demais, RESUMA e termine com **[CONTINUA...]**
+4. O usuário PREFERE respostas completas dentro do limite a respostas cortadas
+5. IMPORTANTE: O limite é de PALAVRAS, não de caracteres. Conte as palavras!
+6. O contexto (documentos + histórico) consome tokens - deixe margem para a resposta!`
 
     try {
       const { data: systemPromptData, error: promptError } = await getSupabaseAdmin()
@@ -1583,10 +1593,12 @@ Utilize EXCLUSIVAMENTE as informações dos documentos analisados E o contexto d
       console.log("📚 Construindo histórico de conversa com", messages.length - 1, "mensagens anteriores")
 
       // Definir maxOutputTokens baseado no tamanho da resposta solicitado
+      // IMPORTANTE: O contexto (documentos + histórico) consome tokens
+      // Precisamos de margem suficiente para a resposta completa
       const maxTokensMap = {
-        short: 1024,    // ~150 palavras
-        medium: 4096,   // ~400 palavras
-        long: 8192      // ~900 palavras
+        short: 4096,    // ~150 palavras + margem grande para contexto
+        medium: 6144,   // ~400 palavras + margem para contexto
+        long: 8192      // ~900 palavras + margem para contexto
       }
       const maxOutputTokens = maxTokensMap[responseLength] || 4096
       
@@ -1767,6 +1779,10 @@ IMPORTANTE:
         aiResponse = "Irmão/irmã, não consegui gerar uma resposta no momento. Que o Senhor te abençoe."
       }
 
+      console.log(`📝 Resposta da Gemini - Tamanho: ${aiResponse.length} caracteres`)
+      console.log(`📝 Primeiros 150 chars: ${aiResponse.substring(0, 150)}`)
+      console.log(`📝 Últimos 150 chars: ${aiResponse.substring(Math.max(0, aiResponse.length - 150))}`)
+
       // SEMPRE adicionar referências se houver documentos relevantes (Wikipedia removed)
       if (relevantDocuments.length > 0) {
         // Verificar se já tem referências na resposta
@@ -1828,6 +1844,8 @@ IMPORTANTE:
 
       // Detectar se a resposta pode continuar (contém [CONTINUA...])
       const canContinue = aiResponse.includes("[CONTINUA...]") || aiResponse.includes("**[CONTINUA...]**")
+      console.log("🔍 [CANCONTINUE] Verificando - contém [CONTINUA...]:", canContinue)
+      console.log("🔍 [CANCONTINUE] aiResponse snippet:", aiResponse.substring(Math.max(0, aiResponse.length - 200)))
       if (canContinue) {
         console.log("➡️ Resposta pode ser continuada - flag canContinue ativada")
       }
@@ -1866,6 +1884,9 @@ IMPORTANTE:
           } catch (counterErr) {
             console.error("❌ Erro ao incrementar contador de perguntas:", counterErr)
           }
+          
+          console.log(`📤 RETORNANDO para frontend - message length: ${aiResponse.length}, canContinue: ${canContinue}`)
+          console.log(`📤 Últimos 100 chars da resposta: ${aiResponse.substring(Math.max(0, aiResponse.length - 100))}`)
           
           return NextResponse.json({
             message: aiResponse,

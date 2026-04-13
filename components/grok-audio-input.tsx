@@ -233,14 +233,14 @@ export function GrokAudioInput({
   return (
     <div className="w-full max-w-4xl mx-auto">
       {/* Container principal - adapta para tema claro/escuro */}
-      <div className="relative flex items-center gap-2 px-4 py-3 bg-background/90 backdrop-blur-sm rounded-full border border-border shadow-2xl dark:bg-slate-900/90 dark:border-slate-800">
+      <div className="relative flex items-center gap-1.5 sm:gap-2 px-2 sm:px-4 py-2 sm:py-3 bg-background/90 backdrop-blur-sm rounded-full border border-border shadow-2xl dark:bg-slate-900/90 dark:border-slate-800">
         
         {/* Botão de anexar (paperclip) */}
         <button
-          className="flex-shrink-0 p-2 text-muted-foreground hover:text-foreground transition-colors rounded-full hover:bg-accent"
+          className="flex-shrink-0 p-1.5 sm:p-2 text-muted-foreground hover:text-foreground transition-colors rounded-full hover:bg-accent"
           title="Anexar arquivo"
         >
-          <Paperclip className="w-5 h-5" />
+          <Paperclip className="w-4 h-4 sm:w-5 sm:h-5" />
         </button>
 
         {/* Input de texto */}
@@ -257,7 +257,7 @@ export function GrokAudioInput({
           }}
           placeholder={isRecording ? "" : placeholder}
           disabled={disabled || isRecording}
-          className="flex-1 bg-transparent text-foreground placeholder-muted-foreground text-base outline-none min-w-0 disabled:cursor-not-allowed"
+          className="flex-1 bg-transparent text-foreground placeholder-muted-foreground text-sm sm:text-base outline-none min-w-0 disabled:cursor-not-allowed"
         />
 
         {/* Seletor de Tamanho da Resposta */}
@@ -268,12 +268,13 @@ export function GrokAudioInput({
               console.log('🖱️ Botão de tamanho clicado! showLengthMenu antes:', showLengthMenu)
               setShowLengthMenu(!showLengthMenu)
             }}
-            className="flex items-center gap-1 px-3 py-1.5 text-sm font-medium text-muted-foreground hover:text-foreground bg-accent hover:bg-accent/80 rounded-full transition-all pointer-events-auto"
+            className="flex items-center gap-1 px-2 sm:px-3 py-1.5 text-xs sm:text-sm font-medium text-muted-foreground hover:text-foreground bg-accent hover:bg-accent/80 rounded-full transition-all pointer-events-auto whitespace-nowrap"
             title="Tamanho da resposta"
             type="button"
           >
-            {lengthLabels[responseLength]}
-            <ChevronDown className={`w-4 h-4 transition-transform ${showLengthMenu ? "rotate-180" : ""}`} />
+            <span className="hidden sm:inline">{lengthLabels[responseLength]}</span>
+            <span className="sm:hidden">{lengthLabels[responseLength].split(' ')[1]?.charAt(0).toUpperCase()}</span>
+            <ChevronDown className={`w-3 h-3 sm:w-4 sm:h-4 transition-transform ${showLengthMenu ? "rotate-180" : ""}`} />
           </button>
 
           {/* Menu dropdown de tamanho */}
@@ -303,17 +304,17 @@ export function GrokAudioInput({
         </div>
 
         {/* Área de controle de áudio / enviar */}
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5 sm:gap-2">
           {!isRecording ? (
             <>
               {/* Botão de microfone (inicia gravação) */}
               <button
                 onClick={startRecording}
                 disabled={disabled}
-                className="flex-shrink-0 p-2.5 text-muted-foreground hover:text-foreground bg-accent hover:bg-accent/80 rounded-full transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                className="flex-shrink-0 p-2 sm:p-2.5 text-muted-foreground hover:text-foreground bg-accent hover:bg-accent/80 rounded-full transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                 title="Gravar áudio"
               >
-                <Mic className="w-5 h-5" />
+                <Mic className="w-4 h-4 sm:w-5 sm:h-5" />
               </button>
 
               {/* Botão de enviar (só aparece se tem texto) */}
@@ -321,10 +322,10 @@ export function GrokAudioInput({
                 <button
                   onClick={handleSend}
                   disabled={disabled}
-                  className="flex-shrink-0 p-2.5 text-primary-foreground bg-primary hover:bg-primary/90 rounded-full transition-all disabled:opacity-50"
+                  className="flex-shrink-0 p-2 sm:p-2.5 text-primary-foreground bg-primary hover:bg-primary/90 rounded-full transition-all disabled:opacity-50"
                   title="Enviar mensagem"
                 >
-                  <Check className="w-5 h-5" />
+                  <Check className="w-4 h-4 sm:w-5 sm:h-5" />
                 </button>
               )}
             </>

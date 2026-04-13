@@ -99,7 +99,7 @@ A pergunta original que está sendo respondida é: "${originalQuestion}"
 AGORA, continue o sermão de forma natural, como se estivesse pregando:`
 
     // Definir maxOutputTokens baseado no tamanho da resposta
-    const maxOutputTokens = responseLength === "short" ? 1024 : responseLength === "long" ? 8192 : 4096
+    const maxOutputTokens = responseLength === "short" ? 4096 : responseLength === "long" ? 8192 : 6144
     
     // Chamar API Gemini
     const response = await fetch(
