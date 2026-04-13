@@ -30,14 +30,33 @@ export function GrokAudioInput({
   const animationFrameRef = useRef<number>()
   const recordingIntervalRef = useRef<NodeJS.Timeout>()
   const inputRef = useRef<HTMLInputElement>(null)
+  const audioContextRef = useRef<AudioContext | null>(null)
+  const analyserRef = useRef<AnalyserNode | null>(null)
+  const sourceRef = useRef<MediaStreamAudioSourceNode | null>(null)
+  const dataArrayRef = useRef<Uint8Array | null>(null)
 
-  // Animação das barrinhas de áudio
+  // Animação das barrinhas de áudio - usando Web Audio API para níveis reais
   useEffect(() => {
-    if (isRecording) {
+    if (isRecording && analyserRef.current && dataArrayRef.current) {
       const animate = () => {
-        setAudioLevels(prev => 
-          prev.map(() => Math.random() * 20 + 3)
-        )
+        analyserRef.current!.getByteFrequencyData(dataArrayRef.current!)
+        
+        // Divide o array de frequências em 20 segmentos e pega o valor médio de cada um
+        const levels = []
+        const step = Math.floor(dataArrayRef.current!.length / 20)
+        
+        for (let i = 0; i < 20; i++) {
+          let sum = 0
+          for (let j = 0; j < step; j++) {
+            sum += dataArrayRef.current![i * step + j]
+          }
+          const average = sum / step
+          // Mapeia 0-255 para 3-25 pixels de altura
+          const height = Math.max(3, Math.min(25, (average / 255) * 25))
+          levels.push(height)
+        }
+        
+        setAudioLevels(levels)
         animationFrameRef.current = requestAnimationFrame(animate)
       }
       animationFrameRef.current = requestAnimationFrame(animate)
@@ -78,6 +97,23 @@ export function GrokAudioInput({
   const startRecording = async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+      
+      // Configurar Web Audio API para análise do microfone
+      const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)()
+      const analyser = audioContext.createAnalyser()
+      const source = audioContext.createMediaStreamSource(stream)
+      
+      analyser.fftSize = 256
+      source.connect(analyser)
+      
+      const bufferLength = analyser.frequencyBinCount
+      const dataArray = new Uint8Array(bufferLength)
+      
+      audioContextRef.current = audioContext
+      analyserRef.current = analyser
+      sourceRef.current = source
+      dataArrayRef.current = dataArray
+      
       const mediaRecorder = new MediaRecorder(stream)
       mediaRecorderRef.current = mediaRecorder
       audioChunksRef.current = []
@@ -91,6 +127,9 @@ export function GrokAudioInput({
       mediaRecorder.onstop = () => {
         const audioBlob = new Blob(audioChunksRef.current, { type: "audio/wav" })
         onSendAudio?.(audioBlob)
+        
+        // Limpar Web Audio API
+        audioContextRef.current?.close()
         stream.getTracks().forEach(track => track.stop())
       }
 
@@ -105,6 +144,7 @@ export function GrokAudioInput({
   const stopRecording = () => {
     if (mediaRecorderRef.current && isRecording) {
       mediaRecorderRef.current.stop()
+      audioContextRef.current?.close()
       setIsRecording(false)
     }
   }
@@ -112,6 +152,7 @@ export function GrokAudioInput({
   const cancelRecording = () => {
     if (mediaRecorderRef.current && isRecording) {
       mediaRecorderRef.current.stop()
+      audioContextRef.current?.close()
       // Não envia o áudio - descarta
       audioChunksRef.current = []
       setIsRecording(false)
@@ -134,12 +175,12 @@ export function GrokAudioInput({
 
   return (
     <div className="w-full max-w-4xl mx-auto">
-      {/* Container principal estilo Grok */}
-      <div className="relative flex items-center gap-2 px-4 py-3 bg-zinc-900/90 backdrop-blur-sm rounded-full border border-zinc-800 shadow-2xl">
+      {/* Container principal - adapta para tema claro/escuro */}
+      <div className="relative flex items-center gap-2 px-4 py-3 bg-background/90 backdrop-blur-sm rounded-full border border-border shadow-2xl dark:bg-slate-900/90 dark:border-slate-800">
         
         {/* Botão de anexar (paperclip) */}
         <button
-          className="flex-shrink-0 p-2 text-zinc-400 hover:text-zinc-200 transition-colors rounded-full hover:bg-zinc-800/50"
+          className="flex-shrink-0 p-2 text-muted-foreground hover:text-foreground transition-colors rounded-full hover:bg-accent"
           title="Anexar arquivo"
         >
           <Paperclip className="w-5 h-5" />
@@ -159,14 +200,14 @@ export function GrokAudioInput({
           }}
           placeholder={isRecording ? "" : placeholder}
           disabled={disabled || isRecording}
-          className="flex-1 bg-transparent text-zinc-100 placeholder-zinc-500 text-base outline-none min-w-0 disabled:cursor-not-allowed"
+          className="flex-1 bg-transparent text-foreground placeholder-muted-foreground text-base outline-none min-w-0 disabled:cursor-not-allowed"
         />
 
         {/* Seletor Expert */}
         <div className="relative">
           <button
             onClick={() => setShowExpertMenu(!showExpertMenu)}
-            className="flex items-center gap-1 px-3 py-1.5 text-sm font-medium text-zinc-300 hover:text-zinc-100 bg-zinc-800/50 hover:bg-zinc-800 rounded-full transition-all"
+            className="flex items-center gap-1 px-3 py-1.5 text-sm font-medium text-muted-foreground hover:text-foreground bg-accent hover:bg-accent/80 rounded-full transition-all"
           >
             {expertMode}
             <ChevronDown className={`w-4 h-4 transition-transform ${showExpertMenu ? "rotate-180" : ""}`} />
@@ -174,7 +215,7 @@ export function GrokAudioInput({
 
           {/* Menu dropdown */}
           {showExpertMenu && (
-            <div className="absolute bottom-full right-0 mb-2 w-40 bg-zinc-900 border border-zinc-800 rounded-xl shadow-xl overflow-hidden">
+            <div className="absolute bottom-full right-0 mb-2 w-40 bg-background border border-border rounded-xl shadow-xl overflow-hidden dark:bg-slate-900 dark:border-slate-800">
               {["Expert", "Default", "Creative"].map((mode) => (
                 <button
                   key={mode}
@@ -184,8 +225,8 @@ export function GrokAudioInput({
                   }}
                   className={`w-full px-4 py-2.5 text-sm text-left transition-colors ${
                     expertMode === mode
-                      ? "bg-zinc-800 text-white"
-                      : "text-zinc-400 hover:bg-zinc-800/50 hover:text-zinc-200"
+                      ? "bg-accent text-accent-foreground"
+                      : "text-muted-foreground hover:bg-accent hover:text-foreground"
                   }`}
                 >
                   {mode}
@@ -203,7 +244,7 @@ export function GrokAudioInput({
               <button
                 onClick={startRecording}
                 disabled={disabled}
-                className="flex-shrink-0 p-2.5 text-zinc-400 hover:text-white bg-zinc-800/50 hover:bg-zinc-700 rounded-full transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                className="flex-shrink-0 p-2.5 text-muted-foreground hover:text-foreground bg-accent hover:bg-accent/80 rounded-full transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                 title="Gravar áudio"
               >
                 <Mic className="w-5 h-5" />
@@ -214,7 +255,7 @@ export function GrokAudioInput({
                 <button
                   onClick={handleSend}
                   disabled={disabled}
-                  className="flex-shrink-0 p-2.5 text-zinc-900 bg-white hover:bg-zinc-200 rounded-full transition-all disabled:opacity-50"
+                  className="flex-shrink-0 p-2.5 text-primary-foreground bg-primary hover:bg-primary/90 rounded-full transition-all disabled:opacity-50"
                   title="Enviar mensagem"
                 >
                   <Check className="w-5 h-5" />
@@ -223,18 +264,18 @@ export function GrokAudioInput({
             </>
           ) : (
             /* Interface de gravação ativa */
-            <div className="flex items-center gap-3 px-3 py-1.5 bg-zinc-800/80 rounded-full">
+            <div className="flex items-center gap-3 px-3 py-1.5 bg-accent/80 rounded-full dark:bg-slate-800/80">
               {/* Timer */}
-              <span className="text-sm font-medium text-zinc-300 tabular-nums">
+              <span className="text-sm font-medium text-foreground tabular-nums">
                 {formatTime(recordingTime)}
               </span>
 
-              {/* Barrinhas animadas de áudio */}
+              {/* Barrinhas animadas de áudio - com gradiente que funciona em ambos temas */}
               <div className="flex items-center gap-0.5 h-6">
                 {audioLevels.map((level, index) => (
                   <div
                     key={index}
-                    className="w-1 bg-gradient-to-t from-emerald-500 to-emerald-400 rounded-full transition-all duration-75"
+                    className="w-1 rounded-full transition-all duration-75 bg-gradient-to-t from-primary to-primary/60 dark:from-emerald-500 dark:to-emerald-400"
                     style={{
                       height: `${level}px`,
                       animationDelay: `${index * 0.05}s`
@@ -246,7 +287,7 @@ export function GrokAudioInput({
               {/* Botão cancelar */}
               <button
                 onClick={cancelRecording}
-                className="p-1.5 text-zinc-400 hover:text-red-400 hover:bg-zinc-700/50 rounded-full transition-all"
+                className="p-1.5 text-muted-foreground hover:text-destructive hover:bg-accent rounded-full transition-all"
                 title="Cancelar gravação"
               >
                 <X className="w-4 h-4" />
@@ -255,7 +296,7 @@ export function GrokAudioInput({
               {/* Botão enviar áudio */}
               <button
                 onClick={stopRecording}
-                className="p-2 text-zinc-900 bg-white hover:bg-zinc-200 rounded-full transition-all"
+                className="p-2 text-primary-foreground bg-primary hover:bg-primary/90 rounded-full transition-all"
                 title="Enviar áudio"
               >
                 <Check className="w-4 h-4" />
