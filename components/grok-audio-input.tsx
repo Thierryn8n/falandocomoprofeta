@@ -282,7 +282,10 @@ export function GrokAudioInput({
               {(["short", "medium", "long"] as const).map((length) => (
                 <button
                   key={length}
-                  onClick={() => {
+                  onMouseDown={(e) => {
+                    e.preventDefault()
+                    e.stopPropagation()
+                    console.log('🖱️ Item clicado:', length)
                     setResponseLength(length)
                     setShowLengthMenu(false)
                   }}
