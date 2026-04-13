@@ -273,7 +273,7 @@ export function GrokAudioInput({
             type="button"
           >
             <span className="hidden sm:inline">{lengthLabels[responseLength]}</span>
-            <span className="sm:hidden">{lengthLabels[responseLength].split(' ')[1]?.charAt(0).toUpperCase()}</span>
+            <span className="sm:hidden">{responseLength === 'short' ? 'Peq' : responseLength === 'medium' ? 'Méd' : 'Long'}</span>
             <ChevronDown className={`w-3 h-3 sm:w-4 sm:h-4 transition-transform ${showLengthMenu ? "rotate-180" : ""}`} />
           </button>
 
