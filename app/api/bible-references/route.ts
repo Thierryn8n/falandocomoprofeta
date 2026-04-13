@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { getSupabaseAdmin } from "@/lib/supabase"
 
-// Mapeamento de nomes de livros para colunas JSONB na tabela bible_json
+// Mapeamento de nomes de livros para colunas JSONB na tabela bible_json - Corrigido duplicatas
 const bookNameToColumn: Record<string, string> = {
   // Gênesis
   "genesis": "genesis", "gênesis": "genesis", "gen": "genesis", "gn": "genesis",
@@ -44,7 +44,7 @@ const bookNameToColumn: Record<string, string> = {
   // Ester
   "ester": "ester", "est": "ester", "et": "ester",
   // Jó
-  "jo": "jo", "jó": "jo", "job": "jo",
+  "jo": "jo", "job": "jo",
   // Salmos
   "salmos": "salmos", "salmo": "salmos", "sl": "salmos", "ps": "salmos",
   // Provérbios
@@ -54,7 +54,7 @@ const bookNameToColumn: Record<string, string> = {
   // Cantares
   "cantares": "cantares", "cantar": "cantares", "ct": "cantares", "canticos": "cantares", "cânticos": "cantares",
   // Isaías
-  "isaias": "isaias", "isaías": "isaias", "is": "isaias", "isa": "isaias",
+  "isaias": "isaias", "is": "isaias", "isa": "isaias",
   // Jeremias
   "jeremias": "jeremias", "jer": "jeremias", "jr": "jeremias",
   // Lamentações
@@ -94,7 +94,7 @@ const bookNameToColumn: Record<string, string> = {
   // Lucas
   "lucas": "lucas", "luc": "lucas", "lc": "lucas", "lu": "lucas",
   // João (Evangelho)
-  "joao": "joao", "joão": "joao", "jn": "joao", "jo": "joao",
+  "joao": "joao", "jn": "joao",
   // Atos
   "atos": "atos", "at": "atos", "act": "atos",
   // Romanos
