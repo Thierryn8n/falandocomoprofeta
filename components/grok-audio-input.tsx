@@ -35,6 +35,8 @@ export function GrokAudioInput({
   const audioChunksRef = useRef<Blob[]>([])
   const animationFrameRef = useRef<number>()
   const recordingIntervalRef = useRef<NodeJS.Timeout>()
+  const lengthMenuRef = useRef<HTMLDivElement>(null)
+  const lengthButtonRef = useRef<HTMLButtonElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
   const audioContextRef = useRef<AudioContext | null>(null)
   const analyserRef = useRef<AnalyserNode | null>(null)
@@ -42,6 +44,26 @@ export function GrokAudioInput({
   const dataArrayRef = useRef<Uint8Array | null>(null)
   const isCancelledRef = useRef(false)
   const streamRef = useRef<MediaStream | null>(null)
+
+  // Fechar menu quando clicar fora
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        showLengthMenu &&
+        lengthMenuRef.current &&
+        !lengthMenuRef.current.contains(event.target as Node) &&
+        lengthButtonRef.current &&
+        !lengthButtonRef.current.contains(event.target as Node)
+      ) {
+        setShowLengthMenu(false)
+      }
+    }
+
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside)
+    }
+  }, [showLengthMenu])
 
   // Animação das barrinhas de áudio - otimizada para não travar
   useEffect(() => {
@@ -241,9 +263,14 @@ export function GrokAudioInput({
         {/* Seletor de Tamanho da Resposta */}
         <div className="relative">
           <button
-            onClick={() => setShowLengthMenu(!showLengthMenu)}
-            className="flex items-center gap-1 px-3 py-1.5 text-sm font-medium text-muted-foreground hover:text-foreground bg-accent hover:bg-accent/80 rounded-full transition-all"
+            ref={lengthButtonRef}
+            onClick={() => {
+              console.log('🖱️ Botão de tamanho clicado! showLengthMenu antes:', showLengthMenu)
+              setShowLengthMenu(!showLengthMenu)
+            }}
+            className="flex items-center gap-1 px-3 py-1.5 text-sm font-medium text-muted-foreground hover:text-foreground bg-accent hover:bg-accent/80 rounded-full transition-all pointer-events-auto"
             title="Tamanho da resposta"
+            type="button"
           >
             {lengthLabels[responseLength]}
             <ChevronDown className={`w-4 h-4 transition-transform ${showLengthMenu ? "rotate-180" : ""}`} />
@@ -251,7 +278,7 @@ export function GrokAudioInput({
 
           {/* Menu dropdown de tamanho */}
           {showLengthMenu && (
-            <div className="absolute bottom-full right-0 mb-2 w-48 bg-background border border-border rounded-xl shadow-xl overflow-hidden dark:bg-slate-900 dark:border-slate-800 z-50">
+            <div ref={lengthMenuRef} className="absolute bottom-full right-0 mb-2 w-48 bg-background border border-border rounded-xl shadow-xl overflow-hidden dark:bg-slate-900 dark:border-slate-800 z-50">
               {(["short", "medium", "long"] as const).map((length) => (
                 <button
                   key={length}
@@ -342,13 +369,6 @@ export function GrokAudioInput({
         </div>
       </div>
 
-      {/* Click outside para fechar menu */}
-      {showLengthMenu && (
-        <div
-          className="fixed inset-0 z-40"
-          onClick={() => setShowLengthMenu(false)}
-        />
-      )}
     </div>
   )
 }
