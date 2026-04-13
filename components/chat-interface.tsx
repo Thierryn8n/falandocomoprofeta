@@ -72,6 +72,7 @@ export function ChatInterface({ conversationId, onConversationUpdate, user, appC
     previousResponse: string
     relevantDocuments: any[]
     bibleReferences: any[]
+    responseLength?: "short" | "medium" | "long"
   } | null>(null)
   const [isContinuing, setIsContinuing] = useState(false)
 
@@ -421,7 +422,7 @@ export function ChatInterface({ conversationId, onConversationUpdate, user, appC
     }
   }, [messages])
 
-  const sendMessage = async (messageText?: string) => {
+  const sendMessage = async (messageText?: string, responseLength: "short" | "medium" | "long" = "medium") => {
     const textToSend = messageText || input.trim()
     if (!textToSend) return
 
@@ -464,6 +465,7 @@ export function ChatInterface({ conversationId, onConversationUpdate, user, appC
 
       // Enviar mensagem para a API de chat
       console.log('📤 Enviando mensagem de texto para processamento...')
+      console.log('📏 Tamanho da resposta:', responseLength)
       const response = await fetch("/api/chat", {
         method: "POST",
         headers: {
@@ -474,6 +476,7 @@ export function ChatInterface({ conversationId, onConversationUpdate, user, appC
           conversationId: conversationId,
           userId: user?.id || "anonymous",
           userName: profile?.name || user?.email?.split('@')[0] || 'irmão/irmã',
+          responseLength: responseLength,
         }),
       })
 
@@ -497,7 +500,8 @@ export function ChatInterface({ conversationId, onConversationUpdate, user, appC
           originalQuestion: textToSend,
           previousResponse: data.message,
           relevantDocuments: data.documentsUsed || [],
-          bibleReferences: data.bibleReferences || []
+          bibleReferences: data.bibleReferences || [],
+          responseLength: responseLength
         })
       } else {
         setCanContinueSermon(false)
@@ -579,6 +583,7 @@ export function ChatInterface({ conversationId, onConversationUpdate, user, appC
           userName: profile?.name || user?.email?.split('@')[0] || 'irmão/irmã',
           relevantDocuments: continueData.relevantDocuments,
           bibleReferences: continueData.bibleReferences,
+          responseLength: continueData.responseLength || 'medium',
         }),
       })
 
@@ -2255,9 +2260,9 @@ export function ChatInterface({ conversationId, onConversationUpdate, user, appC
       <div className="p-2 sm:p-4 border-t bg-background">
         <div className="max-w-4xl mx-auto">
           <GrokAudioInput
-            onSendMessage={(text) => {
+            onSendMessage={(text, responseLength) => {
               setInput(text)
-              sendMessage(text)
+              sendMessage(text, responseLength)
             }}
             onSendAudio={handleAudioRecorded}
             onCancelRecording={() => {

@@ -4,7 +4,7 @@ import { useState, useRef, useEffect } from "react"
 import { Mic, X, Check, Paperclip, ChevronDown } from "lucide-react"
 
 interface GrokAudioInputProps {
-  onSendMessage?: (text: string) => void
+  onSendMessage?: (text: string, responseLength?: "short" | "medium" | "long") => void
   onSendAudio?: (audioBlob: Blob) => void
   onCancelRecording?: () => void
   placeholder?: string
@@ -24,6 +24,14 @@ export function GrokAudioInput({
   const [audioLevels, setAudioLevels] = useState<number[]>(Array(20).fill(3))
   const [showExpertMenu, setShowExpertMenu] = useState(false)
   const [expertMode, setExpertMode] = useState("Expert")
+  const [showLengthMenu, setShowLengthMenu] = useState(false)
+  const [responseLength, setResponseLength] = useState<"short" | "medium" | "long">("medium")
+  
+  const lengthLabels = {
+    short: "Curta",
+    medium: "Média", 
+    long: "Longa"
+  }
   
   const mediaRecorderRef = useRef<MediaRecorder | null>(null)
   const audioChunksRef = useRef<Blob[]>([])
@@ -191,7 +199,7 @@ export function GrokAudioInput({
 
   const handleSend = () => {
     if (inputText.trim()) {
-      onSendMessage?.(inputText)
+      onSendMessage?.(inputText, responseLength)
       setInputText("")
     }
   }
@@ -231,6 +239,47 @@ export function GrokAudioInput({
           disabled={disabled || isRecording}
           className="flex-1 bg-transparent text-foreground placeholder-muted-foreground text-base outline-none min-w-0 disabled:cursor-not-allowed"
         />
+
+        {/* Seletor de Tamanho da Resposta */}
+        <div className="relative">
+          <button
+            onClick={() => setShowLengthMenu(!showLengthMenu)}
+            className="flex items-center gap-1 px-3 py-1.5 text-sm font-medium text-muted-foreground hover:text-foreground bg-accent hover:bg-accent/80 rounded-full transition-all"
+            title="Tamanho da resposta"
+          >
+            {lengthLabels[responseLength]}
+            <ChevronDown className={`w-4 h-4 transition-transform ${showLengthMenu ? "rotate-180" : ""}`} />
+          </button>
+
+          {/* Menu dropdown de tamanho */}
+          {showLengthMenu && (
+            <div className="absolute bottom-full right-0 mb-2 w-40 bg-background border border-border rounded-xl shadow-xl overflow-hidden dark:bg-slate-900 dark:border-slate-800">
+              {(["short", "medium", "long"] as const).map((length) => (
+                <button
+                  key={length}
+                  onClick={() => {
+                    setResponseLength(length)
+                    setShowLengthMenu(false)
+                  }}
+                  className={`w-full px-4 py-2.5 text-sm text-left transition-colors ${
+                    responseLength === length
+                      ? "bg-accent text-accent-foreground"
+                      : "text-muted-foreground hover:bg-accent hover:text-foreground"
+                  }`}
+                >
+                  <div className="flex flex-col">
+                    <span className="font-medium">{lengthLabels[length]}</span>
+                    <span className="text-xs opacity-70">
+                      {length === "short" && "~100-150 palavras"}
+                      {length === "medium" && "~300-400 palavras"}
+                      {length === "long" && "~700-900 palavras"}
+                    </span>
+                  </div>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
 
         {/* Seletor Expert */}
         <div className="relative">
@@ -335,11 +384,14 @@ export function GrokAudioInput({
         </div>
       </div>
 
-      {/* Click outside para fechar menu */}
-      {showExpertMenu && (
+      {/* Click outside para fechar menus */}
+      {(showExpertMenu || showLengthMenu) && (
         <div
           className="fixed inset-0 z-40"
-          onClick={() => setShowExpertMenu(false)}
+          onClick={() => {
+            setShowExpertMenu(false)
+            setShowLengthMenu(false)
+          }}
         />
       )}
     </div>
