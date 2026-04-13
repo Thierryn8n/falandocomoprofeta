@@ -34,21 +34,34 @@ export function GrokAudioInput({
   const analyserRef = useRef<AnalyserNode | null>(null)
   const sourceRef = useRef<MediaStreamAudioSourceNode | null>(null)
   const dataArrayRef = useRef<Uint8Array | null>(null)
+  const isCancelledRef = useRef(false)
+  const streamRef = useRef<MediaStream | null>(null)
 
-  // Animação das barrinhas de áudio - usando Web Audio API para níveis reais
+  // Animação das barrinhas de áudio - otimizada para não travar
   useEffect(() => {
     if (isRecording && analyserRef.current && dataArrayRef.current) {
+      let frameCount = 0
+      
       const animate = () => {
-        analyserRef.current!.getByteFrequencyData(dataArrayRef.current!)
+        if (!analyserRef.current || !dataArrayRef.current) return
         
-        // Divide o array de frequências em 20 segmentos e pega o valor médio de cada um
+        // Atualiza a cada 2 frames para melhorar performance
+        frameCount++
+        if (frameCount % 2 !== 0) {
+          animationFrameRef.current = requestAnimationFrame(animate)
+          return
+        }
+        
+        analyserRef.current.getByteFrequencyData(dataArrayRef.current)
+        
+        // Divide o array de frequências em 20 segmentos
         const levels = []
-        const step = Math.floor(dataArrayRef.current!.length / 20)
+        const step = Math.floor(dataArrayRef.current.length / 20)
         
         for (let i = 0; i < 20; i++) {
           let sum = 0
           for (let j = 0; j < step; j++) {
-            sum += dataArrayRef.current![i * step + j]
+            sum += dataArrayRef.current[i * step + j]
           }
           const average = sum / step
           // Mapeia 0-255 para 3-25 pixels de altura
@@ -59,6 +72,7 @@ export function GrokAudioInput({
         setAudioLevels(levels)
         animationFrameRef.current = requestAnimationFrame(animate)
       }
+      
       animationFrameRef.current = requestAnimationFrame(animate)
     } else {
       if (animationFrameRef.current) {
@@ -96,7 +110,11 @@ export function GrokAudioInput({
 
   const startRecording = async () => {
     try {
+      // Reset flag de cancelamento
+      isCancelledRef.current = false
+      
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+      streamRef.current = stream
       
       // Configurar Web Audio API para análise do microfone
       const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)()
@@ -125,12 +143,19 @@ export function GrokAudioInput({
       }
 
       mediaRecorder.onstop = () => {
-        const audioBlob = new Blob(audioChunksRef.current, { type: "audio/wav" })
-        onSendAudio?.(audioBlob)
+        // Só envia se NÃO foi cancelado
+        if (!isCancelledRef.current && audioChunksRef.current.length > 0) {
+          const audioBlob = new Blob(audioChunksRef.current, { type: "audio/wav" })
+          onSendAudio?.(audioBlob)
+        }
         
-        // Limpar Web Audio API
+        // Limpar Web Audio API e stream
         audioContextRef.current?.close()
-        stream.getTracks().forEach(track => track.stop())
+        streamRef.current?.getTracks().forEach(track => track.stop())
+        
+        // Limpar refs
+        audioChunksRef.current = []
+        streamRef.current = null
       }
 
       mediaRecorder.start()
@@ -143,18 +168,22 @@ export function GrokAudioInput({
 
   const stopRecording = () => {
     if (mediaRecorderRef.current && isRecording) {
+      isCancelledRef.current = false
       mediaRecorderRef.current.stop()
-      audioContextRef.current?.close()
       setIsRecording(false)
     }
   }
 
   const cancelRecording = () => {
     if (mediaRecorderRef.current && isRecording) {
+      isCancelledRef.current = true
       mediaRecorderRef.current.stop()
       audioContextRef.current?.close()
-      // Não envia o áudio - descarta
+      streamRef.current?.getTracks().forEach(track => track.stop())
+      
+      // Limpar tudo
       audioChunksRef.current = []
+      streamRef.current = null
       setIsRecording(false)
       onCancelRecording?.()
     }
