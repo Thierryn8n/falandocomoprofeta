@@ -11,16 +11,18 @@ interface ContinueRequest {
   userName?: string
   relevantDocuments: any[]
   bibleReferences: any[]
+  responseLength?: "short" | "medium" | "long"
 }
 
 export async function POST(req: NextRequest) {
   try {
     const body: ContinueRequest = await req.json()
-    const { originalQuestion, previousResponse, userId, userName, relevantDocuments, bibleReferences } = body
+    const { originalQuestion, previousResponse, userId, userName, relevantDocuments, bibleReferences, responseLength = "medium" } = body
 
     console.log("➡️ CONTINUAR SERMAO - Iniciando continuação...")
     console.log("📝 Pergunta original:", originalQuestion.substring(0, 50))
     console.log("📚 Documentos:", relevantDocuments?.length || 0)
+    console.log("📏 Tamanho da resposta:", responseLength)
 
     // Get Gemini API key
     let geminiApiKey = process.env.GEMINI_API_KEY
@@ -85,13 +87,20 @@ INSTRUÇÕES CRÍTICAS PARA CONTINUAÇÃO:
 4. **IMPORTANTE: Cite versículos bíblicos DURANTE a resposta, não apenas no final**
 5. Mantenha a mesma saudação e referências ao usuário (${userName || 'irmão/irmã'})
 6. Adicione mais exemplos, parábolas ou ensinamentos do Profeta Branham
-7. A continuação deve ter NO MÁXIMO 400-500 palavras
+7. CONTROLE DE TAMANHO DA CONTINUAÇÃO:
+   - CURTA (short): 100-150 palavras adicionais
+   - MÉDIA (medium): 300-400 palavras adicionais (padrão)
+   - LONGA (long): 600-800 palávras adicionais
+   Tamanho solicitado: ${responseLength}
 8. Se ainda precisar de mais após esta continuação, termine com "**[CONTINUA...]**" novamente
 
 A pergunta original que está sendo respondida é: "${originalQuestion}"
 
 AGORA, continue o sermão de forma natural, como se estivesse pregando:`
 
+    // Definir maxOutputTokens baseado no tamanho da resposta
+    const maxOutputTokens = responseLength === "short" ? 1024 : responseLength === "long" ? 8192 : 4096
+    
     // Chamar API Gemini
     const response = await fetch(
       `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiApiKey}`,
@@ -112,7 +121,7 @@ AGORA, continue o sermão de forma natural, como se estivesse pregando:`
             temperature: 0.5,
             topK: 10,
             topP: 0.7,
-            maxOutputTokens: 8192,
+            maxOutputTokens: maxOutputTokens,
           },
         }),
       },

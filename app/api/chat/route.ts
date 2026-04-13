@@ -13,6 +13,7 @@ interface ChatRequest {
   messages: Message[]
   conversationId?: string
   userId?: string
+  responseLength?: "short" | "medium" | "long"
 }
 
 interface Document {
@@ -1026,6 +1027,9 @@ export async function POST(request: NextRequest) {
   let userName: string = "irmão/irmã"
 
   try {
+    // Declarar requestBody antes do if/else
+    let requestBody: Partial<ChatRequest> = {}
+    
     // ==========================================
     // PROCESSAR FORMData (ÁUDIO)
     // ==========================================
@@ -1097,9 +1101,8 @@ export async function POST(request: NextRequest) {
         )
       }
 
-      let body: ChatRequest
       try {
-        body = JSON.parse(text)
+        requestBody = JSON.parse(text)
       } catch (parseError) {
         console.log("💥 JSON Parse Error:", parseError)
         console.log("📄 Problematic text:", text)
@@ -1109,16 +1112,20 @@ export async function POST(request: NextRequest) {
         )
       }
 
-      messages = body.messages || []
-      conversationId = body.conversationId
-      userId = body.userId
+      messages = requestBody?.messages || []
+      conversationId = requestBody?.conversationId
+      userId = requestBody?.userId
     }
+    
+    // Definir tamanho da resposta (padrão: medium)
+    const responseLength = requestBody?.responseLength || "medium"
 
     console.log("📝 Request processed:", {
       messagesCount: messages?.length || 0,
       userId,
       conversationId,
       isAudio: !!audioTranscription,
+      responseLength,
       messages: messages?.map((m) => ({ role: m.role, contentLength: m.content?.length || 0 })),
     })
 
@@ -1183,7 +1190,7 @@ export async function POST(request: NextRequest) {
     console.log("   - VERCEL_ENV:", process.env.VERCEL_ENV)
     console.log("   - GEMINI_API_KEY exists:", !!process.env.GEMINI_API_KEY)
 
-    let geminiApiKey = process.env.GEMINI_API_KEY
+    let geminiApiKey: string | null = process.env.GEMINI_API_KEY || null
 
     // Check if API key is still a placeholder
     if (
@@ -1377,7 +1384,15 @@ IMPORTANTE - LIMITE OBRIGATÓRIO:
 - O usuário PREFERE respostas curtas com botão de continuar a textos longos
 - INTEGRE versículos bíblicos no corpo do texto - não deixe só pro final!
 - Cite os sermões do Profeta Branham naturalmente no meio da resposta
-- NUNCA seja superficial ou genérico`
+- NUNCA seja superficial ou genérico
+
+CONTROLE DE TAMANHO DA RESPOSTA:
+O usuário pode solicitar respostas em três tamanhos:
+- CURTA (short): 100-150 palavras. Resposta direta, objetiva e concisa. Foque no ponto central da pergunta.
+- MÉDIA (medium): 300-400 palavras. Resposta equilibrada com contexto e aplicação prática.
+- LONGA (long): 700-900 palávras. Resposta completa e aprofundada com múltiplos exemplos e desenvolvimento teológico detalhado.
+
+Ajuste sua resposta de acordo com o tamanho solicitado pelo usuário.`
 
     try {
       const { data: systemPromptData, error: promptError } = await getSupabaseAdmin()
@@ -1567,8 +1582,18 @@ Utilize EXCLUSIVAMENTE as informações dos documentos analisados E o contexto d
       console.log("🔗 Using model: gemini-2.5-flash")
       console.log("📚 Construindo histórico de conversa com", messages.length - 1, "mensagens anteriores")
 
+      // Definir maxOutputTokens baseado no tamanho da resposta solicitado
+      const maxTokensMap = {
+        short: 1024,    // ~150 palavras
+        medium: 4096,   // ~400 palavras
+        long: 8192      // ~900 palavras
+      }
+      const maxOutputTokens = maxTokensMap[responseLength] || 4096
+      
+      console.log(`📏 Tamanho da resposta: ${responseLength} - maxTokens: ${maxOutputTokens}`)
+
       // Construir o conteúdo do sistema com documentos e instruções
-      const systemContent = `${systemPrompt}\n\n${contextInfo}\n\nINSTRUÇÕES CRÍTICAS - LEIA COM ATENÇÃO:
+      const systemContent = `${systemPrompt}\n\nTAMANHO SOLICITADO: ${responseLength.toUpperCase()}\n${contextInfo}\n\nINSTRUÇÕES CRÍTICAS - LEIA COM ATENÇÃO:
 
 ⚠️ **ATENÇÃO MÁXIMA**: Esta é a pergunta ATUAL que você DEVE responder:
 
@@ -1659,7 +1684,7 @@ IMPORTANTE:
               temperature: 0.5,
               topK: 10,
               topP: 0.7,
-              maxOutputTokens: 8192,
+              maxOutputTokens: maxOutputTokens,
             },
           }),
         },
