@@ -564,7 +564,15 @@ export function ChatInterface({ conversationId, onConversationUpdate, user, appC
 
   // Função para continuar o sermão
   const continueSermon = async () => {
-    if (!continueData) return
+    console.log('🖱️ Botão "Continuar Sermão" clicado!')
+    console.log('📊 continueData:', continueData)
+    console.log('📊 canContinueSermon:', canContinueSermon)
+    console.log('📊 isContinuing:', isContinuing)
+    
+    if (!continueData) {
+      console.log('❌ continueData é null, não pode continuar')
+      return
+    }
 
     console.log('➡️ CONTINUANDO SERMAO...')
     setIsContinuing(true)
