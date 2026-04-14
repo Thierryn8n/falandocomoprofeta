@@ -190,12 +190,26 @@ export function ChatInterface({ conversationId, onConversationUpdate, user, appC
   const [processedMessages, setProcessedMessages] = useState<{ [key: number]: any }>({})
 
   // Função para processar mensagens de forma assíncrona
-  const processMessage = async (message: any, index: number) => {
-    if (processedMessages[index]) {
-      return processedMessages[index]
+  const processMessage = async (message: any, index: number, force: boolean = false) => {
+    const cached = processedMessages[index]
+    const contentChanged = cached && cached.cleanContent?.length !== message.content?.length
+    
+    // Se tem cache, não mudou, e não é forçado, retorna cache
+    if (cached && !contentChanged && !force) {
+      console.log(`[processMessage] Message ${index}: Usando cache (não mudou)`)
+      return cached
+    }
+    
+    if (contentChanged) {
+      console.log(`[processMessage] Message ${index}: Reprocessando (conteúdo mudou)`)
+    } else if (force) {
+      console.log(`[processMessage] Message ${index}: Reprocessando (forçado)`)
+    } else {
+      console.log(`[processMessage] Processando message ${index}, content length: ${message.content?.length}`)
     }
     
     const result = await processMessageContent(message.content, index)
+    console.log(`[processMessage] Resultado: cleanContent=${result.cleanContent.length}, processedContent=${result.processedContent.length}`)
     setProcessedMessages(prev => ({ ...prev, [index]: result }))
     return result
   }
@@ -203,9 +217,8 @@ export function ChatInterface({ conversationId, onConversationUpdate, user, appC
   // Processar mensagens quando elas mudarem
   useEffect(() => {
     messages.forEach(async (message, index) => {
-      if (!processedMessages[index]) {
-        await processMessage(message, index)
-      }
+      // A função processMessage já verifica se precisa reprocessar
+      await processMessage(message, index)
     })
   }, [messages])
 
@@ -625,12 +638,28 @@ export function ChatInterface({ conversationId, onConversationUpdate, user, appC
         const newMessages = [...prevMessages]
         const lastAssistantIndex = newMessages.length - 1
         
-        if (lastAssistantIndex >= 0 && newMessages[lastAssistantIndex].role === 'assistant') {
+        console.log(`[Continue] Total messages: ${newMessages.length}, lastIndex: ${lastAssistantIndex}, lastRole: ${newMessages[lastAssistantIndex]?.role}`)
+        
+        // Encontrar a última mensagem do assistente (pode não ser a última no array)
+        let targetIndex = lastAssistantIndex
+        while (targetIndex >= 0 && newMessages[targetIndex]?.role !== 'assistant') {
+          targetIndex--
+        }
+        
+        console.log(`[Continue] Target assistant index: ${targetIndex}`)
+        
+        if (targetIndex >= 0) {
+          const oldContent = newMessages[targetIndex].content
+          const newContent = oldContent + '\n\n---\n\n**CONTINUAÇÃO DO SERMAO**\n\n' + data.continuation
+          console.log(`[Continue] Updating message ${targetIndex}: ${oldContent.length} → ${newContent.length} chars`)
+          
           // Concatenar a continuação à mensagem existente
-          newMessages[lastAssistantIndex] = {
-            ...newMessages[lastAssistantIndex],
-            content: newMessages[lastAssistantIndex].content + '\n\n---\n\n**CONTINUAÇÃO DO SERMAO**\n\n' + data.continuation
+          newMessages[targetIndex] = {
+            ...newMessages[targetIndex],
+            content: newContent
           }
+        } else {
+          console.log('[Continue] ERROR: No assistant message found!')
         }
         
         return newMessages

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { getSupabaseAdmin } from "@/lib/supabase"
 
-// Mapeamento de nomes de livros para colunas JSONB na tabela bible_json - Corrigido duplicatas
+// Mapeamento de nomes de livros para colunas JSONB na tabela bible_json
 const bookNameToColumn: Record<string, string> = {
   // Gênesis
   "genesis": "genesis", "gênesis": "genesis", "gen": "genesis", "gn": "genesis",
@@ -44,7 +44,7 @@ const bookNameToColumn: Record<string, string> = {
   // Ester
   "ester": "ester", "est": "ester", "et": "ester",
   // Jó
-  "jo": "jo", "job": "jo",
+  "jo": "jo", "jó": "jo", "job": "jo",
   // Salmos
   "salmos": "salmos", "salmo": "salmos", "sl": "salmos", "ps": "salmos",
   // Provérbios
@@ -54,7 +54,7 @@ const bookNameToColumn: Record<string, string> = {
   // Cantares
   "cantares": "cantares", "cantar": "cantares", "ct": "cantares", "canticos": "cantares", "cânticos": "cantares",
   // Isaías
-  "isaias": "isaias", "is": "isaias", "isa": "isaias",
+  "isaias": "isaias", "isaías": "isaias", "is": "isaias", "isa": "isaias",
   // Jeremias
   "jeremias": "jeremias", "jer": "jeremias", "jr": "jeremias",
   // Lamentações
@@ -94,7 +94,7 @@ const bookNameToColumn: Record<string, string> = {
   // Lucas
   "lucas": "lucas", "luc": "lucas", "lc": "lucas", "lu": "lucas",
   // João (Evangelho)
-  "joao": "joao", "jn": "joao",
+  "joao": "joao", "joão": "joao", "jn": "joao",
   // Atos
   "atos": "atos", "at": "atos", "act": "atos",
   // Romanos
@@ -110,7 +110,7 @@ const bookNameToColumn: Record<string, string> = {
   // Efésios
   "efesios": "efesios", "efésios": "efesios", "ef": "efesios", "efe": "efesios",
   // Filipenses
-  "filipenses": "filipenses", "filip": "filipenses", "fp": "filipenses", "fl": "filipenses",
+  "filipenses": "filipenses", "filip": "filipenses", "fp": "filipenses",
   // Colossenses
   "colossenses": "colossenses", "col": "colossenses", "cl": "colossenses", "co": "colossenses",
   // 1 Tessalonicenses
@@ -130,7 +130,7 @@ const bookNameToColumn: Record<string, string> = {
   "2 tm": "segundo_timoteo", "2tm": "segundo_timoteo", "2 ti": "segundo_timoteo", "2ti": "segundo_timoteo",
   "ii timoteo": "segundo_timoteo", "segundo timoteo": "segundo_timoteo",
   // Tito
-  "tito": "tito", "tt": "tito", "ti": "tito",
+  "tito": "tito", "tt": "tito",
   // Filemom
   "filemom": "filemom", "filem": "filemom", "flm": "filemom", "fm": "filemom",
   // Hebreus

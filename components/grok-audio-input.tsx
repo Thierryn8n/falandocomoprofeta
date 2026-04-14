@@ -31,6 +31,12 @@ export function GrokAudioInput({
     long: "Sermão longo"
   }
   
+  const shortLabels = {
+    short: "Peq",
+    medium: "Méd", 
+    long: "Long"
+  }
+  
   const mediaRecorderRef = useRef<MediaRecorder | null>(null)
   const audioChunksRef = useRef<Blob[]>([])
   const animationFrameRef = useRef<number>()
@@ -273,7 +279,7 @@ export function GrokAudioInput({
             type="button"
           >
             <span className="hidden sm:inline">{lengthLabels[responseLength]}</span>
-            <span className="sm:hidden">{responseLength === 'short' ? 'Peq' : responseLength === 'medium' ? 'Méd' : 'Long'}</span>
+            <span className="sm:hidden">{shortLabels[responseLength]}</span>
             <ChevronDown className={`w-3 h-3 sm:w-4 sm:h-4 transition-transform ${showLengthMenu ? "rotate-180" : ""}`} />
           </button>
 
