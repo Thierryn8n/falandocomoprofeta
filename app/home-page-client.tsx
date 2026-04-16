@@ -20,7 +20,8 @@ import { Sheet, SheetContent } from "@/components/ui/sheet"
 import { useSupabaseAuth } from "@/hooks/use-supabase-auth"
 import { useSessionTracking } from "@/hooks/use-session-tracking"
 import { useQuestionCounter } from "@/hooks/use-question-counter"
-import { Loader2, MessageCircle } from "lucide-react"
+import { Loader2, MessageCircle, MessageSquare } from "lucide-react"
+import { useQuestionLimits } from "@/hooks/use-question-limits"
 import { ChatGPTLandingPage } from "@/components/chatgpt-landing-page"
 import { useAppConfig } from "@/hooks/use-app-config"
 import { supabase } from "@/lib/supabase"
@@ -42,6 +43,7 @@ export default function HomePageClient() {
   const { user, profile, loading: authLoading, isAdmin, signOut } = useSupabaseAuth()
   const { getConfigValue, loading: configLoading } = useAppConfig()
   const { questionCount, loading: questionCountLoading } = useQuestionCounter()
+  const { limits, loading: limitsLoading } = useQuestionLimits()
   const [showAuthModal, setShowAuthModal] = useState(false)
   const router = useRouter()
   const { sessionId } = useSessionTracking()
@@ -246,17 +248,34 @@ export default function HomePageClient() {
             </div>
 
             <div className="flex items-center gap-2">
-              {/* Contador de Perguntas */}
-              {user && (
-                <div className="flex items-center gap-2 px-3 py-1.5 bg-muted/50 rounded-full border">
-                  <MessageCircle className="h-4 w-4 text-primary" />
-                  <span className="text-sm font-medium">
-                    {questionCountLoading ? "..." : questionCount}
+              {/* Question Limit Indicator */}
+              {user && !isAdmin && limits && (
+                <button 
+                  className={`
+                    flex items-center gap-2 px-3 py-1.5 rounded-full transition-all duration-300
+                    ${limits.remaining <= 5 && limits.remaining > 0 
+                      ? 'bg-amber-50 hover:bg-amber-100 border-amber-200 text-amber-700' 
+                      : limits.remaining === 0 
+                        ? 'bg-red-50 hover:bg-red-100 border-red-200 text-red-700'
+                        : 'bg-emerald-50 hover:bg-emerald-100 border-emerald-200 text-emerald-700'
+                    } border
+                  `}
+                  onClick={() => router.push('/doar')}
+                  title="Clique para doar e ganhar mais perguntas"
+                >
+                  <MessageSquare className="h-4 w-4" />
+                  <span className="text-xs font-medium">
+                    {limitsLoading ? '...' : `${limits.remaining} restantes`}
                   </span>
-                  <span className="text-xs text-muted-foreground hidden sm:inline">
-                    pergunta{questionCount !== 1 ? 's' : ''}
-                  </span>
-                </div>
+                  <div className="w-12 h-1.5 bg-gray-200 rounded-full overflow-hidden ml-1">
+                    <div 
+                      className={`h-full rounded-full transition-all duration-500 ${
+                        limits.remaining <= 5 ? 'bg-amber-500' : 'bg-emerald-500'
+                      }`}
+                      style={{ width: `${Math.max(0, Math.min(100, (limits.remaining / limits.max_allowed) * 100))}%` }}
+                    />
+                  </div>
+                </button>
               )}
               
               {/* Botão Estudos Bíblicos */}

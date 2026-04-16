@@ -16,7 +16,6 @@ import { ProphetProfileConfig } from "@/components/admin/config/prophet-profile-
 import { ChatBehaviorConfig } from "@/components/admin/config/chat-behavior-config"
 import { InterfaceThemeConfig } from "@/components/admin/config/interface-theme-config"
 import { SecurityConfig } from "@/components/admin/config/security-config"
-import { AbacatePayUnified } from "@/components/admin/abacate-pay-unified"
 import MercadoPagoUnified from "@/components/admin/mercado-pago-unified"
 import PaymentSystemSelector from "@/components/admin/payment-system-selector"
 import { DatabaseConfig } from "@/components/admin/config/database-config"
@@ -25,6 +24,7 @@ import { PerformanceConfig } from "@/components/admin/config/performance-config"
 import { MobileSettingsConfig } from "@/components/admin/config/mobile-settings-config"
 import { AnalyticsConfig } from "@/components/admin/config/analytics-config"
 import { AdvancedConfig } from "@/components/admin/config/advanced-config"
+import PixSettingsPage from "./pix-settings/page"
 import { useSupabaseAuth } from "@/hooks/use-supabase-auth"
 import { useAppConfig } from "@/hooks/use-app-config"
 import { Loader2 } from "lucide-react"
@@ -140,7 +140,9 @@ export default function AdminPageClient() {
       case "heresy-logs":
         return <HeresyLogs />
       case "abacate-pay-unified":
-        return <AbacatePayUnified />
+        return null
+      case "pix-settings":
+        return <PixSettingsPage />
       case "mercado-pago-unified":
         return <MercadoPagoUnified />
       case "payment-systems":

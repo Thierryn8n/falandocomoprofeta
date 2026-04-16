@@ -13,7 +13,18 @@ import { Check, Crown, Zap, Heart, CreditCard, QrCode, Gift, Loader2 } from "luc
 import { useToast } from "@/hooks/use-toast"
 import { useSupabaseAuth } from "@/hooks/use-supabase-auth"
 import { usePaymentMethods } from "@/hooks/use-payment-methods"
-import { SUBSCRIPTION_PLANS, formatPrice } from "@/lib/abacate-pay"
+// Subscription plans moved from abacate-pay to mercado-pago
+const SUBSCRIPTION_PLANS = {
+  monthly: { price: 19.90 },
+  yearly: { price: 199.00 }
+}
+
+const formatPrice = (price: number) => {
+  return new Intl.NumberFormat('pt-BR', {
+    style: 'currency',
+    currency: 'BRL'
+  }).format(price)
+}
 import { PixPaymentModal } from "@/components/pix-payment-modal"
 
 interface UpgradeModalProps {
@@ -75,7 +86,7 @@ const plans: SubscriptionPlan[] = [
 
 export function UpgradeModal({ isOpen, onClose, onUpgradeSuccess }: UpgradeModalProps) {
   const [selectedPlan, setSelectedPlan] = useState<SubscriptionPlan>(plans[0])
-  const [paymentMethod, setPaymentMethod] = useState<"card" | "pix" | "abacate_pay" | "custom">("card")
+  const [paymentMethod, setPaymentMethod] = useState<"card" | "pix" | "custom">("card")
   const [customAmount, setCustomAmount] = useState("")
   const [customMessage, setCustomMessage] = useState("")
   const [isProcessing, setIsProcessing] = useState(false)
@@ -89,13 +100,10 @@ export function UpgradeModal({ isOpen, onClose, onUpgradeSuccess }: UpgradeModal
     if (availablePaymentMethods.length > 0) {
       const enabledMethods = availablePaymentMethods.filter(method => method.is_enabled)
       if (enabledMethods.length > 0) {
-        // Priorizar Abacate Pay se habilitado, senão usar o primeiro método habilitado
-    const abacatePayEnabled = enabledMethods.find(method => method.method_name === 'abacate_pay')
-    const defaultMethod = abacatePayEnabled ? 'card' : 
-          enabledMethods[0].method_name === 'pix' ? 'pix' :
-          enabledMethods[0].method_name === 'abacate_pay' ? 'abacate_pay' : 'card'
+        // Default to card or pix based on available methods
+        const defaultMethod = enabledMethods[0].method_name === 'pix' ? 'pix' : 'card'
         
-        setPaymentMethod(defaultMethod as "card" | "pix" | "abacate_pay" | "custom")
+        setPaymentMethod(defaultMethod as "card" | "pix" | "custom")
       }
     }
   }, [availablePaymentMethods])
@@ -113,12 +121,6 @@ export function UpgradeModal({ isOpen, onClose, onUpgradeSuccess }: UpgradeModal
     // Se for PIX, abrir modal PIX
     if (paymentMethod === "pix") {
       setShowPixModal(true)
-      return
-    }
-
-    // Se for Abacate Pay, processar pagamento via Abacate Pay
-    if (paymentMethod === "abacate_pay") {
-      await handleAbacatePayPayment()
       return
     }
 
@@ -143,17 +145,8 @@ export function UpgradeModal({ isOpen, onClose, onUpgradeSuccess }: UpgradeModal
         planType = "custom"
       }
 
-      // Handle Abacate Pay payment (apenas se Abacate Pay estiver habilitado)
-      if (!isMethodEnabled('abacate_pay')) {
-        toast({
-          title: "Método indisponível",
-          description: "Pagamento via Abacate Pay não está disponível no momento",
-          variant: "destructive"
-        })
-        return
-      }
-
-      const response = await fetch("/api/abacate-pay/create-payment-intent", {
+      // Handle Mercado Pago payment
+      const response = await fetch("/api/mercado-pago/create-payment", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -170,9 +163,9 @@ export function UpgradeModal({ isOpen, onClose, onUpgradeSuccess }: UpgradeModal
         throw new Error(data.error || "Erro ao processar pagamento")
       }
 
-      // Redirect to Abacate Pay Checkout or handle payment
-      if (data.checkoutUrl) {
-        window.location.href = data.checkoutUrl
+      // Redirect to Mercado Pago Checkout
+      if (data.initPoint) {
+        window.location.href = data.initPoint
       } else {
         toast({
           title: "Erro",
@@ -212,73 +205,6 @@ export function UpgradeModal({ isOpen, onClose, onUpgradeSuccess }: UpgradeModal
       case "yearly": return "/ano"
       case "lifetime": return "pagamento único"
       default: return ""
-    }
-  }
-
-  const handleAbacatePayPayment = async () => {
-    setIsProcessing(true)
-    
-    try {
-      const amount = selectedPlan.price
-      
-      // Obter configuração do Abacate Pay
-      const abacatePayMethod = availablePaymentMethods.find(method => method.method_name === 'abacate_pay')
-      const config = abacatePayMethod?.config_data || {}
-      
-      if (!config.api_key) {
-        toast({
-          title: "Configuração incompleta",
-          description: "Abacate Pay não está configurado corretamente",
-          variant: "destructive"
-        })
-        return
-      }
-
-      // Criar cobrança via Abacate Pay usando a nova API de billing
-      const response = await fetch("/api/abacate-pay/create-payment", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          amount,
-          planType: selectedPlan.id,
-          userId: user.id,
-          userEmail: user.email,
-          apiKey: config.api_key
-        })
-      })
-
-      if (!response.ok) {
-        throw new Error("Erro ao criar cobrança via Abacate Pay")
-      }
-
-      const result = await response.json()
-      
-      if (result.success && result.billingUrl) {
-        // Redirecionar para a URL de cobrança do Abacate Pay
-        window.open(result.billingUrl, '_blank')
-        
-        toast({
-          title: "Cobrança criada!",
-          description: "Você será redirecionado para completar o pagamento",
-        })
-        
-        // Fechar modal após um breve delay
-        setTimeout(() => {
-          onClose()
-        }, 2000)
-      } else {
-        throw new Error(result.error || "Erro ao criar cobrança")
-      }
-
-    } catch (error) {
-      console.error("Abacate Pay billing error:", error)
-      toast({
-        title: "Erro na cobrança",
-        description: error instanceof Error ? error.message : "Erro desconhecido",
-        variant: "destructive"
-      })
-    } finally {
-      setIsProcessing(false)
     }
   }
 
@@ -356,65 +282,41 @@ export function UpgradeModal({ isOpen, onClose, onUpgradeSuccess }: UpgradeModal
             <div className="space-y-4">
               <h3 className="text-lg font-semibold">Método de Pagamento</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {/* Abacate Pay/Cartão de Crédito */}
-                {isMethodEnabled('abacate_pay') && (
-                  <Card 
-                    className={`cursor-pointer transition-all hover:shadow-md ${
-                      paymentMethod === "card" ? "ring-2 ring-primary" : ""
-                    }`}
-                    onClick={() => setPaymentMethod("card")}
-                  >
-                    <CardContent className="flex items-center gap-3 p-4">
-                      <CreditCard className="h-6 w-6" />
-                      <div>
-                        <div className="font-medium">Cartão de Crédito</div>
-                        <div className="text-sm text-muted-foreground">
-                          Pagamento seguro via Abacate Pay
-                        </div>
+                {/* Cartão de Crédito */}
+                <Card 
+                  className={`cursor-pointer transition-all hover:shadow-md ${
+                    paymentMethod === "card" ? "ring-2 ring-primary" : ""
+                  }`}
+                  onClick={() => setPaymentMethod("card")}
+                >
+                  <CardContent className="flex items-center gap-3 p-4">
+                    <CreditCard className="h-6 w-6" />
+                    <div>
+                      <div className="font-medium">Cartão de Crédito</div>
+                      <div className="text-sm text-muted-foreground">
+                        Pagamento seguro via Mercado Pago
                       </div>
-                    </CardContent>
-                  </Card>
-                )}
+                    </div>
+                  </CardContent>
+                </Card>
 
                 {/* PIX */}
-                {isMethodEnabled('pix') && (
-                  <Card 
-                    className={`cursor-pointer transition-all hover:shadow-md ${
-                      paymentMethod === "pix" ? "ring-2 ring-primary" : ""
-                    }`}
-                    onClick={() => setPaymentMethod("pix")}
-                  >
-                    <CardContent className="flex items-center gap-3 p-4">
-                      <QrCode className="h-6 w-6" />
-                      <div>
-                        <div className="font-medium">PIX</div>
-                        <div className="text-sm text-muted-foreground">
-                          QR Code com liberação automática
-                        </div>
+                <Card 
+                  className={`cursor-pointer transition-all hover:shadow-md ${
+                    paymentMethod === "pix" ? "ring-2 ring-primary" : ""
+                  }`}
+                  onClick={() => setPaymentMethod("pix")}
+                >
+                  <CardContent className="flex items-center gap-3 p-4">
+                    <QrCode className="h-6 w-6" />
+                    <div>
+                      <div className="font-medium">PIX</div>
+                      <div className="text-sm text-muted-foreground">
+                        QR Code com liberação automática
                       </div>
-                    </CardContent>
-                  </Card>
-                )}
-
-                {/* Abacate Pay */}
-                {isMethodEnabled('abacate_pay') && (
-                  <Card 
-                    className={`cursor-pointer transition-all hover:shadow-md ${
-                      paymentMethod === "abacate_pay" ? "ring-2 ring-primary" : ""
-                    }`}
-                    onClick={() => setPaymentMethod("abacate_pay")}
-                  >
-                    <CardContent className="flex items-center gap-3 p-4">
-                      <Heart className="h-6 w-6 text-green-600" />
-                      <div>
-                        <div className="font-medium">Abacate Pay</div>
-                        <div className="text-sm text-muted-foreground">
-                          Pagamento rápido e seguro
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                )}
+                    </div>
+                  </CardContent>
+                </Card>
               </div>
             </div>
 

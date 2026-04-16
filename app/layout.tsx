@@ -6,6 +6,8 @@ import { ThemeProvider } from "@/components/theme-provider"
 import { Toaster } from "@/components/ui/toaster"
 import { IpTracker } from "@/components/ip-tracker"
 import { PWAProvider } from "@/components/pwa-provider"
+import { CookieConsentBanner } from '@/components/cookie-consent-banner'
+import { TermsAcceptanceModal } from '@/components/terms-acceptance-modal'
 
 const inter = Inter({ subsets: ["latin"] })
 
@@ -51,6 +53,8 @@ export default function RootLayout({
           <PWAProvider>
             {children}
           </PWAProvider>
+          <CookieConsentBanner />
+          <TermsAcceptanceModal />
           <Toaster />
         </ThemeProvider>
       </body>

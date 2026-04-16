@@ -9,7 +9,14 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge'
 import { Loader2, Copy, CheckCircle, Clock, QrCode, RefreshCw } from 'lucide-react'
 import { toast } from 'sonner'
-import { formatPixAmount } from '@/lib/pix'
+
+// Função local para formatar valor PIX
+function formatPixAmount(amount: number): string {
+  return new Intl.NumberFormat('pt-BR', {
+    style: 'currency',
+    currency: 'BRL'
+  }).format(amount / 100)
+}
 
 interface PixPaymentModalProps {
   isOpen: boolean

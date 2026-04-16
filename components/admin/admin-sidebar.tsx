@@ -89,13 +89,6 @@ const menuItems = [
     category: "main",
   },
   {
-    id: "abacate-pay-unified",
-    label: "Abacate Pay",
-    description: "Sistema completo de pagamentos",
-    icon: CreditCard,
-    category: "main",
-  },
-  {
     id: "mercado-pago-unified",
     label: "Mercado Pago",
     description: "Sistema completo Mercado Pago",
@@ -103,9 +96,16 @@ const menuItems = [
     category: "main",
   },
   {
+    id: "pix-settings",
+    label: "Configuração PIX",
+    description: "Configurar chave PIX",
+    icon: CreditCard,
+    category: "main",
+  },
+  {
     id: "payment-systems",
     label: "Sistemas de Pagamento",
-    description: "Gerenciar Abacate Pay e Mercado Pago",
+    description: "Gerenciar sistema de pagamentos",
     icon: CreditCard,
     category: "main",
   },
@@ -205,14 +205,11 @@ const menuItems = [
 
 export function AdminSidebar({ activeTab, onTabChange, appConfig, isOpen, onToggle }: AdminSidebarProps) {
   const { profile } = useSupabaseAuth()
-  const { isAbacatePayActive, isMercadoPagoActive } = usePaymentSystemConfig()
+  const { isMercadoPagoActive } = usePaymentSystemConfig()
 
   // Filtrar itens do menu baseado no sistema de pagamento ativo
   const filteredMenuItems = menuItems.filter(item => {
-    // Se for um item de sistema de pagamento específico, mostrar apenas o ativo
-    if (item.id === "abacate-pay-unified") {
-      return isAbacatePayActive()
-    }
+    // Se for um item de Mercado Pago, mostrar apenas se ativo
     if (item.id === "mercado-pago-unified") {
       return isMercadoPagoActive()
     }

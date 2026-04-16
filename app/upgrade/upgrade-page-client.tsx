@@ -16,8 +16,8 @@ interface SubscriptionPlan {
   price: number
   features: string[]
   is_active: boolean
-  abacate_pay_price_id?: string
-  abacate_pay_payment_link?: string
+  mercado_pago_price_id?: string
+  mercado_pago_payment_link?: string
   card_color?: string
   card_title?: string
   card_description?: string
@@ -86,7 +86,7 @@ export default function UpgradePageClient() {
     return undefined
   }
 
-  const handleAbacatePayCheckout = async (plan: SubscriptionPlan) => {
+  const handleMercadoPagoCheckout = async (plan: SubscriptionPlan) => {
     if (!user) {
       toast.error('Você precisa estar logado para fazer uma assinatura')
       return
@@ -95,35 +95,35 @@ export default function UpgradePageClient() {
     setProcessingPlan(plan.id)
     
     try {
-      // Verificar se o plano tem link direto do Abacate Pay
-      if (plan.abacate_pay_payment_link) {
-        // Redirecionar diretamente para o link do Abacate Pay
-        window.open(plan.abacate_pay_payment_link, '_blank')
+      // Criar pagamento via Mercado Pago
+      const response = await fetch('/api/mercado-pago/create-payment', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          amount: plan.price * 100, // Convert to cents
+          planType: plan.plan_type,
+          userId: user.id,
+          userEmail: user.email,
+        }),
+      })
+      
+      const data = await response.json()
+      
+      if (!response.ok) {
+        throw new Error(data.error || 'Erro ao criar checkout')
+      }
+      
+      if (data.initPoint) {
+        window.open(data.initPoint, '_blank')
+        toast.success('Redirecionando para pagamento...')
       } else {
-        // Fallback para o método antigo (caso não tenha link configurado)
-        const response = await fetch('/api/abacate-pay/create-checkout-session', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            priceId: plan.abacate_pay_price_id || `price_${plan.plan_type}`,
-            userId: user.id,
-            userEmail: user.email,
-            planType: plan.plan_type,
-          }),
-        })
-
-        if (!response.ok) {
-          throw new Error('Erro ao criar sessão de pagamento')
-        }
-
-        const { url } = await response.json()
-        window.location.href = url
+        throw new Error('URL de checkout não encontrada')
       }
     } catch (error) {
-      console.error('Erro no checkout:', error)
-      toast.error('Erro ao processar pagamento. Tente novamente.')
+      console.error('Erro no checkout Mercado Pago:', error)
+      toast.error(error instanceof Error ? error.message : 'Erro ao processar pagamento')
     } finally {
       setProcessingPlan(null)
     }
@@ -247,7 +247,7 @@ export default function UpgradePageClient() {
 
                 {/* Botão */}
                 <Button
-                  onClick={() => handleAbacatePayCheckout(plan)}
+                  onClick={() => handleMercadoPagoCheckout(plan)}
                   disabled={processingPlan === plan.id}
                   className={`w-full py-2 text-sm font-semibold transition-all duration-300 ${
                     plan.plan_type === 'yearly'

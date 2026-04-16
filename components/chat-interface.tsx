@@ -20,7 +20,8 @@ import { WhatsAppAudioPlayer } from "@/components/whatsapp-audio-player"
 import { useSubscription } from "@/hooks/use-tokens"
 import { useSupabaseAuth } from "@/hooks/use-supabase-auth"
 import { UpgradeModal } from "@/components/upgrade-modal"
-import { Crown, Zap } from "lucide-react"
+import { QuestionLimitIndicator } from "@/components/question-limit-indicator"
+import { Crown, Zap, Heart, MessageCircle } from "lucide-react"
 import { generateAvatarUrl } from "@/lib/utils"
 
 interface Message {
@@ -1774,8 +1775,23 @@ export function ChatInterface({ conversationId, onConversationUpdate, user, appC
 
   return (
     <div className="flex flex-col h-full">
-      <ScrollArea className="flex-1 p-2 sm:p-4 min-h-0" ref={scrollAreaRef}>
-        <div className="space-y-4 max-w-4xl mx-auto h-auto">
+      <ScrollArea className="flex-1 p-2 sm:p-4 min-h-0 relative" ref={scrollAreaRef}>
+        {/* Background para PC - invert no light, sutil no dark */}
+        <div 
+          className="absolute inset-0 bg-cover bg-center bg-no-repeat hidden lg:block pointer-events-none z-0 invert opacity-[0.12] dark:invert-0 dark:opacity-[0.08]"
+          style={{ 
+            backgroundImage: "url('/para o fundo do chat pc.svg')"
+          }}
+        />
+        {/* Background para Mobile - 50% transparência + invert no light */}
+        <div 
+          className="absolute inset-0 bg-cover bg-center bg-no-repeat lg:hidden pointer-events-none z-0 invert opacity-[0.12] dark:invert-0 dark:opacity-[0.08]"
+          style={{ 
+            backgroundImage: "url('/csv para fundo para celulares.svg')",
+            opacity: 0.5
+          }}
+        />
+        <div className="space-y-4 max-w-4xl mx-auto h-auto relative z-10">
           {messages.map((message, index) => {
             const messageData = processedMessages[index] || {
               cleanContent: message.content,
@@ -2334,20 +2350,21 @@ export function ChatInterface({ conversationId, onConversationUpdate, user, appC
         </div>
         
         {!hasActiveSubscription && !isAdmin && shouldShowUpgradeOffer && (
-          <div className="mt-3 sm:mt-4 max-w-4xl mx-auto">
-            <Alert>
-              <Crown className="h-4 w-4" />
-              <AlertDescription className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-                <span className="text-sm">Você tem acesso limitado. Faça upgrade para conversas ilimitadas!</span>
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  onClick={() => setShowUpgradeModal(true)}
-                  className="self-start sm:self-auto sm:ml-2"
+          <div className="mt-2 max-w-4xl mx-auto">
+            <Alert className="border-orange-200 bg-gradient-to-r from-orange-50 to-amber-50 dark:from-orange-950/20 dark:to-amber-950/20 py-2 px-3 [&>svg]:top-2.5 [&>svg]:left-3">
+              <Heart className="h-3.5 w-3.5 text-orange-600" />
+              <AlertDescription className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1.5 pl-6 text-xs">
+                <span>
+                  <span className="font-medium text-orange-700 dark:text-orange-400">Apoie este ministério!</span>
+                  {' '}Sua doação mantém a plataforma gratuita.
+                </span>
+                <a 
+                  href="/doar"
+                  className="inline-flex items-center gap-1 self-start sm:self-auto sm:ml-2 px-2 py-1 text-xs font-medium text-white bg-gradient-to-r from-orange-600 to-amber-500 rounded hover:from-orange-700 hover:to-amber-600 transition-all shadow-sm"
                 >
-                  <Zap className="w-4 h-4 mr-1" />
-                  Upgrade
-                </Button>
+                  <Heart className="w-3 h-3" />
+                  Doar
+                </a>
               </AlertDescription>
             </Alert>
           </div>

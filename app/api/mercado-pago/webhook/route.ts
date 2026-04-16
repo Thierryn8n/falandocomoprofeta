@@ -113,9 +113,64 @@ export async function POST(request: NextRequest) {
     if (paymentData.status === 'approved') {
       // Pagamento aprovado - ativar serviços, enviar emails, etc.
       console.log('Pagamento aprovado:', paymentId)
+      
+      // ==========================================
+      // PROCESSAR DOAÇÃO SE FOR UMA DOAÇÃO
+      // ==========================================
+      try {
+        // Verificar se é uma doação (usando external_reference)
+        if (paymentData.external_reference) {
+          const { data: donation, error: donationError } = await getSupabaseAdmin()
+            .from('user_donations')
+            .select('id, payment_status')
+            .eq('mercado_pago_external_reference', paymentData.external_reference)
+            .single()
+          
+          if (!donationError && donation) {
+            // Atualizar status da doação para completed
+            await getSupabaseAdmin()
+              .from('user_donations')
+              .update({
+                payment_status: 'completed',
+                payment_transaction_id: paymentId,
+                paid_at: new Date().toISOString(),
+                updated_at: new Date().toISOString()
+              })
+              .eq('id', donation.id)
+            
+            // Processar doação (adicionar perguntas bonus)
+            await getSupabaseAdmin()
+              .rpc('process_completed_donation', {
+                p_donation_id: donation.id
+              })
+            
+            console.log('[Webhook] Doação processada:', donation.id)
+          }
+        }
+      } catch (donationProcessError) {
+        console.error('[Webhook] Erro ao processar doação:', donationProcessError)
+        // Não falhar o webhook se o processamento de doação falhar
+      }
+      
     } else if (paymentData.status === 'rejected') {
       // Pagamento rejeitado - notificar usuário, etc.
       console.log('Pagamento rejeitado:', paymentId)
+      
+      // Atualizar doação para falha se existir
+      try {
+        if (paymentData.external_reference) {
+          await getSupabaseAdmin()
+            .from('user_donations')
+            .update({
+              payment_status: 'failed',
+              payment_transaction_id: paymentId,
+              updated_at: new Date().toISOString()
+            })
+            .eq('mercado_pago_external_reference', paymentData.external_reference)
+        }
+      } catch (e) {
+        console.error('[Webhook] Erro ao atualizar doação rejeitada:', e)
+      }
     }
 
     return NextResponse.json({ 

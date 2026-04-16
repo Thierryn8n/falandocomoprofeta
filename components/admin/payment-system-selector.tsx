@@ -19,17 +19,15 @@ import { useToast } from '@/hooks/use-toast'
 
 interface PaymentSystemConfig {
   id?: string
-  active_system: 'abacate_pay' | 'mercado_pago'
-  abacate_pay_enabled: boolean
+  active_system: 'mercado_pago'
   mercado_pago_enabled: boolean
 }
 
 export default function PaymentSystemSelector() {
   const { toast } = useToast()
   const [config, setConfig] = useState<PaymentSystemConfig>({
-    active_system: 'abacate_pay',
-    abacate_pay_enabled: true,
-    mercado_pago_enabled: false
+    active_system: 'mercado_pago',
+    mercado_pago_enabled: true
   })
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -48,9 +46,8 @@ export default function PaymentSystemSelector() {
         const data = await response.json()
         // Transform API response to match component state structure
         setConfig({
-          active_system: data.activeSystem,
-          abacate_pay_enabled: data.abacatePayEnabled,
-          mercado_pago_enabled: data.mercadoPagoEnabled
+          active_system: data.activeSystem || 'mercado_pago',
+          mercado_pago_enabled: data.mercadoPagoEnabled ?? true
         })
       }
     } catch (error) {
@@ -71,10 +68,10 @@ export default function PaymentSystemSelector() {
       
       // Transform the config to match API expectations
       const apiConfig = {
-        activeSystem: config.active_system,
-        abacatePayEnabled: config.abacate_pay_enabled,
+        activeSystem: 'mercado_pago',
+        abacatePayEnabled: false,
         mercadoPagoEnabled: config.mercado_pago_enabled,
-        allowSystemSwitch: true // Default value
+        allowSystemSwitch: false
       }
       
       const response = await fetch('/api/payment-system/config', {
@@ -90,7 +87,6 @@ export default function PaymentSystemSelector() {
         // Update local config with the saved data
         setConfig({
           active_system: result.activeSystem,
-          abacate_pay_enabled: result.abacatePayEnabled,
           mercado_pago_enabled: result.mercadoPagoEnabled
         })
         toast({
@@ -110,20 +106,25 @@ export default function PaymentSystemSelector() {
         throw new Error(errorMessage)
       }
     } catch (error) {
-      console.error('🚨 [FRONTEND] Erro ao salvar configuração:', error)
+      console.error('Erro ao salvar configuração:', error)
       
       let errorMessage = 'Erro desconhecido ao salvar configuração'
       let errorDetails = null
       
       if (error instanceof Error) {
         errorMessage = error.message
-        console.error('🚨 [FRONTEND] Error message:', error.message)
-        console.error('🚨 [FRONTEND] Error stack:', error.stack)
+        console.error('Error message:', error.message)
+        console.error('Error stack:', error.stack)
       }
       
       // Log additional context
-      console.error('🚨 [FRONTEND] Config being saved:', JSON.stringify(config, null, 2))
-      console.error('🚨 [FRONTEND] API config sent:', JSON.stringify(apiConfig, null, 2))
+      console.error('Config being saved:', JSON.stringify(config, null, 2))
+      const apiConfigStr = JSON.stringify({
+        activeSystem: 'mercado_pago',
+        mercadoPagoEnabled: config.mercado_pago_enabled,
+        allowSystemSwitch: false
+      }, null, 2)
+      console.error('API config sent:', apiConfigStr)
       
       toast({
         title: "Erro",
@@ -163,17 +164,10 @@ export default function PaymentSystemSelector() {
     }
   }
 
-  const updateSystemEnabled = (system: 'abacate_pay' | 'mercado_pago', enabled: boolean) => {
+  const updateSystemEnabled = (enabled: boolean) => {
     setConfig(prev => ({
       ...prev,
-      [`${system}_enabled`]: enabled
-    }))
-  }
-
-  const setActiveSystem = (system: 'abacate_pay' | 'mercado_pago') => {
-    setConfig(prev => ({
-      ...prev,
-      active_system: system
+      mercado_pago_enabled: enabled
     }))
   }
 
@@ -208,15 +202,12 @@ export default function PaymentSystemSelector() {
             <div>
               <p className="font-medium">Sistema Ativo:</p>
               <Badge variant="default" className="mt-1">
-                {config.active_system === 'abacate_pay' ? 'Abacate Pay' : 'Mercado Pago'}
+                Mercado Pago
               </Badge>
             </div>
             <div className="text-right">
-              <p className="text-sm text-muted-foreground">Sistemas Habilitados:</p>
+              <p className="text-sm text-muted-foreground">Status:</p>
               <div className="flex gap-2 mt-1">
-                {config.abacate_pay_enabled && (
-                  <Badge variant="outline">Abacate Pay</Badge>
-                )}
                 {config.mercado_pago_enabled && (
                   <Badge variant="outline">Mercado Pago</Badge>
                 )}
@@ -228,9 +219,8 @@ export default function PaymentSystemSelector() {
 
       {/* Configurações */}
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="grid w-full grid-cols-3">
+        <TabsList className="grid w-full grid-cols-2">
           <TabsTrigger value="overview">Visão Geral</TabsTrigger>
-          <TabsTrigger value="abacate-pay">Abacate Pay</TabsTrigger>
           <TabsTrigger value="mercado-pago">Mercado Pago</TabsTrigger>
         </TabsList>
 
@@ -246,55 +236,6 @@ export default function PaymentSystemSelector() {
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="font-medium">Sistema Ativo</p>
-                    <p className="text-sm text-muted-foreground">
-                      Sistema de pagamento principal
-                    </p>
-                  </div>
-                  <div className="flex gap-2">
-                    <Button
-                      variant={config.active_system === 'abacate_pay' ? 'default' : 'outline'}
-                      size="sm"
-                      onClick={() => setActiveSystem('abacate_pay')}
-                      disabled={!config.abacate_pay_enabled}
-                    >
-                      Abacate Pay
-                    </Button>
-                    <Button
-                      variant={config.active_system === 'mercado_pago' ? 'default' : 'outline'}
-                      size="sm"
-                      onClick={() => setActiveSystem('mercado_pago')}
-                      disabled={!config.mercado_pago_enabled}
-                    >
-                      Mercado Pago
-                    </Button>
-                  </div>
-                </div>
-
-                <Separator />
-
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="font-medium">Abacate Pay</p>
-                    <p className="text-sm text-muted-foreground">
-                      Sistema de pagamento interno/externo
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Switch
-                      checked={config.abacate_pay_enabled}
-                      onCheckedChange={(checked) => updateSystemEnabled('abacate_pay', checked)}
-                    />
-                    {config.abacate_pay_enabled ? (
-                      <CheckCircle className="h-4 w-4 text-green-500" />
-                    ) : (
-                      <AlertCircle className="h-4 w-4 text-gray-400" />
-                    )}
-                  </div>
-                </div>
-
-                <div className="flex items-center justify-between">
-                  <div>
                     <p className="font-medium">Mercado Pago</p>
                     <p className="text-sm text-muted-foreground">
                       Gateway de pagamento do Mercado Pago
@@ -303,7 +244,7 @@ export default function PaymentSystemSelector() {
                   <div className="flex items-center gap-2">
                     <Switch
                       checked={config.mercado_pago_enabled}
-                      onCheckedChange={(checked) => updateSystemEnabled('mercado_pago', checked)}
+                      onCheckedChange={(checked) => updateSystemEnabled(checked)}
                     />
                     {config.mercado_pago_enabled ? (
                       <CheckCircle className="h-4 w-4 text-green-500" />
@@ -326,33 +267,6 @@ export default function PaymentSystemSelector() {
                   ) : (
                     'Salvar Configurações'
                   )}
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="abacate-pay" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Settings className="h-5 w-5" />
-                Configuração do Abacate Pay
-              </CardTitle>
-              <CardDescription>
-                Configure o sistema de pagamento Abacate Pay
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="text-center py-8">
-                <p className="text-muted-foreground mb-4">
-                  As configurações detalhadas do Abacate Pay estão disponíveis na página específica.
-                </p>
-                <Button
-                  onClick={() => setActiveTab('abacate-pay-config')}
-                  variant="outline"
-                >
-                  Ir para Configurações do Abacate Pay
                 </Button>
               </div>
             </CardContent>

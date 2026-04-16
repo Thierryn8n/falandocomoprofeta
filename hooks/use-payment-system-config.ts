@@ -5,20 +5,16 @@ import { supabase } from '@/lib/supabase'
 
 interface PaymentSystemConfig {
   id?: string
-  active_system: 'abacate_pay' | 'mercado_pago'
-  abacate_pay_enabled: boolean
+  active_system: 'mercado_pago'
   mercado_pago_enabled: boolean
-  allow_system_switch?: boolean
   created_at?: string
   updated_at?: string
 }
 
 export function usePaymentSystemConfig() {
   const [config, setConfig] = useState<PaymentSystemConfig>({
-    active_system: 'abacate_pay',
-    abacate_pay_enabled: true,
-    mercado_pago_enabled: false,
-    allow_system_switch: true
+    active_system: 'mercado_pago',
+    mercado_pago_enabled: true
   })
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -66,10 +62,9 @@ export function usePaymentSystemConfig() {
         const { data, error } = await supabase
           .from('payment_system_config')
           .update({
-            active_system: updatedConfig.active_system,
-            abacate_pay_enabled: updatedConfig.abacate_pay_enabled,
+            active_system: updatedConfig.active_system || 'mercado_pago',
             mercado_pago_enabled: updatedConfig.mercado_pago_enabled,
-            allow_system_switch: updatedConfig.allow_system_switch,
+            allow_system_switch: false,
             updated_at: new Date().toISOString()
           })
           .eq('id', existingConfig.id)
@@ -104,23 +99,13 @@ export function usePaymentSystemConfig() {
   }, [config])
 
   // Funções utilitárias
-  const isAbacatePayActive = useCallback(() => {
-    return config.active_system === 'abacate_pay' && config.abacate_pay_enabled
-  }, [config])
-
   const isMercadoPagoActive = useCallback(() => {
     return config.active_system === 'mercado_pago' && config.mercado_pago_enabled
   }, [config])
 
   const getActiveSystemName = useCallback(() => {
-    return config.active_system === 'abacate_pay' ? 'Abacate Pay' : 'Mercado Pago'
-  }, [config])
-
-  const canSwitchSystems = useCallback(() => {
-    return config.allow_system_switch && 
-           config.abacate_pay_enabled && 
-           config.mercado_pago_enabled
-  }, [config])
+    return 'Mercado Pago'
+  }, [])
 
   useEffect(() => {
     loadConfig()
@@ -132,10 +117,8 @@ export function usePaymentSystemConfig() {
     error,
     loadConfig,
     updateConfig,
-    isAbacatePayActive,
     isMercadoPagoActive,
     getActiveSystemName,
-    canSwitchSystems,
     refetch: loadConfig
   }
 }

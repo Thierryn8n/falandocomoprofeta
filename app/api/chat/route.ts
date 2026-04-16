@@ -1083,6 +1083,25 @@ export async function POST(request: NextRequest) {
           timestamp: new Date().toISOString(),
         },
       ]
+      
+      // ==========================================
+      // VERIFICAR LIMITE DE PERGUNTAS (ÁUDIO)
+      // ==========================================
+      if (userId) {
+        const { data: canAsk, error: limitError } = await supabaseAdmin
+          .rpc('can_user_ask_question', {
+            p_user_id: userId
+          })
+        
+        if (limitError) {
+          console.error('[Chat API] Error checking limit:', limitError)
+        } else if (!canAsk) {
+          return NextResponse.json({
+            error: 'DAILY_LIMIT_REACHED',
+            message: 'Você atingiu o limite de 50 perguntas por dia. Faça uma doação para continuar ou aguarde até meia-noite.'
+          }, { status: 429 })
+        }
+      }
     }
     // ==========================================
     // PROCESSAR JSON (TEXTO)
@@ -1115,6 +1134,25 @@ export async function POST(request: NextRequest) {
       messages = requestBody?.messages || []
       conversationId = requestBody?.conversationId
       userId = requestBody?.userId
+      
+      // ==========================================
+      // VERIFICAR LIMITE DE PERGUNTAS (TEXTO)
+      // ==========================================
+      if (userId) {
+        const { data: canAsk, error: limitError } = await supabaseAdmin
+          .rpc('can_user_ask_question', {
+            p_user_id: userId
+          })
+        
+        if (limitError) {
+          console.error('[Chat API] Error checking limit:', limitError)
+        } else if (!canAsk) {
+          return NextResponse.json({
+            error: 'DAILY_LIMIT_REACHED',
+            message: 'Você atingiu o limite de 50 perguntas por dia. Faça uma doação para continuar ou aguarde até meia-noite.'
+          }, { status: 429 })
+        }
+      }
     }
     
     // Definir tamanho da resposta (padrão: medium)
