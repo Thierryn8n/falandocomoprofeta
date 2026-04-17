@@ -263,7 +263,8 @@ export function ChatInterface({ conversationId, onConversationUpdate, user, appC
   const {
     limits,
     hasReachedLimit,
-    checkCanAsk
+    checkCanAsk,
+    refresh: refreshLimits
   } = useQuestionLimits()
 
   const { profile: authProfile, isAdmin } = useSupabaseAuth()
@@ -573,6 +574,12 @@ export function ChatInterface({ conversationId, onConversationUpdate, user, appC
       if (refreshSubscription) {
         refreshSubscription()
       }
+      
+      // Atualizar contador de perguntas em tempo real
+      if (refreshLimits) {
+        console.log('🔄 Atualizando contador de perguntas...')
+        refreshLimits()
+      }
     } catch (error) {
       console.error("❌ Erro ao enviar mensagem:", error)
       setError("Erro ao enviar mensagem. Tente novamente.")
@@ -858,6 +865,12 @@ export function ChatInterface({ conversationId, onConversationUpdate, user, appC
       
       if (refreshSubscription) {
         refreshSubscription()
+      }
+      
+      // Atualizar contador de perguntas em tempo real
+      if (refreshLimits) {
+        console.log('🔄 Atualizando contador de perguntas (áudio)...')
+        refreshLimits()
       }
     } catch (error) {
       console.error('❌ Erro ao processar áudio:', error)
