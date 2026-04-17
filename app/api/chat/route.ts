@@ -830,13 +830,37 @@ async function saveConversationDirectly(
 }
 
 // ENHANCED API KEY FUNCTION WITH BETTER ERROR HANDLING AND LOGGING
+// PRIORITY: 1. Environment Variables, 2. Database
 async function getApiKey(provider: string): Promise<string | null> {
   try {
+    // First, check Environment Variables (priority 1)
+    console.log(`🔍 [${provider.toUpperCase()}] Checking Environment Variables first...`)
+    
+    const envKeyMap: Record<string, string> = {
+      'gemini': 'GEMINI_API_KEY',
+      'google': 'GEMINI_API_KEY',
+      'openai': 'OPENAI_API_KEY',
+      'anthropic': 'ANTHROPIC_API_KEY',
+    }
+    
+    const envVarName = envKeyMap[provider.toLowerCase()]
+    if (envVarName) {
+      const envKey = process.env[envVarName]
+      if (envKey && envKey.length > 20 && !envKey.includes('placeholder')) {
+        console.log(`✅ [${provider.toUpperCase()}] Found API key in Environment Variables:`, {
+          var_name: envVarName,
+          key_preview: envKey.substring(0, 15) + "...",
+        })
+        return envKey
+      }
+    }
+    
+    // Second, check database (priority 2)
     console.log(`🔍 [${provider.toUpperCase()}] Searching for API key in database...`)
 
     const { data, error } = await getSupabaseAdmin()
       .from("api_keys")
-      .select("id, provider, key_name, encrypted_key, is_active, created_at") // Changed key_value to encrypted_key to match table structure
+      .select("id, provider, key_name, encrypted_key, is_active, created_at")
       .eq("provider", provider)
       .eq("is_active", true)
       .order("created_at", { ascending: false })
@@ -852,7 +876,7 @@ async function getApiKey(provider: string): Promise<string | null> {
       // Try to get any key for this provider (even inactive) for debugging
       const { data: anyKeyData, error: anyKeyError } = await getSupabaseAdmin()
         .from("api_keys")
-        .select("id, provider, key_name, encrypted_key, is_active") // Changed key_value to encrypted_key
+        .select("id, provider, key_name, encrypted_key, is_active")
         .eq("provider", provider)
         .order("created_at", { ascending: false })
 
@@ -860,7 +884,7 @@ async function getApiKey(provider: string): Promise<string | null> {
         console.log(`🔍 [${provider.toUpperCase()}] Found ${anyKeyData.length} inactive keys:`)
         anyKeyData.forEach((key, index) => {
           console.log(
-            `   ${index + 1}. ${key.key_name} (Active: ${key.is_active}) - ${key.encrypted_key?.substring(0, 10)}...`, // Changed key_value to encrypted_key
+            `   ${index + 1}. ${key.key_name} (Active: ${key.is_active}) - ${key.encrypted_key?.substring(0, 10)}...`,
           )
         })
       } else {
@@ -871,13 +895,13 @@ async function getApiKey(provider: string): Promise<string | null> {
     }
 
     const apiKey = data[0]
-    console.log(`✅ [${provider.toUpperCase()}] Found active API key:`, {
+    console.log(`✅ [${provider.toUpperCase()}] Found active API key in database:`, {
       id: apiKey.id,
       key_name: apiKey.key_name,
-      key_preview: apiKey.encrypted_key?.substring(0, 15) + "...", // Changed key_value to encrypted_key
+      key_preview: apiKey.encrypted_key?.substring(0, 15) + "...",
     })
 
-    return apiKey.encrypted_key // Changed key_value to encrypted_key
+    return apiKey.encrypted_key
   } catch (error) {
     console.error(`💥 [${provider.toUpperCase()}] Unexpected error:`, error)
     return null
