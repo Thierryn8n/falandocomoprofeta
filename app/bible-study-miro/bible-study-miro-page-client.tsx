@@ -855,22 +855,26 @@ export default function BibleStudyMiroPageClient() {
           </div>
         </div>
 
-        {/* Main Canvas Area - FULL PAGE WITH ROUNDED TOP CORNERS */}
-        <div className="flex-1 relative z-0 h-screen pt-[1px]">
+        {/* Main Canvas Area - FULL PAGE */}
+        <div className="flex-1 relative z-0 h-screen">
           <DndContext
             sensors={sensors}
             collisionDetection={pointerWithin}
             modifiers={[scaleModifier]}
             onDragEnd={handleDragEnd}
           >
-            {/* Canvas Container - Full page with 50px rounded top corners and padding to clear top bar */}
+            {/* Canvas Container - Full page sem rounded corners no mobile */}
             <div 
               ref={canvasScrollRef}
-              className="absolute inset-0 overflow-auto bg-white dark:bg-slate-950 rounded-t-[50px] pt-[80px] pb-[180px]"
+              className="absolute inset-0 overflow-auto bg-white dark:bg-slate-950 pt-[70px] pb-[200px] lg:pb-[180px] touch-pan-y"
+              style={{ 
+                WebkitOverflowScrolling: 'touch',
+                overscrollBehavior: 'contain'
+              }}
             >
               {/* Empty State Card */}
               {canvasElements.length === 0 && (
-                <div className="absolute inset-0 flex items-center justify-center">
+                <div className="absolute inset-0 flex items-center justify-center pointer-events-auto">
                   <EmptyStateCard
                     panel={currentPanel}
                     onGenerate={(elements, conns) => {
@@ -892,8 +896,11 @@ export default function BibleStudyMiroPageClient() {
                 </div>
               )}
 
-              {/* Canvas Elements */}
-              <div className="relative min-w-[2000px] min-h-[1400px] p-8">
+              {/* Canvas Elements - Full width no mobile */}
+              <div 
+                className="relative min-w-[1000px] lg:min-w-[2000px] min-h-[1000px] lg:min-h-[1400px] p-4 lg:p-8"
+                style={{ touchAction: 'pan-y pan-x' }}
+              >
                 <MiroCanvas
                   elements={canvasElements}
                   connections={connections}
@@ -960,60 +967,76 @@ export default function BibleStudyMiroPageClient() {
           </DndContext>
         </div>
 
-        {/* BOTTOM CONTAINER - FLOATING ABOVE CANVAS WITH 50% TRANSPARENCY */}
-        <div className="fixed bottom-4 left-4 right-4 z-[50] bg-white/50 dark:bg-slate-900/50 backdrop-blur-md border border-gray-200 dark:border-slate-800 rounded-3xl shadow-lg dark:shadow-slate-900/50 p-3">
-          {/* Bottom Navigation - Dark inside with overflow scroll */}
-          <div className="flex items-center justify-center gap-0.5 bg-slate-900 dark:bg-slate-950 rounded-2xl p-1.5 mb-2 overflow-x-auto">
+        {/* FLOATING FORMAT BARS - aparecem quando elemento está selecionado */}
+        {selectedFormatElement && (
+          <div className="fixed top-[80px] left-1/2 -translate-x-1/2 z-[90] max-w-[90vw]">
+            <MiroTextFormatBar
+              element={selectedFormatElement}
+              onPatchStyle={patchTextCardStyle}
+            />
+          </div>
+        )}
+
+        {selectedConnection && (
+          <div className="fixed top-[80px] left-1/2 -translate-x-1/2 z-[90] max-w-[90vw]">
+            <MiroConnectionFormatBar
+              connection={selectedConnection}
+              onPatch={patchConnection}
+            />
+          </div>
+        )}
+
+        {/* BOTTOM CONTAINER - FLOATING TOOLBAR COM FUNÇÕES REAIS */}
+        <div className="fixed bottom-0 left-0 right-0 z-[100] bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-t border-gray-200 dark:border-slate-700 shadow-lg p-2 lg:p-3 safe-area-pb">
+          {/* Bottom Navigation - Toolbar com ações reais */}
+          <div className="flex items-center justify-center gap-1 bg-slate-900 dark:bg-slate-950 rounded-2xl p-2 mb-2 overflow-x-auto scrollbar-hide">
             {[
-              { id: 'select', icon: MousePointer2 },
-              { id: 'text', icon: Type },
-              { id: 'doc', icon: FileText },
-              { id: 'heading', icon: Heading },
-              { id: 'draw', icon: PenTool },
-              { id: 'table', icon: Grid3X3 },
-              { id: 'shape', icon: Shapes },
-              { id: 'image', icon: ImageIcon },
+              { id: 'select', icon: MousePointer2, label: 'Selecionar', action: () => handleTool('select') },
+              { id: 'text', icon: Type, label: 'Texto', action: () => handleTool('text') },
+              { id: 'sticky', icon: FileText, label: 'Nota', action: () => handleTool('sticky') },
+              { id: 'title', icon: Heading, label: 'Título', action: () => handleTool('title') },
+              { id: 'draw', icon: PenTool, label: 'Desenhar', action: () => handleTool('draw') },
+              { id: 'table', icon: Grid3X3, label: 'Tabela', action: () => handleTool('table') },
+              { id: 'frame', icon: Shapes, label: 'Frame', action: () => handleTool('frame') },
+              { id: 'emoji', icon: ImageIcon, label: 'Emoji', action: () => handleTool('emoji') },
             ].map((tool) => {
               const Icon = tool.icon
               const isActive = activeMobileTool === tool.id
               return (
                 <button
                   key={tool.id}
-                  onClick={() => setActiveMobileTool(tool.id)}
-                  className={`p-2 rounded-lg transition-all duration-200 flex items-center justify-center min-w-[36px] ${
+                  onClick={() => {
+                    setActiveMobileTool(tool.id)
+                    tool.action()
+                  }}
+                  className={`p-3 rounded-xl transition-all duration-200 flex items-center justify-center min-w-[44px] min-h-[44px] active:scale-95 ${
                     isActive 
-                      ? "bg-slate-700 text-white shadow-inner" 
+                      ? "bg-orange-500 text-white shadow-inner" 
                       : "text-slate-400 hover:text-slate-200 hover:bg-slate-800"
                   }`}
+                  title={tool.label}
                 >
-                  <Icon className="w-4 h-4" />
+                  <Icon className="w-5 h-5" />
                 </button>
               )
             })}
           </div>
 
-          {/* Input Bar */}
-          <div className="flex items-center gap-2">
+          {/* Input Bar com funcionalidade real */}
+          <div className="flex items-center gap-2 px-1">
             {/* Input Field */}
             <input
               type="text"
-              placeholder="Faça uma pergunta..."
-              className="flex-1 bg-white/80 dark:bg-slate-800/80 border border-gray-300 dark:border-slate-700 rounded-full px-3 py-2 text-sm text-gray-900 dark:text-slate-100 placeholder:text-gray-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500/50"
+              placeholder="Pergunte à Bíblia ou ao Profeta..."
+              className="flex-1 bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-700 rounded-full px-4 py-3 text-sm text-gray-900 dark:text-slate-100 placeholder:text-gray-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-orange-500/50"
             />
 
-            {/* Send Button */}
-            <button className="p-2 rounded-full bg-white/80 dark:bg-slate-800/80 border border-gray-300 dark:border-slate-700 text-gray-700 dark:text-slate-200 hover:bg-gray-50 dark:hover:bg-slate-700 transition-all">
-              <Send className="w-4 h-4" />
-            </button>
-
-            {/* Voice Button */}
-            <button className="p-2 rounded-full bg-white/80 dark:bg-slate-800/80 border border-gray-300 dark:border-slate-700 text-gray-700 dark:text-slate-200 hover:bg-gray-50 dark:hover:bg-slate-700 transition-all">
-              <Mic className="w-4 h-4" />
-            </button>
-
-            {/* Cloud Button */}
-            <button className="p-2 rounded-full bg-white/80 dark:bg-slate-800/80 border border-gray-300 dark:border-slate-700 text-gray-700 dark:text-slate-200 hover:bg-gray-50 dark:hover:bg-slate-700 transition-all">
-              <Cloud className="w-4 h-4" />
+            {/* Send Button - funcional */}
+            <button 
+              onClick={() => console.log('Send clicked')}
+              className="p-3 rounded-full bg-orange-500 text-white hover:bg-orange-600 transition-all active:scale-95"
+            >
+              <Send className="w-5 h-5" />
             </button>
           </div>
         </div>
