@@ -18,6 +18,7 @@ import { GrokAudioInput } from "@/components/grok-audio-input"
 import { AudioPlayer } from "@/components/audio-player"
 import { WhatsAppAudioPlayer } from "@/components/whatsapp-audio-player"
 import { useSubscription } from "@/hooks/use-tokens"
+import { useQuestionLimits } from "@/hooks/use-question-limits"
 import { useSupabaseAuth } from "@/hooks/use-supabase-auth"
 import { UpgradeModal } from "@/components/upgrade-modal"
 import { QuestionLimitIndicator } from "@/components/question-limit-indicator"
@@ -259,7 +260,16 @@ export function ChatInterface({ conversationId, onConversationUpdate, user, appC
     refreshSubscription
   } = useSubscription()
 
+  const {
+    limits,
+    hasReachedLimit,
+    checkCanAsk
+  } = useQuestionLimits()
+
   const { profile: authProfile, isAdmin } = useSupabaseAuth()
+  
+  // Usuário pode conversar se: tem assinatura ativa, é admin, ou tem respostas restantes
+  const canUserChat = canChat || isAdmin || (limits?.can_ask ?? false)
 
   const scrollAreaRef = useRef<HTMLDivElement>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
@@ -440,7 +450,9 @@ export function ChatInterface({ conversationId, onConversationUpdate, user, appC
     const textToSend = messageText || input.trim()
     if (!textToSend) return
 
-    if (!canChat && !isAdmin) {
+    // Verificar se pode perguntar (assinatura ativa, admin, ou respostas restantes)
+    const canAskNow = canUserChat || await checkCanAsk()
+    if (!canAskNow && !isAdmin) {
       setShowUpgradeModal(true)
       return
     }
@@ -469,7 +481,8 @@ export function ChatInterface({ conversationId, onConversationUpdate, user, appC
       // Removemos o comportamento especial da primeira mensagem
       // Todas as mensagens agora são processadas pela API
 
-      if (!hasActiveSubscription && !isAdmin) {
+      // Verificar limite após receber resposta
+      if (!hasActiveSubscription && !isAdmin && hasReachedLimit) {
         setMessages(messages)
         setShowUpgradeModal(true)
         setIsLoading(false)
