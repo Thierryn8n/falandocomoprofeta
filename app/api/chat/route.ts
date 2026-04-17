@@ -1,3 +1,4 @@
+// Deploy trigger - v1.0.0 - Force rebuild
 import { type NextRequest, NextResponse } from "next/server"
 import { supabase, getSupabaseAdmin } from "@/lib/supabase"
 
