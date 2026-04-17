@@ -1,15 +1,77 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
-import OpenAI from 'openai'
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 )
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY
-})
+// Buscar chave API Gemini do banco ou env
+async function getGeminiApiKey(): Promise<string | null> {
+  let geminiApiKey = process.env.GEMINI_API_KEY || null
+  
+  if (geminiApiKey && geminiApiKey.length > 20) {
+    return geminiApiKey
+  }
+  
+  // Buscar no banco
+  try {
+    const { data } = await supabaseAdmin
+      .from('api_keys')
+      .select('key_value')
+      .eq('key_name', 'gemini')
+      .eq('is_active', true)
+      .single()
+    
+    if (data?.key_value) {
+      return data.key_value
+    }
+  } catch {
+    // Ignore error
+  }
+  
+  return null
+}
+
+// Upload imagem para Gemini
+async function uploadImageToGemini(imageUrl: string, geminiApiKey: string): Promise<string | null> {
+  try {
+    // Baixar imagem
+    const imageResponse = await fetch(imageUrl)
+    if (!imageResponse.ok) {
+      console.error('❌ Failed to download image:', imageResponse.status)
+      return null
+    }
+    
+    const imageBuffer = Buffer.from(await imageResponse.arrayBuffer())
+    
+    // Upload para Gemini
+    const uploadUrl = `https://generativelanguage.googleapis.com/upload/v1beta/files?key=${geminiApiKey}`
+    
+    const uploadResponse = await fetch(uploadUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/octet-stream',
+        'X-Goog-Upload-Protocol': 'raw',
+      },
+      body: imageBuffer,
+    })
+    
+    if (!uploadResponse.ok) {
+      const errorText = await uploadResponse.text()
+      console.error('❌ Gemini upload error:', uploadResponse.status, errorText)
+      return null
+    }
+    
+    const uploadData = await uploadResponse.json()
+    console.log('✅ Image uploaded to Gemini:', uploadData.file?.uri)
+    
+    return uploadData.file?.uri || null
+  } catch (error) {
+    console.error('💥 Error uploading image to Gemini:', error)
+    return null
+  }
+}
 
 // Sistema Anti-Fraude
 interface FraudCheck {
@@ -140,16 +202,37 @@ export async function POST(request: NextRequest) {
 
 async function analyzeReceiptWithAI(receiptUrl: string, fileType: string): Promise<AnalysisResult & { rawResponse?: string }> {
   try {
-    // Para imagens, usar GPT-4 Vision
+    const geminiApiKey = await getGeminiApiKey()
+    
+    if (!geminiApiKey) {
+      console.error('❌ GEMINI_API_KEY not found')
+      return {
+        approved: false,
+        reason: 'Chave API não configurada',
+        fraudScore: 50,
+        confidence: 0,
+        extractedData: {}
+      }
+    }
+    
+    // Para imagens, usar Gemini Vision
     if (fileType.startsWith('image/')) {
-      const response = await openai.chat.completions.create({
-        model: 'gpt-4o',
-        messages: [
-          {
-            role: 'system',
-            content: `Você é um analisador de comprovantes PIX especializado em detectar fraudes.
-            
-Extraia as seguintes informações do comprovante:
+      // Upload imagem
+      const fileUri = await uploadImageToGemini(receiptUrl, geminiApiKey)
+      if (!fileUri) {
+        return {
+          approved: false,
+          reason: 'Erro ao processar imagem',
+          fraudScore: 50,
+          confidence: 0,
+          extractedData: {}
+        }
+      }
+      
+      // Analisar com Gemini
+      const prompt = `Você é um analisador de comprovantes PIX especializado em detectar fraudes.
+
+Analise esta imagem de comprovante PIX e extraia as seguintes informações:
 1. Nome do pagador (payerName)
 2. Valor exato (amount) - apenas números
 3. Chave PIX destino (pixKey)
@@ -157,7 +240,7 @@ Extraia as seguintes informações do comprovante:
 5. ID da transação / Código de autorização (transactionId)
 6. Nome do banco (bankName)
 
-Retorne APENAS um JSON válido no formato:
+Retorne APENAS um JSON válido no formato exato:
 {
   "payerName": "string",
   "amount": number,
@@ -169,30 +252,57 @@ Retorne APENAS um JSON válido no formato:
   "confidence": number (0-1)
 }
 
-Se não for um comprovante PIX válido, retorne isPixComprovante: false.`
-          },
-          {
-            role: 'user',
-            content: [
-              { type: 'text', text: 'Analise este comprovante PIX:' },
-              {
-                type: 'image_url',
-                image_url: {
-                  url: receiptUrl,
-                  detail: 'high'
-                }
-              }
-            ]
-          }
-        ],
-        max_tokens: 1000
-      })
+Se não for um comprovante PIX válido, retorne isPixComprovante: false e confidence: 0.`
 
-      const content = response.choices[0].message.content
+      const response = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiApiKey}`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            contents: [
+              {
+                role: 'user',
+                parts: [
+                  { text: prompt },
+                  {
+                    file_data: {
+                      mime_type: fileType,
+                      file_uri: fileUri
+                    }
+                  }
+                ]
+              }
+            ],
+            generationConfig: {
+              temperature: 0.1,
+              maxOutputTokens: 1000,
+            }
+          })
+        }
+      )
+
+      if (!response.ok) {
+        const errorText = await response.text()
+        console.error('❌ Gemini analysis error:', response.status, errorText)
+        return {
+          approved: false,
+          reason: 'Erro na análise da imagem',
+          fraudScore: 50,
+          confidence: 0,
+          extractedData: {},
+          rawResponse: errorText
+        }
+      }
+
+      const data = await response.json()
+      const content = data.candidates?.[0]?.content?.parts?.[0]?.text || ''
       
       try {
         // Extrair JSON da resposta
-        const jsonMatch = content?.match(/\{[\s\S]*\}/)
+        const jsonMatch = content.match(/\{[\s\S]*\}/)
         const parsedData = jsonMatch ? JSON.parse(jsonMatch[0]) : null
 
         if (!parsedData || !parsedData.isPixComprovante) {
@@ -202,7 +312,7 @@ Se não for um comprovante PIX válido, retorne isPixComprovante: false.`
             fraudScore: 100,
             confidence: 0,
             extractedData: {},
-            rawResponse: content || ''
+            rawResponse: content
           }
         }
 
@@ -230,15 +340,15 @@ Se não for um comprovante PIX válido, retorne isPixComprovante: false.`
           fraudScore: 50,
           confidence: 0,
           extractedData: {},
-          rawResponse: content || ''
+          rawResponse: content
         }
       }
     }
 
-    // Para PDFs, usar abordagem diferente (extract text first)
+    // Para PDFs, retornar erro por enquanto
     return {
       approved: false,
-      reason: 'Análise de PDF requer processamento adicional',
+      reason: 'Análise de PDF ainda não implementada',
       fraudScore: 50,
       confidence: 0,
       extractedData: {}
