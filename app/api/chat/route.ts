@@ -1923,6 +1923,24 @@ IMPORTANTE:
       // Add assistant message to the conversation
       const updatedMessages = [...messages, assistantMessage]
 
+      // Incrementar contador de perguntas PRIMEIRO (independente de salvar conversa)
+      if (userId && userId !== "null" && userId !== "anonymous") {
+        console.log("� [TOKEN] Incrementando contador de perguntas para usuário:", userId)
+        try {
+          const { error: counterError } = await getSupabaseAdmin().rpc('increment_question_count', {
+            p_user_id: userId
+          })
+          
+          if (counterError) {
+            console.error("❌ [TOKEN] Erro ao incrementar contador:", counterError)
+          } else {
+            console.log("✅ [TOKEN] Contador incrementado com sucesso")
+          }
+        } catch (counterErr) {
+          console.error("❌ [TOKEN] Erro ao incrementar:", counterErr)
+        }
+      }
+
       // Save conversation if userId is provided
       if (userId && userId !== "null" && userId !== "anonymous") {
         console.log("💾 Attempting to save conversation...")
@@ -1931,22 +1949,6 @@ IMPORTANTE:
 
         if (saveResult.success) {
           console.log("✅ SAVE SUCCESSFUL!")
-          
-          // Incrementar contador de perguntas do usuário
-          try {
-            console.log("📊 Incrementando contador de perguntas para usuário:", userId)
-            const { error: counterError } = await getSupabaseAdmin().rpc('increment_question_count', {
-              p_user_id: userId
-            })
-            
-            if (counterError) {
-              console.error("❌ Erro ao incrementar contador:", counterError)
-            } else {
-              console.log("✅ Contador de perguntas incrementado com sucesso")
-            }
-          } catch (counterErr) {
-            console.error("❌ Erro ao incrementar contador de perguntas:", counterErr)
-          }
           
           console.log(`📤 RETORNANDO para frontend - message length: ${aiResponse.length}, canContinue: ${canContinue}`)
           console.log(`📤 Últimos 100 chars da resposta: ${aiResponse.substring(Math.max(0, aiResponse.length - 100))}`)
