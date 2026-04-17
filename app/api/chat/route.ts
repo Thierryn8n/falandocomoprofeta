@@ -1112,7 +1112,7 @@ export async function POST(request: NextRequest) {
       // VERIFICAR LIMITE DE PERGUNTAS (ÁUDIO)
       // ==========================================
       if (userId) {
-        const { data: canAsk, error: limitError } = await supabaseAdmin
+        const { data: canAsk, error: limitError } = await getSupabaseAdmin()
           .rpc('can_user_ask_question', {
             p_user_id: userId
           })
@@ -1163,7 +1163,7 @@ export async function POST(request: NextRequest) {
       // VERIFICAR LIMITE DE PERGUNTAS (TEXTO)
       // ==========================================
       if (userId) {
-        const { data: canAsk, error: limitError } = await supabaseAdmin
+        const { data: canAsk, error: limitError } = await getSupabaseAdmin()
           .rpc('can_user_ask_question', {
             p_user_id: userId
           })
