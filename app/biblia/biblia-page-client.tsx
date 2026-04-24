@@ -110,6 +110,11 @@ export default function BibliaPageClient() {
   const [isSpeaking, setIsSpeaking] = useState(false)
   const [currentSpeakingVerse, setCurrentSpeakingVerse] = useState<number | null>(null)
   const [speechRate, setSpeechRate] = useState(1)
+  const [speechPitch, setSpeechPitch] = useState(0)
+  const [speechVolume, setSpeechVolume] = useState(1)
+  const [selectedVoice, setSelectedVoice] = useState("pt-BR-Neural2-B")
+  const [ttsEngine, setTtsEngine] = useState<"google" | "browser">("browser")
+  const [showTtsSettings, setShowTtsSettings] = useState(false)
   const speechSynthesisRef = useRef<SpeechSynthesisUtterance | null>(null)
   const supabase = createClientComponentClient()
 
@@ -323,9 +328,13 @@ export default function BibliaPageClient() {
     }
 
     setIsSpeaking(true)
+    console.log("[TTS] Iniciando leitura do capítulo", selectedChapter)
     
     for (let i = 0; i < verses.length; i++) {
-      if (!isSpeaking) break
+      if (!isSpeaking) {
+        console.log("[TTS] Leitura interrompida pelo usuário")
+        break
+      }
       
       const verse = verses[i]
       setCurrentSpeakingVerse(verse.verse)
@@ -336,7 +345,9 @@ export default function BibliaPageClient() {
         verseElement.scrollIntoView({ behavior: "smooth", block: "center" })
       }
       
-      await speakText(`${verse.verse}. ${verse.text}`)
+      // Usar Google TTS com fallback para Web Speech API
+      console.log(`[TTS] Lendo versículo ${verse.verse}`)
+      await speakWithGoogleTTS(`${verse.verse}. ${verse.text}`)
       
       // Pausa entre versículos
       await new Promise(resolve => setTimeout(resolve, 300))
@@ -360,21 +371,47 @@ export default function BibliaPageClient() {
     
     setIsSpeaking(false)
     setCurrentSpeakingVerse(null)
+    console.log("[TTS] Leitura finalizada")
   }
 
   const speakText = (text: string): Promise<void> => {
     return new Promise((resolve) => {
+      // Verificar se Web Speech API é suportada
+      if (!window.speechSynthesis) {
+        console.error("[TTS] Web Speech API não é suportada neste navegador")
+        resolve()
+        return
+      }
+
+      console.log("[TTS] Usando Web Speech API (fallback)")
+      
       const utterance = new SpeechSynthesisUtterance(text)
       utterance.lang = "pt-BR"
       utterance.rate = speechRate
+      utterance.pitch = 1 + (speechPitch / 20) // Converter -10~10 para 0.5~1.5
+      utterance.volume = speechVolume
       
       // Tentar encontrar uma voz em português
       const voices = window.speechSynthesis.getVoices()
-      const ptVoice = voices.find(v => v.lang.includes("pt"))
-      if (ptVoice) utterance.voice = ptVoice
+      console.log("[TTS] Vozes disponíveis:", voices.length)
       
-      utterance.onend = () => resolve()
-      utterance.onerror = () => resolve()
+      const ptVoice = voices.find(v => v.lang.includes("pt"))
+      if (ptVoice) {
+        console.log("[TTS] Usando voz em português:", ptVoice.name)
+        utterance.voice = ptVoice
+      } else {
+        console.log("[TTS] Voz em português não encontrada, usando padrão")
+      }
+      
+      utterance.onstart = () => console.log("[TTS] Iniciando fala")
+      utterance.onend = () => {
+        console.log("[TTS] Fala finalizada")
+        resolve()
+      }
+      utterance.onerror = (event) => {
+        console.error("[TTS] Erro na fala:", event.error)
+        resolve()
+      }
       
       speechSynthesisRef.current = utterance
       window.speechSynthesis.speak(utterance)
@@ -384,41 +421,61 @@ export default function BibliaPageClient() {
   // ========== Google Cloud TTS (opcional) ==========
   // Veja TUTORIAL_GOOGLE_TTS.md para configurar
   const speakWithGoogleTTS = async (text: string): Promise<void> => {
+    console.log(`[TTS] Usando engine: ${ttsEngine}, voz: ${selectedVoice}`)
+    
+    // Se o usuário escolheu Web Speech API, usar diretamente
+    if (ttsEngine === "browser") {
+      console.log("[TTS] Usando Web Speech API por preferência do usuário")
+      return speakText(text)
+    }
+    
+    // Tentar Google Cloud TTS
     try {
       const response = await fetch("/api/tts", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           text,
-          voice: "pt-BR-Neural2-B", // Homem brasileiro natural
+          voice: selectedVoice,
           speed: speechRate,
         }),
       })
 
+      console.log("[TTS] Resposta da API:", response.status)
       const data = await response.json()
+      console.log("[TTS] Dados da resposta:", data)
       
       if (data.success && data.audioBase64) {
         // Toca o áudio gerado pelo Google TTS
+        console.log("[TTS] Recebido áudio do Google TTS")
         const audio = new Audio(`data:audio/mp3;base64,${data.audioBase64}`)
+        audio.volume = speechVolume
         
         return new Promise((resolve) => {
-          audio.onended = () => resolve()
-          audio.onerror = () => {
-            console.error("Erro ao tocar áudio Google TTS")
+          audio.onended = () => {
+            console.log("[TTS] Áudio finalizado")
             resolve()
           }
-          audio.play()
+          audio.onerror = (e) => {
+            console.error("[TTS] Erro ao tocar áudio:", e)
+            resolve()
+          }
+          audio.play().catch(e => {
+            console.error("[TTS] Erro ao iniciar play:", e)
+            resolve()
+          })
         })
       } else if (data.useFallback) {
         // Fallback para Web Speech API nativa
-        console.log("Google TTS não configurado, usando Web Speech API...")
+        console.log("[TTS] Google TTS retornou useFallback, usando Web Speech API...")
         return speakText(text)
       } else {
         throw new Error(data.error || "Erro no TTS")
       }
     } catch (error) {
-      console.error("Google TTS error:", error)
+      console.error("[TTS] Erro no Google TTS:", error)
       // Sempre faz fallback para Web Speech API
+      console.log("[TTS] Fazendo fallback para Web Speech API...")
       return speakText(text)
     }
   }
@@ -603,6 +660,76 @@ export default function BibliaPageClient() {
       saveBookmark(verseNum, verse.text)
     }
   }
+
+  // ========== TTS Preferences no Supabase ==========
+  const loadTtsPreferences = async () => {
+    if (!user) return
+    
+    try {
+      const { data, error } = await supabase
+        .from("user_tts_preferences")
+        .select("*")
+        .eq("user_id", user.id)
+        .single()
+      
+      if (error && error.code !== "PGRST116") {
+        console.error("[TTS] Erro ao carregar preferências:", error)
+        return
+      }
+      
+      if (data) {
+        console.log("[TTS] Preferências carregadas do Supabase:", data)
+        setSelectedVoice(data.voice_name || "pt-BR-Neural2-B")
+        setTtsEngine(data.voice_type || "browser")
+        setSpeechRate(Number(data.speech_rate) || 1)
+        setSpeechPitch(Number(data.pitch) || 0)
+        setSpeechVolume(Number(data.volume) || 1)
+      }
+    } catch (error) {
+      console.error("[TTS] Erro ao carregar preferências:", error)
+    }
+  }
+
+  const saveTtsPreferences = async () => {
+    if (!user) return
+    
+    try {
+      const { error } = await supabase
+        .from("user_tts_preferences")
+        .upsert({
+          user_id: user.id,
+          voice_name: selectedVoice,
+          voice_type: ttsEngine,
+          speech_rate: speechRate,
+          pitch: speechPitch,
+          volume: speechVolume,
+        }, {
+          onConflict: "user_id"
+        })
+      
+      if (error) {
+        console.error("[TTS] Erro ao salvar preferências:", error)
+      } else {
+        console.log("[TTS] Preferências salvas no Supabase")
+      }
+    } catch (error) {
+      console.error("[TTS] Erro ao salvar preferências:", error)
+    }
+  }
+
+  // Carregar preferências de TTS ao iniciar
+  useEffect(() => {
+    loadTtsPreferences()
+  }, [user])
+
+  // Salvar preferências quando mudarem
+  useEffect(() => {
+    const timeout = setTimeout(() => {
+      saveTtsPreferences()
+    }, 1000) // Debounce de 1 segundo
+    
+    return () => clearTimeout(timeout)
+  }, [selectedVoice, ttsEngine, speechRate, speechPitch, speechVolume, user])
 
   if (authLoading) {
     return (
@@ -802,88 +929,6 @@ export default function BibliaPageClient() {
 
           {/* Settings */}
           <div className="flex items-center gap-0.5 sm:gap-1">
-            {/* Botão Play/Pause */}
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={speakChapter}
-              className={cn(
-                "h-8 w-8 sm:h-9 sm:w-9 hover:!bg-transparent hover:opacity-80",
-                isSpeaking ? currentTheme.primary : currentTheme.button
-              )}
-              title={isSpeaking ? "Pausar leitura" : "Ouvir capítulo"}
-            >
-              {isSpeaking ? (
-                <Pause className="h-4 w-4" />
-              ) : (
-                <Headphones className={cn("h-4 w-4", currentTheme.text)} />
-              )}
-            </Button>
-
-            {/* Botão Compartilhar */}
-            <Sheet open={showShareSheet} onOpenChange={setShowShareSheet}>
-              <SheetTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className={cn("h-8 w-8 sm:h-9 sm:w-9 hover:!bg-transparent hover:opacity-80", currentTheme.button)}
-                  title="Compartilhar"
-                >
-                  <Share2 className={cn("h-4 w-4", currentTheme.text)} />
-                </Button>
-              </SheetTrigger>
-              <SheetContent side="bottom" className={cn("h-auto", currentTheme.bg)}>
-                <SheetTitle asChild>
-                  <VisuallyHidden>Compartilhar</VisuallyHidden>
-                </SheetTitle>
-                <div className="p-4 space-y-4">
-                  <h3 className={cn("font-bold", currentTheme.text)}>Compartilhar</h3>
-                  
-                  <div className="grid grid-cols-2 gap-3">
-                    {/* Compartilhar como texto */}
-                    <button
-                      onClick={shareAsText}
-                      className={cn(
-                        "p-4 rounded-xl text-left transition-all border-2 flex flex-col items-center gap-2",
-                        currentTheme.card,
-                        "hover:opacity-80"
-                      )}
-                    >
-                      <MessageCircle className={cn("h-8 w-8", currentTheme.verseNum)} />
-                      <div className={cn("font-medium", currentTheme.text)}>WhatsApp</div>
-                      <div className={cn("text-xs", currentTheme.muted)}>Enviar como texto</div>
-                    </button>
-
-                    {/* Compartilhar como imagem */}
-                    <button
-                      onClick={generateAndShareImage}
-                      disabled={isGeneratingImage}
-                      className={cn(
-                        "p-4 rounded-xl text-left transition-all border-2 flex flex-col items-center gap-2",
-                        currentTheme.card,
-                        isGeneratingImage ? "opacity-50" : "hover:opacity-80"
-                      )}
-                    >
-                      {isGeneratingImage ? (
-                        <div className={cn("animate-spin rounded-full h-8 w-8 border-2 border-t-transparent", currentTheme.border)} />
-                      ) : (
-                        <ImageIcon className={cn("h-8 w-8", currentTheme.verseNum)} />
-                      )}
-                      <div className={cn("font-medium", currentTheme.text)}>Imagem</div>
-                      <div className={cn("text-xs", currentTheme.muted)}>
-                        {isGeneratingImage ? "Gerando..." : "Salvar/Compartilhar"}
-                      </div>
-                    </button>
-                  </div>
-
-                  {/* Dica de seleção */}
-                  <div className={cn("text-xs p-3 rounded-lg", currentTheme.card, currentTheme.muted)}>
-                    💡 Dica: Selecione um texto na Bíblia antes de compartilhar para compartilhar apenas a parte selecionada.
-                  </div>
-                </div>
-              </SheetContent>
-            </Sheet>
-
             <Button
               variant="ghost"
               size="icon"
@@ -1141,6 +1186,216 @@ export default function BibliaPageClient() {
       <footer className={cn("border-t p-3 text-center text-xs", currentTheme.border, currentTheme.bg, currentTheme.muted)}>
         Nova Versão Internacional (NVI) • {appName}
       </footer>
+
+      {/* Botões Flutuantes TTS */}
+      <div className="fixed bottom-20 right-4 sm:bottom-24 sm:right-6 z-50 flex flex-col items-center gap-2">
+        {/* Botão de Configurações (pequeno) */}
+        <button
+          onClick={() => setShowTtsSettings(true)}
+          className={cn(
+            "w-10 h-10 sm:w-11 sm:h-11 rounded-full shadow-md",
+            "flex items-center justify-center",
+            "transition-all duration-300 hover:scale-110 active:scale-95",
+            "border",
+            currentTheme.card,
+            currentTheme.border,
+            "hover:opacity-90"
+          )}
+          title="Configurar voz"
+        >
+          <Volume2 className={cn("h-4 w-4 sm:h-5 sm:w-5", currentTheme.text)} />
+        </button>
+
+        {/* Botão Play/Pause (grande) */}
+        <button
+          onClick={speakChapter}
+          className={cn(
+            "w-14 h-14 sm:w-16 sm:h-16 rounded-full shadow-lg",
+            "flex items-center justify-center",
+            "transition-all duration-300 hover:scale-110 active:scale-95",
+            "border-2",
+            isSpeaking 
+              ? cn(currentTheme.primary, "border-transparent animate-pulse") 
+              : cn(currentTheme.card, currentTheme.border, "hover:opacity-90")
+          )}
+          title={isSpeaking ? "Pausar leitura" : "Ouvir capítulo"}
+        >
+          {isSpeaking ? (
+            <Pause className={cn("h-6 w-6 sm:h-7 sm:w-7", currentTheme.text)} />
+          ) : (
+            <Headphones className={cn("h-6 w-6 sm:h-7 sm:w-7", currentTheme.text)} />
+          )}
+        </button>
+      </div>
+
+      {/* Sheet de Configurações de Voz */}
+      <Sheet open={showTtsSettings} onOpenChange={setShowTtsSettings}>
+        <SheetContent side="bottom" className={cn("h-auto max-h-[80vh] overflow-y-auto", currentTheme.bg)}>
+          <SheetTitle asChild>
+            <VisuallyHidden>Configurar Voz</VisuallyHidden>
+          </SheetTitle>
+          
+          <div className="p-4 space-y-6">
+            <div className="flex items-center justify-between">
+              <h3 className={cn("text-lg font-bold", currentTheme.text)}>
+                <Volume2 className={cn("inline w-5 h-5 mr-2", currentTheme.verseNum)} />
+                Configurar Voz
+              </h3>
+              <span className={cn("text-xs px-2 py-1 rounded-full", currentTheme.card, currentTheme.muted)}>
+                {ttsEngine === "google" ? "Google Cloud" : "Navegador"}
+              </span>
+            </div>
+
+            {/* Seletor de Engine */}
+            <div className="space-y-2">
+              <label className={cn("text-sm font-medium", currentTheme.text)}>Motor de Voz</label>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  onClick={() => setTtsEngine("browser")}
+                  className={cn(
+                    "p-3 rounded-xl border-2 text-sm font-medium transition-all",
+                    ttsEngine === "browser"
+                      ? cn(currentTheme.primary, "border-transparent")
+                      : cn(currentTheme.card, currentTheme.border, "hover:opacity-80")
+                  )}
+                >
+                  <span className={cn("block text-lg mb-1", ttsEngine === "browser" ? "" : currentTheme.text)}>🌐</span>
+                  Navegador
+                  <span className={cn("block text-xs mt-1 font-normal", ttsEngine === "browser" ? "" : currentTheme.muted)}>Grátis, offline</span>
+                </button>
+                <button
+                  onClick={() => setTtsEngine("google")}
+                  className={cn(
+                    "p-3 rounded-xl border-2 text-sm font-medium transition-all",
+                    ttsEngine === "google"
+                      ? cn(currentTheme.primary, "border-transparent")
+                      : cn(currentTheme.card, currentTheme.border, "hover:opacity-80")
+                  )}
+                >
+                  <span className={cn("block text-lg mb-1", ttsEngine === "google" ? "" : currentTheme.text)}>☁️</span>
+                  Google Cloud
+                  <span className={cn("block text-xs mt-1 font-normal", ttsEngine === "google" ? "" : currentTheme.muted)}>Natural, online</span>
+                </button>
+              </div>
+              {ttsEngine === "google" && (
+                <p className={cn("text-xs", currentTheme.muted)}>
+                  ℹ️ Requer GOOGLE_TTS_API_KEY configurado no .env.local
+                </p>
+              )}
+            </div>
+
+            {/* Seletor de Voz (apenas Google) */}
+            {ttsEngine === "google" && (
+              <div className="space-y-2">
+                <label className={cn("text-sm font-medium", currentTheme.text)}>Voz</label>
+                <select
+                  value={selectedVoice}
+                  onChange={(e) => setSelectedVoice(e.target.value)}
+                  className={cn(
+                    "w-full p-3 rounded-xl border-2 text-sm",
+                    currentTheme.card,
+                    currentTheme.border,
+                    currentTheme.text,
+                    "focus:outline-none focus:ring-2 focus:ring-primary"
+                  )}
+                >
+                  <option value="pt-BR-Neural2-B">👨 Masculina - Neural2 (Natural)</option>
+                  <option value="pt-BR-Neural2-A">👩 Feminina - Neural2 (Natural)</option>
+                  <option value="pt-BR-Neural2-C">👩 Feminina 2 - Neural2</option>
+                  <option value="pt-BR-Wavenet-B">👨 Masculina - WaveNet</option>
+                  <option value="pt-BR-Wavenet-A">👩 Feminina - WaveNet</option>
+                  <option value="pt-BR-Standard-B">👨 Masculina - Standard</option>
+                  <option value="pt-BR-Standard-A">👩 Feminina - Standard</option>
+                </select>
+              </div>
+            )}
+
+            {/* Velocidade */}
+            <div className="space-y-3">
+              <div className="flex justify-between">
+                <label className={cn("text-sm font-medium", currentTheme.text)}>Velocidade</label>
+                <span className={cn("text-sm", currentTheme.verseNum)}>{speechRate.toFixed(2)}x</span>
+              </div>
+              <input
+                type="range"
+                min="0.5"
+                max="2"
+                step="0.1"
+                value={speechRate}
+                onChange={(e) => setSpeechRate(Number(e.target.value))}
+                className={cn("w-full h-2 rounded-lg appearance-none cursor-pointer", currentTheme.card)}
+                style={{ accentColor: "currentColor" }}
+              />
+              <div className="flex justify-between text-xs">
+                <span className={currentTheme.muted}>Lento</span>
+                <span className={currentTheme.muted}>Normal</span>
+                <span className={currentTheme.muted}>Rápido</span>
+              </div>
+            </div>
+
+            {/* Tom (Pitch) - Apenas Web Speech */}
+            {ttsEngine === "browser" && (
+              <div className="space-y-3">
+                <div className="flex justify-between">
+                  <label className={cn("text-sm font-medium", currentTheme.text)}>Tom (Pitch)</label>
+                  <span className={cn("text-sm", currentTheme.verseNum)}>{speechPitch > 0 ? "+" : ""}{speechPitch}</span>
+                </div>
+                <input
+                  type="range"
+                  min="-10"
+                  max="10"
+                  step="1"
+                  value={speechPitch}
+                  onChange={(e) => setSpeechPitch(Number(e.target.value))}
+                  className={cn("w-full h-2 rounded-lg appearance-none cursor-pointer", currentTheme.card)}
+                  style={{ accentColor: "currentColor" }}
+                />
+                <div className="flex justify-between text-xs">
+                  <span className={currentTheme.muted}>Grave</span>
+                  <span className={currentTheme.muted}>Normal</span>
+                  <span className={currentTheme.muted}>Agudo</span>
+                </div>
+              </div>
+            )}
+
+            {/* Volume */}
+            <div className="space-y-3">
+              <div className="flex justify-between">
+                <label className={cn("text-sm font-medium", currentTheme.text)}>Volume</label>
+                <span className={cn("text-sm", currentTheme.verseNum)}>{Math.round(speechVolume * 100)}%</span>
+              </div>
+              <input
+                type="range"
+                min="0.1"
+                max="1"
+                step="0.1"
+                value={speechVolume}
+                onChange={(e) => setSpeechVolume(Number(e.target.value))}
+                className={cn("w-full h-2 rounded-lg appearance-none cursor-pointer", currentTheme.card)}
+                style={{ accentColor: "currentColor" }}
+              />
+            </div>
+
+            {/* Botão de Teste */}
+            <button
+              onClick={() => speakWithGoogleTTS("No princípio criou Deus os céus e a terra.")}
+              className={cn(
+                "w-full p-4 rounded-xl font-medium transition-all",
+                currentTheme.primary,
+                "hover:opacity-90 active:scale-95"
+              )}
+            >
+              <Play className="inline w-4 h-4 mr-2" />
+              Testar Voz
+            </button>
+
+            {/* Status */}
+            <div className={cn("text-xs p-3 rounded-lg text-center", currentTheme.card, currentTheme.muted)}>
+              💾 Configurações salvas automaticamente
+            </div>
+          </div>
+        </SheetContent>
+      </Sheet>
     </div>
   )
 }
