@@ -17,6 +17,8 @@ const DEV_ORIGINS = [
   'http://localhost:3007',
   'http://127.0.0.1:3000',
   'http://127.0.0.1:3007',
+  'http://192.168.18.112:3000', // IP local do desenvolvedor
+  'http://192.168.1.112:3000',  // IP alternativo
 ]
 
 export function middleware(request: NextRequest) {
@@ -34,10 +36,16 @@ export function middleware(request: NextRequest) {
   // 1. Origem está na whitelist
   // 2. Sem origem (requisição same-origin)
   // 3. Em desenvolvimento e host é localhost
+  // 4. Em desenvolvimento e origem é IP local (192.168.x.x ou 10.x.x.x)
   const isAllowedOrigin = allowedOrigins.some(allowed => 
     origin === allowed || (origin && origin.startsWith(allowed))
   ) || !origin || (isDevelopment && (
     host.includes('localhost') || host.includes('127.0.0.1')
+  )) || (isDevelopment && origin && (
+    origin.startsWith('http://192.168.') || 
+    origin.startsWith('http://10.') ||
+    origin.startsWith('https://192.168.') ||
+    origin.startsWith('https://10.')
   ))
 
   // Resposta padrão
@@ -88,6 +96,7 @@ export function middleware(request: NextRequest) {
     "style-src 'self' 'unsafe-inline'; " +
     "img-src 'self' blob: data: https://*.supabase.co https://*.vercel.app; " +
     "font-src 'self'; " +
+    "media-src 'self' blob: data:; " +
     "connect-src 'self' https://*.supabase.co https://*.vercel.app https://*.googleapis.com; " +
     "frame-ancestors 'none'; " +
     "base-uri 'self'; " +

@@ -8,9 +8,21 @@ const client = new textToSpeech.TextToSpeechClient({
   apiKey: process.env.GOOGLE_TTS_API_KEY,
 })
 
+// Configuração CORS
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
+  "Access-Control-Allow-Headers": "Content-Type, Authorization",
+}
+
+// Handler para OPTIONS (CORS preflight)
+export async function OPTIONS() {
+  return NextResponse.json({}, { headers: corsHeaders })
+}
+
 export async function POST(request: NextRequest) {
   try {
-    const { text, voice = "pt-BR-Neural2-B", speed = 1 } = await request.json()
+    const { text, voice = "pt-BR-Neural2-B", speed = 1, pitch = 0 } = await request.json()
 
     // Verificar se API Key está configurada
     if (!process.env.GOOGLE_TTS_API_KEY) {
@@ -20,7 +32,7 @@ export async function POST(request: NextRequest) {
         error: "API Key não configurada",
         message: "Adicione GOOGLE_TTS_API_KEY ao .env.local",
         useFallback: true,
-      })
+      }, { headers: corsHeaders })
     }
 
     console.log("[API TTS] Gerando áudio para voz:", voice)
@@ -30,12 +42,12 @@ export async function POST(request: NextRequest) {
       voice: {
         languageCode: "pt-BR",
         name: voice,
-        ssmlGender: "NEUTRAL" as const,
+        // ssmlGender é inferido automaticamente pelo nome da voz
       },
       audioConfig: {
         audioEncoding: "MP3" as const,
         speakingRate: speed,
-        pitch: 0,
+        pitch: pitch,
       },
     }
 
@@ -52,7 +64,7 @@ export async function POST(request: NextRequest) {
       success: true,
       audioBase64,
       voice,
-    })
+    }, { headers: corsHeaders })
 
   } catch (error) {
     console.error("[API TTS] Erro:", error)
@@ -61,6 +73,6 @@ export async function POST(request: NextRequest) {
       error: "Erro ao gerar áudio",
       message: error instanceof Error ? error.message : "Erro desconhecido",
       useFallback: true,
-    })
+    }, { headers: corsHeaders })
   }
 }

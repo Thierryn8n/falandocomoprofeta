@@ -63,6 +63,7 @@ import {
   Play,
   Pause,
   Volume2,
+  Settings,
   Camera,
   MessageCircle,
   Image as ImageIcon,
@@ -103,19 +104,20 @@ export default function BibliaPageClient() {
   const [searchQuery, setSearchQuery] = useState("")
   const [bookmarkedVerses, setBookmarkedVerses] = useState<number[]>([])
   const [fontSize, setFontSize] = useState<"small" | "medium" | "large">("medium")
-  const [theme, setTheme] = useState<"light" | "dark" | "sepia" | "night">("night")
+  const [theme, setTheme] = useState<"light" | "dark" | "sepia" | "night">("sepia")
   const [fontFamily, setFontFamily] = useState<"serif" | "sans">("serif")
 
   // Estados para TTS (Text-to-Speech)
   const [isSpeaking, setIsSpeaking] = useState(false)
   const [currentSpeakingVerse, setCurrentSpeakingVerse] = useState<number | null>(null)
   const [speechRate, setSpeechRate] = useState(1)
-  const [speechPitch, setSpeechPitch] = useState(0)
+  const [speechPitch, setSpeechPitch] = useState(-2)
   const [speechVolume, setSpeechVolume] = useState(1)
-  const [selectedVoice, setSelectedVoice] = useState("pt-BR-Neural2-B")
+  const [selectedVoice, setSelectedVoice] = useState("pt-BR-Neural2-A")
   const [ttsEngine, setTtsEngine] = useState<"google">("google")
   const [showTtsSettings, setShowTtsSettings] = useState(false)
   const speechSynthesisRef = useRef<SpeechSynthesisUtterance | null>(null)
+  const isSpeakingRef = useRef(false) // Ref para controle síncrono
   const supabase = createClientComponentClient()
 
   // Estados para seleção de texto
@@ -124,7 +126,7 @@ export default function BibliaPageClient() {
   const [showShareSheet, setShowShareSheet] = useState(false)
   const [isGeneratingImage, setIsGeneratingImage] = useState(false)
 
-  // Carregar preferências do localStorage
+  // Carregar preferências do localStorage (fallback)
   useEffect(() => {
     const savedPrefs = localStorage.getItem("bible_reader_prefs")
     if (savedPrefs) {
@@ -139,13 +141,19 @@ export default function BibliaPageClient() {
     }
   }, [])
 
-  // Salvar preferências no localStorage
+  // Continuar leitura automaticamente quando capítulo/livro muda
   useEffect(() => {
-    localStorage.setItem("bible_reader_prefs", JSON.stringify({
-      theme,
-      fontFamily,
-      fontSize
-    }))
+    if (isSpeakingRef.current && selectedBook && verses.length > 0) {
+      console.log("[TTS] Capítulo/livro mudou, continuando leitura")
+      speakChapter()
+    }
+  }, [selectedChapter, selectedBook])
+
+  // Salvar preferências de tema e fonte no Supabase quando mudarem
+  useEffect(() => {
+    if (user) {
+      saveTtsPreferences()
+    }
   }, [theme, fontFamily, fontSize])
 
   const appName = getConfigValue("app_identity", {})?.appName || "Falando com o Profeta"
@@ -319,57 +327,70 @@ export default function BibliaPageClient() {
   // ========== TTS (Text-to-Speech) ==========
   const speakChapter = async () => {
     if (!selectedBook || verses.length === 0) return
-    
-    if (isSpeaking) {
+
+    if (isSpeakingRef.current) {
       window.speechSynthesis.cancel()
       setIsSpeaking(false)
+      isSpeakingRef.current = false
       setCurrentSpeakingVerse(null)
       return
     }
 
     setIsSpeaking(true)
-    console.log("[TTS] Iniciando leitura do capítulo", selectedChapter)
-    
+    isSpeakingRef.current = true
+    console.log("[TTS] Iniciando leitura do capítulo", selectedChapter, "do livro", selectedBook.name)
+
+    // Anunciar livro e capítulo com os valores atuais
+    const announcement = `${selectedBook.name}, capítulo ${selectedChapter}.`
+    console.log("[TTS] Anunciando:", announcement)
+    await speakWithGoogleTTS(announcement)
+
+    // Ler versículo por versículo para destacar visualmente
     for (let i = 0; i < verses.length; i++) {
-      if (!isSpeaking) {
+      if (!isSpeakingRef.current) {
         console.log("[TTS] Leitura interrompida pelo usuário")
         break
       }
-      
+
       const verse = verses[i]
       setCurrentSpeakingVerse(verse.verse)
-      
+
       // Scroll para o versículo atual
       const verseElement = document.getElementById(`verse-${verse.verse}`)
       if (verseElement) {
         verseElement.scrollIntoView({ behavior: "smooth", block: "center" })
       }
-      
-      // Usar Google TTS com fallback para Web Speech API
+
+      // Usar Google TTS com o texto do versículo (sem numeração)
       console.log(`[TTS] Lendo versículo ${verse.verse}`)
-      await speakWithGoogleTTS(`${verse.verse}. ${verse.text}`)
-      
-      // Pausa entre versículos
-      await new Promise(resolve => setTimeout(resolve, 300))
+      await speakWithGoogleTTS(verse.text)
     }
-    
+
     // Avançar para próximo capítulo automaticamente
-    if (isSpeaking && selectedBook) {
+    if (isSpeakingRef.current && selectedBook) {
       const totalChapters = selectedBook.chapters
       if (selectedChapter < totalChapters) {
+        console.log("[TTS] Avançando para o próximo capítulo")
         setSelectedChapter(prev => prev + 1)
       } else {
         // Próximo livro
         const currentBookIndex = books.findIndex(b => b.column === selectedBook.column)
         const nextBook = books[currentBookIndex + 1]
         if (nextBook) {
+          console.log("[TTS] Avançando para o próximo livro:", nextBook.name)
           setSelectedBook(nextBook)
           setSelectedChapter(1)
+        } else {
+          console.log("[TTS] Fim da Bíblia")
+          setIsSpeaking(false)
+          isSpeakingRef.current = false
+          setCurrentSpeakingVerse(null)
         }
       }
     }
-    
+
     setIsSpeaking(false)
+    isSpeakingRef.current = false
     setCurrentSpeakingVerse(null)
     console.log("[TTS] Leitura finalizada")
   }
@@ -432,6 +453,7 @@ export default function BibliaPageClient() {
           text,
           voice: selectedVoice,
           speed: speechRate,
+          pitch: speechPitch,
         }),
       })
 
@@ -658,19 +680,19 @@ export default function BibliaPageClient() {
   // ========== TTS Preferences no Supabase ==========
   const loadTtsPreferences = async () => {
     if (!user) return
-    
+
     try {
       const { data, error } = await supabase
         .from("user_tts_preferences")
         .select("*")
         .eq("user_id", user.id)
         .single()
-      
+
       if (error && error.code !== "PGRST116") {
         console.error("[TTS] Erro ao carregar preferências:", error)
         return
       }
-      
+
       if (data) {
         console.log("[TTS] Preferências carregadas do Supabase:", data)
         setSelectedVoice(data.voice_name || "pt-BR-Neural2-B")
@@ -678,6 +700,10 @@ export default function BibliaPageClient() {
         setSpeechRate(Number(data.speech_rate) || 1)
         setSpeechPitch(Number(data.pitch) || 0)
         setSpeechVolume(Number(data.volume) || 1)
+        // Carregar preferências de tema e fonte
+        if (data.theme) setTheme(data.theme)
+        if (data.font_family) setFontFamily(data.font_family)
+        if (data.font_size) setFontSize(data.font_size)
       }
     } catch (error) {
       console.error("[TTS] Erro ao carregar preferências:", error)
@@ -697,6 +723,9 @@ export default function BibliaPageClient() {
           speech_rate: speechRate,
           pitch: speechPitch,
           volume: speechVolume,
+          theme: theme,
+          font_family: fontFamily,
+          font_size: fontSize,
         }, {
           onConflict: "user_id"
         })
@@ -1088,9 +1117,12 @@ export default function BibliaPageClient() {
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ delay: index * 0.03 }}
                       className={cn(
-                        "group flex gap-2 sm:gap-3 p-2 sm:p-3 rounded-lg transition-colors",
+                        "group flex gap-2 sm:gap-3 p-2 sm:p-3 rounded-lg transition-all",
                         bookmarkedVerses.includes(verse.verse) && "bg-primary/20",
-                        currentSpeakingVerse === verse.verse && "ring-2 ring-primary bg-primary/10"
+                        currentSpeakingVerse === verse.verse && cn(
+                          "ring-2 ring-primary scale-105 shadow-lg",
+                          currentTheme.card
+                        )
                       )}
                     >
                       <span className={cn("font-bold text-xs sm:text-sm mt-0.5 sm:mt-1 min-w-[20px] sm:min-w-[28px]", currentTheme.verseNum)}>
