@@ -113,7 +113,7 @@ export default function BibliaPageClient() {
   const [speechPitch, setSpeechPitch] = useState(0)
   const [speechVolume, setSpeechVolume] = useState(1)
   const [selectedVoice, setSelectedVoice] = useState("pt-BR-Neural2-B")
-  const [ttsEngine, setTtsEngine] = useState<"google" | "browser">("browser")
+  const [ttsEngine, setTtsEngine] = useState<"google">("google")
   const [showTtsSettings, setShowTtsSettings] = useState(false)
   const speechSynthesisRef = useRef<SpeechSynthesisUtterance | null>(null)
   const supabase = createClientComponentClient()
@@ -418,18 +418,12 @@ export default function BibliaPageClient() {
     })
   }
 
-  // ========== Google Cloud TTS (opcional) ==========
-  // Veja TUTORIAL_GOOGLE_TTS.md para configurar
+  // ========== Google Cloud TTS ==========
+  // Usa Google Cloud como padrão para vozes naturais
   const speakWithGoogleTTS = async (text: string): Promise<void> => {
-    console.log(`[TTS] Usando engine: ${ttsEngine}, voz: ${selectedVoice}`)
+    console.log(`[TTS] Usando Google Cloud TTS, voz: ${selectedVoice}`)
     
-    // Se o usuário escolheu Web Speech API, usar diretamente
-    if (ttsEngine === "browser") {
-      console.log("[TTS] Usando Web Speech API por preferência do usuário")
-      return speakText(text)
-    }
-    
-    // Tentar Google Cloud TTS
+    // Tentar Google Cloud TTS primeiro
     try {
       const response = await fetch("/api/tts", {
         method: "POST",
@@ -699,7 +693,7 @@ export default function BibliaPageClient() {
         .upsert({
           user_id: user.id,
           voice_name: selectedVoice,
-          voice_type: ttsEngine,
+          voice_type: "google",
           speech_rate: speechRate,
           pitch: speechPitch,
           volume: speechVolume,
@@ -729,7 +723,7 @@ export default function BibliaPageClient() {
     }, 1000) // Debounce de 1 segundo
     
     return () => clearTimeout(timeout)
-  }, [selectedVoice, ttsEngine, speechRate, speechPitch, speechVolume, user])
+  }, [selectedVoice, speechRate, speechPitch, speechVolume, user])
 
   if (authLoading) {
     return (
@@ -1242,50 +1236,18 @@ export default function BibliaPageClient() {
                 Configurar Voz
               </h3>
               <span className={cn("text-xs px-2 py-1 rounded-full", currentTheme.card, currentTheme.muted)}>
-                {ttsEngine === "google" ? "Google Cloud" : "Navegador"}
+                Google Cloud
               </span>
             </div>
 
-            {/* Seletor de Engine */}
-            <div className="space-y-2">
-              <label className={cn("text-sm font-medium", currentTheme.text)}>Motor de Voz</label>
-              <div className="grid grid-cols-2 gap-2">
-                <button
-                  onClick={() => setTtsEngine("browser")}
-                  className={cn(
-                    "p-3 rounded-xl border-2 text-sm font-medium transition-all",
-                    ttsEngine === "browser"
-                      ? cn(currentTheme.primary, "border-transparent")
-                      : cn(currentTheme.card, currentTheme.border, "hover:opacity-80")
-                  )}
-                >
-                  <span className={cn("block text-lg mb-1", ttsEngine === "browser" ? "" : currentTheme.text)}>🌐</span>
-                  Navegador
-                  <span className={cn("block text-xs mt-1 font-normal", ttsEngine === "browser" ? "" : currentTheme.muted)}>Grátis, offline</span>
-                </button>
-                <button
-                  onClick={() => setTtsEngine("google")}
-                  className={cn(
-                    "p-3 rounded-xl border-2 text-sm font-medium transition-all",
-                    ttsEngine === "google"
-                      ? cn(currentTheme.primary, "border-transparent")
-                      : cn(currentTheme.card, currentTheme.border, "hover:opacity-80")
-                  )}
-                >
-                  <span className={cn("block text-lg mb-1", ttsEngine === "google" ? "" : currentTheme.text)}>☁️</span>
-                  Google Cloud
-                  <span className={cn("block text-xs mt-1 font-normal", ttsEngine === "google" ? "" : currentTheme.muted)}>Natural, online</span>
-                </button>
-              </div>
-              {ttsEngine === "google" && (
-                <p className={cn("text-xs", currentTheme.muted)}>
-                  ℹ️ Requer GOOGLE_TTS_API_KEY configurado no .env.local
-                </p>
-              )}
+            {/* Info Google Cloud */}
+            <div className={cn("text-xs p-3 rounded-lg", currentTheme.card, currentTheme.muted)}>
+              ☁️ Usando Google Cloud Text-to-Speech
+              <br />
+              <span className="text-primary">Vozes naturais Neural2 & WaveNet</span>
             </div>
 
-            {/* Seletor de Voz (apenas Google) */}
-            {ttsEngine === "google" && (
+            {/* Seletor de Voz */}
               <div className="space-y-2">
                 <label className={cn("text-sm font-medium", currentTheme.text)}>Voz</label>
                 <select
@@ -1308,7 +1270,6 @@ export default function BibliaPageClient() {
                   <option value="pt-BR-Standard-A">👩 Feminina - Standard</option>
                 </select>
               </div>
-            )}
 
             {/* Velocidade */}
             <div className="space-y-3">
@@ -1332,31 +1293,6 @@ export default function BibliaPageClient() {
                 <span className={currentTheme.muted}>Rápido</span>
               </div>
             </div>
-
-            {/* Tom (Pitch) - Apenas Web Speech */}
-            {ttsEngine === "browser" && (
-              <div className="space-y-3">
-                <div className="flex justify-between">
-                  <label className={cn("text-sm font-medium", currentTheme.text)}>Tom (Pitch)</label>
-                  <span className={cn("text-sm", currentTheme.verseNum)}>{speechPitch > 0 ? "+" : ""}{speechPitch}</span>
-                </div>
-                <input
-                  type="range"
-                  min="-10"
-                  max="10"
-                  step="1"
-                  value={speechPitch}
-                  onChange={(e) => setSpeechPitch(Number(e.target.value))}
-                  className={cn("w-full h-2 rounded-lg appearance-none cursor-pointer", currentTheme.card)}
-                  style={{ accentColor: "currentColor" }}
-                />
-                <div className="flex justify-between text-xs">
-                  <span className={currentTheme.muted}>Grave</span>
-                  <span className={currentTheme.muted}>Normal</span>
-                  <span className={currentTheme.muted}>Agudo</span>
-                </div>
-              </div>
-            )}
 
             {/* Volume */}
             <div className="space-y-3">
