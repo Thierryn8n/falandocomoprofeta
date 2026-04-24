@@ -4,9 +4,8 @@ import { useState, useEffect, useCallback } from "react"
 import { useRouter } from "next/navigation"
 import { ChatInterface } from "@/components/chat-interface"
 import { ChatSidebar } from "@/components/chat-sidebar"
-import { AuthModal } from "@/components/auth-modal"
 import { Button } from "@/components/ui/button"
-import { Menu, LogOut, UserIcon, BookOpen, Shield } from "lucide-react"
+import { Menu, LogOut, UserIcon, BookOpen } from "lucide-react"
 import { ThemeToggle } from "@/components/theme-toggle"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import {
@@ -23,14 +22,10 @@ const VisuallyHidden = ({ children }: { children: React.ReactNode }) => (
   <span className="sr-only">{children}</span>
 )
 import { useSupabaseAuth } from "@/hooks/use-supabase-auth"
-import { useSessionTracking } from "@/hooks/use-session-tracking"
-import { useQuestionCounter } from "@/hooks/use-question-counter"
-import { Loader2, MessageCircle, MessageSquare } from "lucide-react"
+import { Loader2, MessageSquare } from "lucide-react"
 import { useQuestionLimits } from "@/hooks/use-question-limits"
-import { ChatGPTLandingPage } from "@/components/chatgpt-landing-page"
 import { useAppConfig } from "@/hooks/use-app-config"
 import { supabase } from "@/lib/supabase"
-import { ModernLoader } from "@/components/modern-loader"
 
 interface Conversation {
   id: string
@@ -45,14 +40,11 @@ interface Conversation {
   }>
 }
 
-export default function HomePageClient() {
-  const { user, profile, loading: authLoading, isAdmin, signOut } = useSupabaseAuth()
+export default function ChatPageClient() {
+  const { user, profile, loading: authLoading, signOut } = useSupabaseAuth()
   const { getConfigValue, loading: configLoading } = useAppConfig()
-  const { questionCount, loading: questionCountLoading } = useQuestionCounter()
   const { limits, loading: limitsLoading } = useQuestionLimits()
-  const [showAuthModal, setShowAuthModal] = useState(false)
   const router = useRouter()
-  const { sessionId } = useSessionTracking()
 
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
@@ -65,20 +57,6 @@ export default function HomePageClient() {
   const prophetName = getConfigValue("prophet_profile", {})?.prophetName || "Profeta William Branham"
   const prophetAvatar = getConfigValue("prophet_profile", {})?.prophetAvatar || "/placeholder.svg?height=96&width=96"
   const logo = getConfigValue("app_identity", {})?.logo || "/placeholder.svg?height=32&width=32&text=Logo"
-  const favicon = getConfigValue("app_identity", {})?.favicon || "/placeholder.svg?height=16&width=16&text=F"
-
-  // Debug: Log config values
-  useEffect(() => {
-    console.log("[HomePage] App Config Values:", {
-      appName,
-      prophetName,
-      prophetAvatar,
-      logo,
-      favicon,
-      rawProphetProfile: getConfigValue("prophet_profile", {}),
-      rawAppIdentity: getConfigValue("app_identity", {})
-    })
-  }, [appName, prophetName, prophetAvatar, logo, favicon])
 
   const loadConversations = useCallback(async () => {
     if (!user) {
@@ -113,26 +91,11 @@ export default function HomePageClient() {
     }
   }, [user])
 
-  const handleLogin = () => {
-    setShowAuthModal(true)
-  }
-
-  const handleRegister = () => {
-    setShowAuthModal(true)
-  }
-
-  const handleCloseAuthModal = () => {
-    setShowAuthModal(false)
-  }
-
-  const handleLoginSuccess = () => {
-    setShowAuthModal(false)
-  }
-
   const handleLogout = async () => {
     await signOut()
     setConversations([])
     setCurrentConversationId(null)
+    router.push("/")
   }
 
   const handleNewConversation = () => {
@@ -151,55 +114,23 @@ export default function HomePageClient() {
     }
   }, [user, loadConversations])
 
+  // Redirect if not logged in
   useEffect(() => {
-    // Log page view for analytics
-    if (sessionId) {
-      console.log("Session tracking active:", sessionId)
+    if (!authLoading && !configLoading && !user) {
+      router.replace("/")
     }
-  }, [sessionId])
+  }, [user, authLoading, configLoading, router])
 
-  // Redirect logged in users to welcome/onboarding via Supabase
-  useEffect(() => {
-    if (user && !authLoading && !configLoading && profile) {
-      // Check if user has completed onboarding in Supabase
-      const hasCompletedOnboarding = profile.onboarding_completed === true
-      
-      if (hasCompletedOnboarding) {
-        router.replace("/welcome")
-      } else {
-        router.replace("/onboarding")
-      }
-    }
-  }, [user, profile, authLoading, configLoading, router])
-
-  // Show modern loader while checking auth/config OR while redirecting logged user
-  if (authLoading || configLoading || user) {
-    return <ModernLoader message={user ? "Redirecionando" : "Carregando"} />
+  if (authLoading || configLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-background">
+        <Loader2 className="h-10 w-10 animate-spin text-primary" />
+      </div>
+    )
   }
 
   if (!user) {
-    return (
-      <>
-        <div
-          className="fixed inset-0 z-10 cursor-pointer"
-          onClick={handleRegister}
-          style={{ backgroundColor: "transparent" }}
-        />
-        <div className="relative z-20 pointer-events-none">
-          <div className="pointer-events-auto">
-            <ChatGPTLandingPage 
-              onLogin={handleLogin} 
-              appConfig={{ 
-                appName, 
-                prophetName, 
-                prophetAvatar 
-              }} 
-            />
-          </div>
-        </div>
-        <AuthModal isOpen={showAuthModal} onClose={handleCloseAuthModal} />
-      </>
-    )
+    return null
   }
 
   return (
@@ -255,6 +186,15 @@ export default function HomePageClient() {
                 title="Abrir menu"
               >
                 <Menu className="h-5 w-5" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => router.push("/welcome")}
+                className="h-9 w-9 hover:bg-muted/50 hidden lg:flex"
+                title="Voltar para menu"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6"/></svg>
               </Button>
               <div className="hidden lg:flex items-center gap-2 min-w-0">
                 <Avatar className="h-8 w-8">
@@ -312,29 +252,29 @@ export default function HomePageClient() {
                 <DropdownMenuTrigger asChild>
                   <Button variant="ghost" className="h-9 px-2 gap-2 hover:bg-muted/50">
                     <Avatar className="h-6 w-6">
-                      <AvatarImage src={profile?.avatar_url || "/placeholder.svg"} alt={profile?.name || user.email} />
+                      <AvatarImage src={profile?.avatar_url || "/placeholder.svg"} alt={profile?.full_name || user.email} />
                       <AvatarFallback className="text-xs">
-                        {(profile?.name || user.email || "U").charAt(0).toUpperCase()}
+                        {(profile?.full_name || user.email || "U").charAt(0).toUpperCase()}
                       </AvatarFallback>
                     </Avatar>
                     <span className="text-sm font-medium hidden sm:inline-block max-w-32 truncate">
-                      {profile?.name || user.email?.split("@")[0]}
+                      {profile?.full_name || user.email?.split("@")[0]}
                     </span>
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-56">
                   <div className="flex items-center gap-2 p-2">
                     <Avatar className="h-8 w-8">
-                      <AvatarImage src={profile?.avatar_url || "/placeholder.svg"} alt={profile?.name || user.email} />
-                      <AvatarFallback>{(profile?.name || user.email || "U").charAt(0).toUpperCase()}</AvatarFallback>
+                      <AvatarImage src={profile?.avatar_url || "/placeholder.svg"} alt={profile?.full_name || user.email} />
+                      <AvatarFallback>{(profile?.full_name || user.email || "U").charAt(0).toUpperCase()}</AvatarFallback>
                     </Avatar>
                     <div className="flex flex-col space-y-1">
-                      <p className="text-sm font-medium leading-none">{profile?.name || user.email?.split("@")[0]}</p>
+                      <p className="text-sm font-medium leading-none">{profile?.full_name || user.email?.split("@")[0]}</p>
                       <p className="text-xs leading-none text-muted-foreground">{user.email}</p>
                     </div>
                   </div>
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem className="gap-2">
+                  <DropdownMenuItem className="gap-2" onClick={() => router.push('/configuracoes')}>
                     <UserIcon className="h-4 w-4" />
                     <span>Perfil</span>
                   </DropdownMenuItem>
@@ -359,8 +299,6 @@ export default function HomePageClient() {
           </div>
         </div>
       </div>
-
-      <AuthModal isOpen={showAuthModal} onClose={handleCloseAuthModal} />
     </>
   )
 }

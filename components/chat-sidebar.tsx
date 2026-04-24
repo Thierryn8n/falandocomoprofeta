@@ -25,6 +25,7 @@ import { useState, useCallback } from "react"
 import { cn, generateAvatarUrl } from "@/lib/utils"
 import { supabase } from "@/lib/supabase"
 import { toast } from "sonner"
+import { useQuestionLimits } from "@/hooks/use-question-limits"
 
 interface UserType {
   id: string
@@ -58,7 +59,6 @@ interface ChatSidebarProps {
   onToggle: () => void
   isOpen: boolean
   loadingConversations: boolean
-  isAdmin: boolean
 }
 
 export function ChatSidebar({
@@ -72,8 +72,9 @@ export function ChatSidebar({
   onToggle,
   isOpen,
   loadingConversations,
-  isAdmin,
 }: ChatSidebarProps) {
+  const { limits } = useQuestionLimits()
+  const isAdmin = limits?.is_admin ?? false
   const [hoveredId, setHoveredId] = useState<string | null>(null)
   const [deletingId, setDeletingId] = useState<string | null>(null)
   const router = useRouter()
@@ -228,7 +229,7 @@ export function ChatSidebar({
                   <p className="text-sm font-medium truncate">{user.name || user.email.split("@")[0]}</p>
                   <p className="text-xs text-muted-foreground truncate">{user.email}</p>
                 </div>
-                {isAdmin && (
+                {limits?.is_admin && (
                   <Badge variant="secondary" className="text-xs">
                     Admin
                   </Badge>
@@ -358,7 +359,7 @@ export function ChatSidebar({
       {/* Action Buttons */}
       <div className="p-3 space-y-2 border-t border-border/40 bg-card/30">
         {/* Admin Panel Button */}
-        {isAdmin && (
+        {limits?.is_admin && (
           <Button
             onClick={() => router.push("/admin")}
             variant="outline"

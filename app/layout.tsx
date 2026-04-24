@@ -8,6 +8,7 @@ import { IpTracker } from "@/components/ip-tracker"
 import { PWAProvider } from "@/components/pwa-provider"
 import { CookieConsentBanner } from '@/components/cookie-consent-banner'
 import { TermsAcceptanceModal } from '@/components/terms-acceptance-modal'
+import { SWRegister } from "@/components/sw-register"
 
 const inter = Inter({ subsets: ["latin"] })
 
@@ -45,9 +46,9 @@ export default function RootLayout({
         <meta name="apple-mobile-web-app-status-bar-style" content="default" />
         <meta name="apple-mobile-web-app-title" content="Falando com o Profeta" />
         <link rel="apple-touch-icon" href="/icons/icon-192x192.svg" />
-        <script src="/sw-register.js" defer></script>
       </head>
       <body className={inter.className}>
+        <SWRegister />
         <ThemeProvider attribute="class" defaultTheme="dark" enableSystem disableTransitionOnChange>
           <IpTracker />
           <PWAProvider>

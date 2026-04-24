@@ -10,6 +10,7 @@ interface Profile {
   full_name?: string
   avatar_url?: string
   role: "user" | "admin"
+  onboarding_completed?: boolean
   created_at: string
   updated_at: string
 }
@@ -104,6 +105,22 @@ export function useSupabaseAuth() {
     return { error }
   }
 
+  // Function to complete onboarding
+  const completeOnboarding = async () => {
+    if (!user) return { error: new Error("User not authenticated") }
+    
+    const { error } = await supabase
+      .from("profiles")
+      .update({ onboarding_completed: true, updated_at: new Date().toISOString() })
+      .eq("id", user.id)
+    
+    if (!error) {
+      setProfile(prev => prev ? { ...prev, onboarding_completed: true } : null)
+    }
+    
+    return { error }
+  }
+
   // Computed property to check if user is admin
   const isAdmin = profile?.role === "admin"
 
@@ -115,5 +132,6 @@ export function useSupabaseAuth() {
     signIn,
     signUp,
     signOut,
+    completeOnboarding,
   }
 }

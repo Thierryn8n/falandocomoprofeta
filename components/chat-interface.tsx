@@ -1636,11 +1636,8 @@ export function ChatInterface({ conversationId, onConversationUpdate, user, appC
     ]
     
     for (const pattern of cleanPatterns) {
-      // Só remove se a seção estiver no final (dentro dos últimos 500 caracteres)
-      const lastIndex = cleanContent.search(pattern)
-      if (lastIndex !== -1 && lastIndex > cleanContent.length - 1000) {
-        cleanContent = cleanContent.replace(pattern, "")
-      }
+      // Sempre remove a seção de referências quando encontrada no final
+      cleanContent = cleanContent.replace(pattern, "")
     }
     
     // Clean up any trailing separators and whitespace

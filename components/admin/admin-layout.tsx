@@ -3,7 +3,12 @@
 import type React from "react"
 import { useState } from "react"
 import { AdminSidebar } from "./admin-sidebar"
-import { Sheet, SheetContent } from "@/components/ui/sheet"
+import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet"
+
+// Componente para acessibilidade
+const VisuallyHidden = ({ children }: { children: React.ReactNode }) => (
+  <span className="sr-only">{children}</span>
+)
 import { Button } from "@/components/ui/button"
 import { Menu } from "lucide-react"
 
@@ -53,6 +58,9 @@ export function AdminLayout({ children, activeTab, onTabChange, appConfig }: Adm
       {/* Mobile Sidebar */}
       <Sheet open={sidebarOpen} onOpenChange={setSidebarOpen}>
         <SheetContent side="left" className="p-0 w-80">
+          <SheetTitle asChild>
+            <VisuallyHidden>Menu Admin</VisuallyHidden>
+          </SheetTitle>
           <AdminSidebar
             activeTab={activeTab}
             onTabChange={handleTabChange}
