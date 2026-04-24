@@ -1,33 +1,36 @@
 import { NextRequest, NextResponse } from "next/server"
+import textToSpeech from "@google-cloud/text-to-speech"
 
-// Fallback para Web Speech API no cliente
-// Esta API pode ser expandida para usar Google Cloud TTS
+// Google Cloud Text-to-Speech API
+// Requer GOOGLE_TTS_API_KEY no .env.local
+
+const client = new textToSpeech.TextToSpeechClient({
+  apiKey: process.env.GOOGLE_TTS_API_KEY,
+})
 
 export async function POST(request: NextRequest) {
   try {
     const { text, voice = "pt-BR-Neural2-B", speed = 1 } = await request.json()
 
-    // Por padrão, retornamos um erro indicando que precisa configurar o Google TTS
-    // Descomente e configure abaixo quando tiver a API Key
-    
-    /* 
-    // ===== CONFIGURAÇÃO GOOGLE CLOUD TTS =====
-    // 1. Instale: npm install @google-cloud/text-to-speech
-    // 2. Descomente este código
-    // 3. Adicione GOOGLE_TTS_API_KEY ao .env.local
-    
-    import textToSpeech from "@google-cloud/text-to-speech"
-    
-    const client = new textToSpeech.TextToSpeechClient({
-      apiKey: process.env.GOOGLE_TTS_API_KEY,
-    })
+    // Verificar se API Key está configurada
+    if (!process.env.GOOGLE_TTS_API_KEY) {
+      console.log("[API TTS] GOOGLE_TTS_API_KEY não configurada")
+      return NextResponse.json({
+        success: false,
+        error: "API Key não configurada",
+        message: "Adicione GOOGLE_TTS_API_KEY ao .env.local",
+        useFallback: true,
+      })
+    }
+
+    console.log("[API TTS] Gerando áudio para voz:", voice)
 
     const request_tts = {
       input: { text },
       voice: {
         languageCode: "pt-BR",
         name: voice,
-        ssmlGender: "NEUTRAL",
+        ssmlGender: "NEUTRAL" as const,
       },
       audioConfig: {
         audioEncoding: "MP3" as const,
@@ -39,26 +42,25 @@ export async function POST(request: NextRequest) {
     const [response] = await client.synthesizeSpeech(request_tts)
     const audioBase64 = response.audioContent?.toString("base64")
 
+    if (!audioBase64) {
+      throw new Error("Áudio não gerado")
+    }
+
+    console.log("[API TTS] Áudio gerado com sucesso")
+
     return NextResponse.json({
       success: true,
       audioBase64,
       voice,
     })
-    */
-
-    // Retorna informações sobre como configurar
-    return NextResponse.json({
-      success: false,
-      error: "Google TTS não configurado",
-      message: "Veja o tutorial TUTORIAL_GOOGLE_TTS.md",
-      useFallback: true,
-    })
 
   } catch (error) {
-    console.error("TTS Error:", error)
-    return NextResponse.json(
-      { success: false, error: "Erro ao processar TTS" },
-      { status: 500 }
-    )
+    console.error("[API TTS] Erro:", error)
+    return NextResponse.json({
+      success: false,
+      error: "Erro ao gerar áudio",
+      message: error instanceof Error ? error.message : "Erro desconhecido",
+      useFallback: true,
+    })
   }
 }
