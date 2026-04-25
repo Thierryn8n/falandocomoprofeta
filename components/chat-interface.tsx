@@ -24,6 +24,7 @@ import { UpgradeModal } from "@/components/upgrade-modal"
 import { QuestionLimitIndicator } from "@/components/question-limit-indicator"
 import { Crown, Zap, Heart, MessageCircle } from "lucide-react"
 import { generateAvatarUrl } from "@/lib/utils"
+import { cn } from "@/lib/utils"
 
 interface Message {
   id?: string // ID único da mensagem
@@ -40,9 +41,10 @@ interface ChatInterfaceProps {
   onConversationUpdate?: () => void
   user: any
   appConfig: any
+  theme?: any
 }
 
-export function ChatInterface({ conversationId, onConversationUpdate, user, appConfig }: ChatInterfaceProps) {
+export function ChatInterface({ conversationId, onConversationUpdate, user, appConfig, theme }: ChatInterfaceProps) {
   const [messages, setMessages] = useState<Message[]>([])
   const [input, setInput] = useState("")
   const [isLoading, setIsLoading] = useState(false)
@@ -1840,8 +1842,14 @@ export function ChatInterface({ conversationId, onConversationUpdate, user, appC
                     />
                     <AvatarFallback className="text-xs">{message.role === "user" ? "U" : "WB"}</AvatarFallback>
                   </Avatar>
-                  <Card className={`${message.role === "user" ? "bg-primary text-primary-foreground ml-2" : "mr-2"} overflow-visible`}>
-                    <CardContent className="p-1.5 sm:p-2 md:p-3 overflow-visible">
+                  <div className={cn(
+                    `${message.role === "user" ? "ml-2" : "mr-2"} overflow-visible`,
+                    "rounded-2xl p-3 sm:p-4 max-w-[90%] sm:max-w-[85%]",
+                    message.role === "user" 
+                      ? cn("rounded-tr-sm", theme?.userMessage)
+                      : cn("rounded-tl-sm bg-primary/5 border border-primary/10", theme?.assistantMessage)
+                  )}>
+                    <div className="space-y-2 overflow-visible">
                       <div className="space-y-2 overflow-visible">
                         {/* Renderizar áudio se existir */}
                         {message.role === "assistant" && (
@@ -2309,8 +2317,8 @@ export function ChatInterface({ conversationId, onConversationUpdate, user, appC
                           </div>
                         )}
                       </div>
-                    </CardContent>
-                  </Card>
+                    </div>
+                  </div>
                 </div>
               </div>
             )
@@ -2330,17 +2338,18 @@ export function ChatInterface({ conversationId, onConversationUpdate, user, appC
                   />
                   <AvatarFallback className="text-xs">WB</AvatarFallback>
                 </Avatar>
-                <Card className="mr-2">
-                  <CardContent className="p-2 sm:p-3">
-                    <div className="flex items-center space-x-2">
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                      <span className="text-sm">O profeta está meditando na Palavra...</span>
-                    </div>
-                    {isLoading && (
-                      <Progress value={progress} className="w-full mt-2" />
-                    )}
-                  </CardContent>
-                </Card>
+                <div className={cn(
+                  "mr-2 rounded-2xl rounded-tl-sm p-3 sm:p-4 bg-primary/5 border border-primary/10 max-w-[85%] sm:max-w-[80%]",
+                  theme?.assistantMessage
+                )}>
+                  <div className="flex items-center space-x-2">
+                    <Loader2 className="w-4 h-4 animate-spin text-primary" />
+                    <span className="text-sm">O profeta está meditando na Palavra...</span>
+                  </div>
+                  {isLoading && (
+                    <Progress value={progress} className="w-full mt-2" />
+                  )}
+                </div>
               </div>
             </div>
           )}
@@ -2356,7 +2365,7 @@ export function ChatInterface({ conversationId, onConversationUpdate, user, appC
         </Alert>
       )}
 
-      <div className="p-2 sm:p-4 border-t bg-background">
+      <div className={cn("p-2 sm:p-4 border-t", theme?.bg, theme?.border)}>
         <div className="max-w-4xl mx-auto">
           <GrokAudioInput
             onSendMessage={(text, responseLength) => {
@@ -2364,11 +2373,8 @@ export function ChatInterface({ conversationId, onConversationUpdate, user, appC
               sendMessage(text, responseLength)
             }}
             onSendAudio={handleAudioRecorded}
-            onCancelRecording={() => {
-              setIsRecordingActive(false)
-            }}
             placeholder="Digite sua pergunta sobre a Palavra de Deus..."
-            disabled={isLoading}
+            theme={theme}
           />
         </div>
         

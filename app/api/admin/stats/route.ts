@@ -1,21 +1,24 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { supabase } from '@/lib/supabase'
+import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs'
+import { cookies } from 'next/headers'
 
 export async function GET(request: NextRequest) {
   try {
+    const supabase = createRouteHandlerClient({ cookies })
+    
     // Get total users count
-    const { count: totalUsers } = await getSupabaseAdmin()
+    const { count: totalUsers } = await supabase
       .from('profiles')
       .select('*', { count: 'exact', head: true })
 
     // Get active subscriptions count
-    const { count: activeSubscriptions } = await getSupabaseAdmin()
+    const { count: activeSubscriptions } = await supabase
       .from('user_subscriptions')
       .select('*', { count: 'exact', head: true })
       .eq('status', 'active')
 
     // Get total revenue from completed transactions
-    const { data: revenueData } = await getSupabaseAdmin()
+    const { data: revenueData } = await supabase
       .from('payment_transactions')
       .select('amount')
       .eq('status', 'completed')
@@ -23,7 +26,7 @@ export async function GET(request: NextRequest) {
     const totalRevenue = revenueData?.reduce((sum, transaction) => sum + transaction.amount, 0) || 0
 
     // Get pending payments count
-    const { count: pendingPayments } = await getSupabaseAdmin()
+    const { count: pendingPayments } = await supabase
       .from('payment_transactions')
       .select('*', { count: 'exact', head: true })
       .eq('status', 'pending')

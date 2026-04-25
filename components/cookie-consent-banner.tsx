@@ -7,8 +7,13 @@ import { Cookie, Settings, X, Check } from 'lucide-react'
 import { TermsAcceptanceModal } from './terms-acceptance-modal'
 import { useCookieConsent } from '@/hooks/use-cookie-consent'
 import Link from 'next/link'
+import { cn } from '@/lib/utils'
 
-export function CookieConsentBanner() {
+interface CookieConsentBannerProps {
+  theme?: any
+}
+
+export function CookieConsentBanner({ theme }: CookieConsentBannerProps) {
   const { showBanner, acceptAll, acceptEssential, setShowBanner } = useCookieConsent()
   const [showTerms, setShowTerms] = useState(false)
 
@@ -24,24 +29,24 @@ export function CookieConsentBanner() {
             exit={{ y: 100, opacity: 0 }}
             className="fixed bottom-0 left-0 right-0 z-50 p-4 md:p-6"
           >
-            <div className="max-w-4xl mx-auto bg-white dark:bg-gray-900 rounded-2xl shadow-2xl border border-gray-200 dark:border-gray-700 overflow-hidden">
+            <div className={cn("max-w-4xl mx-auto rounded-2xl shadow-2xl overflow-hidden", theme?.card, theme?.border)}>
               <div className="p-6">
                 {/* Header */}
                 <div className="flex items-start gap-4 mb-4">
-                  <div className="p-3 bg-orange-100 dark:bg-orange-900/30 rounded-full shrink-0">
-                    <Cookie className="h-6 w-6 text-orange-600 dark:text-orange-400" />
+                  <div className={cn("p-3 rounded-full shrink-0", theme?.card)}>
+                    <Cookie className={cn("h-6 w-6", theme?.muted)} />
                   </div>
                   <div className="flex-1">
-                    <h3 className="text-lg font-semibold mb-2">
+                    <h3 className={cn("text-lg font-semibold mb-2", theme?.text)}>
                       Utilizamos cookies
                     </h3>
-                    <p className="text-gray-600 dark:text-gray-400 text-sm leading-relaxed">
+                    <p className={cn("text-sm leading-relaxed", theme?.muted)}>
                       Usamos cookies para melhorar sua experiência, personalizar conteúdo 
                       e analisar nosso tráfego. Os cookies essenciais são necessários para 
                       o funcionamento do site. 
                       <Link 
                         href="/politica-privacidade" 
-                        className="text-orange-600 hover:underline ml-1"
+                        className={cn("hover:underline ml-1", theme?.text)}
                         onClick={() => setShowBanner(false)}
                       >
                         Saiba mais
@@ -50,9 +55,9 @@ export function CookieConsentBanner() {
                   </div>
                   <button
                     onClick={() => setShowBanner(false)}
-                    className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full transition-colors"
+                    className={cn("p-2 rounded-full transition-colors", theme?.button)}
                   >
-                    <X className="h-5 w-5 text-gray-500" />
+                    <X className={cn("h-5 w-5", theme?.muted)} />
                   </button>
                 </div>
 
@@ -61,7 +66,7 @@ export function CookieConsentBanner() {
                   <Button
                     variant="outline"
                     onClick={() => setShowTerms(true)}
-                    className="gap-2"
+                    className={cn("gap-2", theme?.button)}
                   >
                     <Settings className="h-4 w-4" />
                     Personalizar
@@ -69,12 +74,13 @@ export function CookieConsentBanner() {
                   <Button
                     variant="outline"
                     onClick={acceptEssential}
+                    className={cn(theme?.button)}
                   >
                     Apenas Essenciais
                   </Button>
                   <Button
                     onClick={acceptAll}
-                    className="bg-orange-600 hover:bg-orange-700 gap-2"
+                    className={cn("gap-2", theme?.button)}
                   >
                     <Check className="h-4 w-4" />
                     Aceitar Todos
@@ -83,12 +89,12 @@ export function CookieConsentBanner() {
               </div>
 
               {/* Progress bar */}
-              <div className="h-1 bg-gray-100 dark:bg-gray-800">
+              <div className={cn("h-1", theme?.card)}>
                 <motion.div
                   initial={{ width: '100%' }}
                   animate={{ width: '0%' }}
                   transition={{ duration: 30, ease: 'linear' }}
-                  className="h-full bg-orange-500"
+                  className={cn("h-full", theme?.primary)}
                 />
               </div>
             </div>
@@ -99,6 +105,7 @@ export function CookieConsentBanner() {
       <TermsAcceptanceModal
         externalOpen={showTerms}
         onExternalOpenChange={setShowTerms}
+        theme={theme}
       />
     </>
   )

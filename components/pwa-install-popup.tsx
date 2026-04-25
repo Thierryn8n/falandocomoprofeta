@@ -5,13 +5,15 @@ import { X, Download, Share, Plus, Smartphone } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { useMobileDetection } from '@/hooks/use-mobile-detection'
+import { cn } from '@/lib/utils'
 
 interface PWAInstallPopupProps {
   onClose: () => void
   onInstall?: () => void
+  theme?: any
 }
 
-export function PWAInstallPopup({ onClose, onInstall }: PWAInstallPopupProps) {
+export function PWAInstallPopup({ onClose, onInstall, theme }: PWAInstallPopupProps) {
   const { isAndroid, isIOS, isStandalone } = useMobileDetection()
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null)
 
@@ -79,7 +81,7 @@ export function PWAInstallPopup({ onClose, onInstall }: PWAInstallPopupProps) {
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
-      <Card className="w-full max-w-md mx-auto">
+      <Card className={cn("w-full max-w-md mx-auto", theme?.card)}>
         <CardHeader className="relative">
           <Button
             variant="ghost"
@@ -93,15 +95,15 @@ export function PWAInstallPopup({ onClose, onInstall }: PWAInstallPopupProps) {
           <div className="flex items-center gap-3">
             {instructions.icon}
             <div>
-              <CardTitle className="text-lg">{instructions.title}</CardTitle>
-              <CardDescription>{instructions.description}</CardDescription>
+              <CardTitle className={cn("text-lg", theme?.text)}>{instructions.title}</CardTitle>
+              <CardDescription className={cn(theme?.muted)}>{instructions.description}</CardDescription>
             </div>
           </div>
         </CardHeader>
         
         <CardContent className="space-y-4">
-          <div className="bg-muted/50 p-4 rounded-lg">
-            <h4 className="font-medium mb-2 flex items-center gap-2">
+          <div className={cn("p-4 rounded-lg", theme?.card)}>
+            <h4 className={cn("font-medium mb-2 flex items-center gap-2", theme?.text)}>
               <Download className="h-4 w-4" />
               Como instalar:
             </h4>
@@ -111,7 +113,7 @@ export function PWAInstallPopup({ onClose, onInstall }: PWAInstallPopupProps) {
                   <span className="flex-shrink-0 w-5 h-5 bg-primary text-primary-foreground rounded-full text-xs flex items-center justify-center font-medium">
                     {index + 1}
                   </span>
-                  <span>{step}</span>
+                  <span className={cn(theme?.text)}>{step}</span>
                 </li>
               ))}
             </ol>

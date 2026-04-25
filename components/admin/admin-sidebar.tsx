@@ -4,6 +4,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Separator } from "@/components/ui/separator"
+import { cn } from "@/lib/utils"
 import {
   Crown,
   LayoutDashboard,
@@ -43,6 +44,8 @@ interface AdminSidebarProps {
   }
   isOpen: boolean
   onToggle: () => void
+  theme?: any
+  onClose?: () => void
 }
 
 const menuItems = [
@@ -203,7 +206,7 @@ const menuItems = [
   },
 ]
 
-export function AdminSidebar({ activeTab, onTabChange, appConfig, isOpen, onToggle }: AdminSidebarProps) {
+export function AdminSidebar({ activeTab, onTabChange, appConfig, isOpen, onToggle, theme, onClose }: AdminSidebarProps) {
   const { profile } = useSupabaseAuth()
   const { isMercadoPagoActive } = usePaymentSystemConfig()
 
@@ -232,30 +235,31 @@ export function AdminSidebar({ activeTab, onTabChange, appConfig, isOpen, onTogg
     <div
       className={`${
         isOpen ? "w-64 sm:w-72 md:w-80" : "w-14 sm:w-16"
-      } transition-all duration-300 bg-background border-r border-border flex flex-col h-full relative`}
+      } transition-all duration-300 flex flex-col h-full relative`}
+      style={{ backgroundColor: theme?.bg, borderColor: theme?.border }}
     >
       {/* Toggle Button */}
       <Button
         variant="ghost"
         size="icon"
         onClick={onToggle}
-        className="absolute -right-3 top-6 z-10 h-5 w-5 sm:h-6 sm:w-6 rounded-full border bg-background shadow-md hover:bg-muted"
+        className={cn("absolute -right-3 top-6 z-10 h-5 w-5 sm:h-6 sm:w-6 rounded-full border shadow-md", theme?.button)}
       >
         {isOpen ? <ChevronLeft className="h-2 w-2 sm:h-3 sm:w-3" /> : <ChevronRight className="h-2 w-2 sm:h-3 sm:w-3" />}
       </Button>
 
       {/* Header */}
-      <div className="p-2 sm:p-3 md:p-4 border-b border-border">
+      <div className={cn("p-2 sm:p-3 md:p-4 border-b", theme?.border)}>
         <div className="flex items-center gap-2 sm:gap-3">
           <div className="relative">
-            <Crown className="h-6 w-6 sm:h-7 sm:w-7 md:h-8 md:w-8" style={{ color: "#ff8100" }} />
+            <Crown className={cn("h-6 w-6 sm:h-7 sm:w-7 md:h-8 md:w-8", theme?.muted)} />
           </div>
           {isOpen && (
             <div className="flex-1 min-w-0">
-              <h1 className="text-base sm:text-lg font-bold truncate" style={{ color: "#ff8100" }}>
+              <h1 className={cn("text-base sm:text-lg font-bold truncate", theme?.text)}>
                 Painel Admin
               </h1>
-              <p className="text-xs text-muted-foreground truncate">{appConfig.appName}</p>
+              <p className={cn("text-xs truncate", theme?.muted)}>{appConfig.appName}</p>
             </div>
           )}
         </div>
@@ -266,16 +270,14 @@ export function AdminSidebar({ activeTab, onTabChange, appConfig, isOpen, onTogg
         <div className="p-2 sm:p-3 md:p-4 space-y-2">
           <Button
             onClick={handleMainSiteClick}
-            className="w-full justify-start gap-2 text-white hover:opacity-90 text-xs sm:text-sm"
-            style={{ backgroundColor: "#ff8100" }}
+            className={cn("w-full justify-start gap-2 text-xs sm:text-sm", theme?.button)}
           >
             <ExternalLink className="h-3 w-3 sm:h-4 sm:w-4" />
             Ver Site Principal
           </Button>
           <Button
             onClick={handleUpgradePageClick}
-            className="w-full justify-start gap-2 text-white hover:opacity-90 text-xs sm:text-sm"
-            style={{ backgroundColor: "#9333ea" }}
+            className={cn("w-full justify-start gap-2 text-xs sm:text-sm", theme?.button)}
           >
             <Crown className="h-3 w-3 sm:h-4 sm:w-4" />
             Ver Página Upgrade
@@ -290,8 +292,8 @@ export function AdminSidebar({ activeTab, onTabChange, appConfig, isOpen, onTogg
           <div>
             {isOpen && (
               <div className="flex items-center gap-2 mb-2 sm:mb-3">
-                <div className="w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full" style={{ backgroundColor: "#ff8100" }}></div>
-                <span className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider" style={{ color: "#ff8100" }}>
+                <div className={cn("w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full", theme?.primary)}></div>
+                <span className={cn("text-[10px] sm:text-xs font-semibold uppercase tracking-wider", theme?.muted)}>
                   Menu Principal
                 </span>
               </div>
@@ -304,18 +306,15 @@ export function AdminSidebar({ activeTab, onTabChange, appConfig, isOpen, onTogg
                   <Button
                     key={item.id}
                     variant={isActive ? "secondary" : "ghost"}
-                    className={`w-full justify-start gap-2 sm:gap-3 h-auto p-2 sm:p-3 ${
-                      isActive ? "bg-muted border-l-2" : "hover:bg-muted/50"
-                    }`}
-                    style={isActive ? { borderLeftColor: "#ff8100" } : {}}
+                    className={cn("w-full justify-start gap-2 sm:gap-3 h-auto p-2 sm:p-3", theme?.button)}
                     onClick={() => onTabChange(item.id)}
                     title={!isOpen ? item.label : undefined}
                   >
-                    <Icon className="h-4 w-4 sm:h-5 sm:w-5 flex-shrink-0" style={isActive ? { color: "#ff8100" } : {}} />
+                    <Icon className={cn("h-4 w-4 sm:h-5 sm:w-5 flex-shrink-0", isActive ? theme?.text : theme?.muted)} />
                     {isOpen && (
                       <div className="flex-1 text-left min-w-0">
-                        <div className="text-xs sm:text-sm font-medium truncate">{item.label}</div>
-                        <div className="text-[10px] sm:text-xs text-muted-foreground truncate">{item.description}</div>
+                        <div className={cn("text-xs sm:text-sm font-medium truncate", theme?.text)}>{item.label}</div>
+                        <div className={cn("text-[10px] sm:text-xs truncate", theme?.muted)}>{item.description}</div>
                       </div>
                     )}
                   </Button>
@@ -324,14 +323,14 @@ export function AdminSidebar({ activeTab, onTabChange, appConfig, isOpen, onTogg
             </div>
           </div>
 
-          <Separator />
+          <Separator className={theme?.border} />
 
           {/* Configurações */}
           <div>
             {isOpen && (
               <div className="flex items-center gap-2 mb-2 sm:mb-3">
-                <Settings className="w-2 h-2 sm:w-3 sm:h-3" style={{ color: "#ff8100" }} />
-                <span className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider" style={{ color: "#ff8100" }}>
+                <Settings className={cn("w-2 h-2 sm:w-3 sm:h-3", theme?.muted)} />
+                <span className={cn("text-[10px] sm:text-xs font-semibold uppercase tracking-wider", theme?.muted)}>
                   Configurações
                 </span>
               </div>
@@ -344,18 +343,15 @@ export function AdminSidebar({ activeTab, onTabChange, appConfig, isOpen, onTogg
                   <Button
                     key={item.id}
                     variant={isActive ? "secondary" : "ghost"}
-                    className={`w-full justify-start gap-2 sm:gap-3 h-auto p-2 sm:p-3 ${
-                      isActive ? "bg-muted border-l-2" : "hover:bg-muted/50"
-                    }`}
-                    style={isActive ? { borderLeftColor: "#ff8100" } : {}}
+                    className={cn("w-full justify-start gap-2 sm:gap-3 h-auto p-2 sm:p-3", theme?.button)}
                     onClick={() => onTabChange(item.id)}
                     title={!isOpen ? item.label : undefined}
                   >
-                    <Icon className="h-4 w-4 sm:h-5 sm:w-5 flex-shrink-0" style={isActive ? { color: "#ff8100" } : {}} />
+                    <Icon className={cn("h-4 w-4 sm:h-5 sm:w-5 flex-shrink-0", isActive ? theme?.text : theme?.muted)} />
                     {isOpen && (
                       <div className="flex-1 text-left min-w-0">
-                        <div className="text-xs sm:text-sm font-medium truncate">{item.label}</div>
-                        <div className="text-[10px] sm:text-xs text-muted-foreground truncate">{item.description}</div>
+                        <div className={cn("text-xs sm:text-sm font-medium truncate", theme?.text)}>{item.label}</div>
+                        <div className={cn("text-[10px] sm:text-xs truncate", theme?.muted)}>{item.description}</div>
                       </div>
                     )}
                   </Button>
@@ -368,28 +364,28 @@ export function AdminSidebar({ activeTab, onTabChange, appConfig, isOpen, onTogg
 
       {/* Footer - User Info */}
       {isOpen && (
-        <div className="p-2 sm:p-3 md:p-4 border-t border-border">
+        <div className={cn("p-2 sm:p-3 md:p-4 border-t", theme?.border)}>
           <div className="flex items-center gap-2 sm:gap-3">
             <Avatar className="h-8 w-8 sm:h-9 sm:w-9 md:h-10 md:w-10">
               <AvatarImage src={profile?.avatar_url || "/placeholder.svg"} />
-              <AvatarFallback style={{ backgroundColor: "#ff8100", color: "white" }}>
+              <AvatarFallback className={theme?.primary}>
                 {profile?.name?.charAt(0) || profile?.email?.charAt(0) || "A"}
               </AvatarFallback>
             </Avatar>
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-1 sm:gap-2">
-                <p className="text-xs sm:text-sm font-medium truncate">
+                <p className={cn("text-xs sm:text-sm font-medium truncate", theme?.text)}>
                   {profile?.name || profile?.email?.split("@")[0] || "Admin"}
                 </p>
-                <Badge variant="secondary" className="text-[10px] sm:text-xs" style={{ backgroundColor: "#ff8100", color: "white" }}>
+                <Badge variant="secondary" className={cn("text-[10px] sm:text-xs", theme?.primary)}>
                   Admin
                 </Badge>
               </div>
-              <p className="text-[10px] sm:text-xs text-muted-foreground truncate">{profile?.email}</p>
+              <p className={cn("text-[10px] sm:text-xs truncate", theme?.muted)}>{profile?.email}</p>
             </div>
           </div>
-          <div className="mt-2 sm:mt-3 pt-2 sm:pt-3 border-t border-border">
-            <p className="text-[10px] sm:text-xs text-center" style={{ color: "#ff8100" }}>
+          <div className={cn("mt-2 sm:mt-3 pt-2 sm:pt-3 border-t", theme?.border)}>
+            <p className={cn("text-[10px] sm:text-xs text-center", theme?.muted)}>
               Painel Administrativo
             </p>
           </div>

@@ -2,20 +2,22 @@
 
 import { motion } from "framer-motion"
 import { useAppConfig } from "@/hooks/use-app-config"
+import { cn } from "@/lib/utils"
 
 interface ModernLoaderProps {
   message?: string
   submessage?: string
+  theme?: any
 }
 
-export function ModernLoader({ message = "Carregando", submessage }: ModernLoaderProps) {
+export function ModernLoader({ message = "Carregando", submessage, theme }: ModernLoaderProps) {
   const { getConfigValue } = useAppConfig()
   const appName = getConfigValue("app_identity", {})?.appName || "Falando com o Profeta"
   const prophetName = getConfigValue("prophet_profile", {})?.prophetName || "Profeta William Branham"
   const prophetAvatar = getConfigValue("prophet_profile", {})?.prophetAvatar || "/placeholder.svg"
 
   return (
-    <div className="fixed inset-0 z-50 bg-background flex flex-col items-center justify-center">
+    <div className={cn("fixed inset-0 z-50 flex flex-col items-center justify-center", theme?.bg || "bg-background")}>
       {/* Animated Background */}
       <div className="absolute inset-0 overflow-hidden">
         <motion.div
@@ -68,7 +70,7 @@ export function ModernLoader({ message = "Carregando", submessage }: ModernLoade
 
         {/* App Name */}
         <motion.h1
-          className="text-2xl font-bold mb-2 text-foreground"
+          className={cn("text-2xl font-bold mb-2", theme?.text || "text-foreground")}
           initial={{ y: 20, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
           transition={{ delay: 0.2 }}
@@ -84,7 +86,7 @@ export function ModernLoader({ message = "Carregando", submessage }: ModernLoade
           transition={{ delay: 0.3 }}
         >
           <div className="flex items-center gap-1">
-            <span className="text-muted-foreground">{message}</span>
+            <span className={cn(theme?.muted || "text-muted-foreground")}>{message}</span>
             <motion.span
               animate={{ opacity: [0, 1, 0] }}
               transition={{ duration: 1.5, repeat: Infinity }}
@@ -95,7 +97,7 @@ export function ModernLoader({ message = "Carregando", submessage }: ModernLoade
           </div>
           
           {submessage && (
-            <p className="text-sm text-muted-foreground/70 text-center max-w-xs">
+            <p className={cn("text-sm text-center max-w-xs", theme?.muted || "text-muted-foreground/70")}>
               {submessage}
             </p>
           )}
@@ -103,7 +105,7 @@ export function ModernLoader({ message = "Carregando", submessage }: ModernLoade
 
         {/* Progress Bar */}
         <motion.div
-          className="mt-8 w-48 h-1 bg-muted rounded-full overflow-hidden"
+          className={cn("mt-8 w-48 h-1 rounded-full overflow-hidden", theme?.card || "bg-muted")}
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 0.4 }}

@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect } from "react"
 import { Mic, X, Check, Paperclip, ChevronDown } from "lucide-react"
+import { cn } from "@/lib/utils"
 
 interface GrokAudioInputProps {
   onSendMessage?: (text: string, responseLength?: "short" | "medium" | "long") => void
@@ -9,6 +10,7 @@ interface GrokAudioInputProps {
   onCancelRecording?: () => void
   placeholder?: string
   disabled?: boolean
+  theme?: any
 }
 
 export function GrokAudioInput({
@@ -16,7 +18,8 @@ export function GrokAudioInput({
   onSendAudio,
   onCancelRecording,
   placeholder = "Pergunte qualquer coisa",
-  disabled = false
+  disabled = false,
+  theme
 }: GrokAudioInputProps) {
   const [inputText, setInputText] = useState("")
   const [isRecording, setIsRecording] = useState(false)
@@ -239,14 +242,14 @@ export function GrokAudioInput({
   return (
     <div className="w-full max-w-4xl mx-auto">
       {/* Container principal - adapta para tema claro/escuro */}
-      <div className="relative flex items-center gap-1.5 sm:gap-2 px-2 sm:px-4 py-2 sm:py-3 bg-background/90 backdrop-blur-sm rounded-full border border-border shadow-2xl dark:bg-slate-900/90 dark:border-slate-800">
+      <div className={cn("relative flex items-center gap-1.5 sm:gap-2 px-2 sm:px-4 py-2 sm:py-3 backdrop-blur-sm rounded-full border shadow-2xl", theme?.header, theme?.border)}>
         
         {/* Botão de anexar (paperclip) */}
         <button
-          className="flex-shrink-0 p-1.5 sm:p-2 text-muted-foreground hover:text-foreground transition-colors rounded-full hover:bg-accent"
+          className={cn("flex-shrink-0 p-1.5 sm:p-2 transition-colors rounded-full", theme?.button)}
           title="Anexar arquivo"
         >
-          <Paperclip className="w-4 h-4 sm:w-5 sm:h-5" />
+          <Paperclip className={cn("w-4 h-4 sm:w-5 sm:h-5", theme?.muted)} />
         </button>
 
         {/* Input de texto */}
@@ -263,7 +266,7 @@ export function GrokAudioInput({
           }}
           placeholder={isRecording ? "" : placeholder}
           disabled={disabled || isRecording}
-          className="flex-1 bg-transparent text-foreground placeholder-muted-foreground text-sm sm:text-base outline-none min-w-0 disabled:cursor-not-allowed"
+          className={cn("flex-1 bg-transparent text-sm sm:text-base outline-none min-w-0 disabled:cursor-not-allowed", theme?.input, theme?.text, theme?.muted)}
         />
 
         {/* Seletor de Tamanho da Resposta */}
@@ -274,18 +277,18 @@ export function GrokAudioInput({
               console.log('🖱️ Botão de tamanho clicado! showLengthMenu antes:', showLengthMenu)
               setShowLengthMenu(!showLengthMenu)
             }}
-            className="flex items-center gap-1 px-2 sm:px-3 py-1.5 text-xs sm:text-sm font-medium text-muted-foreground hover:text-foreground bg-accent hover:bg-accent/80 rounded-full transition-all pointer-events-auto whitespace-nowrap"
+            className={cn("flex items-center gap-1 px-2 sm:px-3 py-1.5 text-xs sm:text-sm font-medium rounded-full transition-all pointer-events-auto whitespace-nowrap", theme?.button)}
             title="Tamanho da resposta"
             type="button"
           >
             <span className="hidden sm:inline">{lengthLabels[responseLength]}</span>
             <span className="sm:hidden">{shortLabels[responseLength]}</span>
-            <ChevronDown className={`w-3 h-3 sm:w-4 sm:h-4 transition-transform ${showLengthMenu ? "rotate-180" : ""}`} />
+            <ChevronDown className={cn(`w-3 h-3 sm:w-4 sm:h-4 transition-transform ${showLengthMenu ? "rotate-180" : ""}`, theme?.muted)} />
           </button>
 
           {/* Menu dropdown de tamanho */}
           {showLengthMenu && (
-            <div ref={lengthMenuRef} className="absolute bottom-full right-0 mb-2 w-48 bg-background border border-border rounded-xl shadow-xl overflow-hidden dark:bg-slate-900 dark:border-slate-800 z-50">
+            <div ref={lengthMenuRef} className={cn("absolute bottom-full right-0 mb-2 w-48 rounded-xl shadow-xl overflow-hidden z-50", theme?.card, theme?.border)}>
               {(["short", "medium", "long"] as const).map((length) => (
                 <button
                   key={length}
@@ -296,13 +299,9 @@ export function GrokAudioInput({
                     setResponseLength(length)
                     setShowLengthMenu(false)
                   }}
-                  className={`w-full px-4 py-2.5 text-sm text-left transition-colors ${
-                    responseLength === length
-                      ? "bg-accent text-accent-foreground"
-                      : "text-muted-foreground hover:bg-accent hover:text-foreground"
-                  }`}
+                  className={cn("w-full px-4 py-2.5 text-sm text-left transition-colors", theme?.button, responseLength === length && theme?.card)}
                 >
-                  <span className="font-medium">{lengthLabels[length]}</span>
+                  <span className={cn("font-medium", theme?.text)}>{lengthLabels[length]}</span>
                 </button>
               ))}
             </div>
@@ -317,10 +316,10 @@ export function GrokAudioInput({
               <button
                 onClick={startRecording}
                 disabled={disabled}
-                className="flex-shrink-0 p-2 sm:p-2.5 text-muted-foreground hover:text-foreground bg-accent hover:bg-accent/80 rounded-full transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                className={cn("flex-shrink-0 p-2 sm:p-2.5 rounded-full transition-all disabled:opacity-50 disabled:cursor-not-allowed", theme?.button)}
                 title="Gravar áudio"
               >
-                <Mic className="w-4 h-4 sm:w-5 sm:h-5" />
+                <Mic className={cn("w-4 h-4 sm:w-5 sm:h-5", theme?.muted)} />
               </button>
 
               {/* Botão de enviar (só aparece se tem texto) */}
@@ -328,18 +327,18 @@ export function GrokAudioInput({
                 <button
                   onClick={handleSend}
                   disabled={disabled}
-                  className="flex-shrink-0 p-2 sm:p-2.5 text-primary-foreground bg-primary hover:bg-primary/90 rounded-full transition-all disabled:opacity-50"
+                  className={cn("flex-shrink-0 p-2 sm:p-2.5 rounded-full transition-all disabled:opacity-50", theme?.button)}
                   title="Enviar mensagem"
                 >
-                  <Check className="w-4 h-4 sm:w-5 sm:h-5" />
+                  <Check className={cn("w-4 h-4 sm:w-5 sm:h-5", theme?.text)} />
                 </button>
               )}
             </>
           ) : (
             /* Interface de gravação ativa */
-            <div className="flex items-center gap-3 px-3 py-1.5 bg-accent/80 rounded-full dark:bg-slate-800/80">
+            <div className={cn("flex items-center gap-3 px-3 py-1.5 rounded-full", theme?.card)}>
               {/* Timer */}
-              <span className="text-sm font-medium text-foreground tabular-nums">
+              <span className={cn("text-sm font-medium tabular-nums", theme?.text)}>
                 {formatTime(recordingTime)}
               </span>
 
@@ -360,19 +359,19 @@ export function GrokAudioInput({
               {/* Botão cancelar */}
               <button
                 onClick={cancelRecording}
-                className="p-1.5 text-muted-foreground hover:text-destructive hover:bg-accent rounded-full transition-all"
+                className={cn("p-1.5 rounded-full transition-all", theme?.button)}
                 title="Cancelar gravação"
               >
-                <X className="w-4 h-4" />
+                <X className={cn("w-4 h-4", theme?.muted)} />
               </button>
 
               {/* Botão enviar áudio */}
               <button
                 onClick={stopRecording}
-                className="p-2 text-primary-foreground bg-primary hover:bg-primary/90 rounded-full transition-all"
+                className={cn("p-2 rounded-full transition-all", theme?.button)}
                 title="Enviar áudio"
               >
-                <Check className="w-4 h-4" />
+                <Check className={cn("w-4 h-4", theme?.text)} />
               </button>
             </div>
           )}

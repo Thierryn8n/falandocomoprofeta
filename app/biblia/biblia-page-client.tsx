@@ -118,6 +118,7 @@ export default function BibliaPageClient() {
   const [showTtsSettings, setShowTtsSettings] = useState(false)
   const speechSynthesisRef = useRef<SpeechSynthesisUtterance | null>(null)
   const isSpeakingRef = useRef(false) // Ref para controle síncrono
+  const autoAdvanceRef = useRef(false) // Ref para controlar se mudança de capítulo foi automática
   const supabase = createClientComponentClient()
 
   // Estados para seleção de texto
@@ -141,10 +142,11 @@ export default function BibliaPageClient() {
     }
   }, [])
 
-  // Continuar leitura automaticamente quando capítulo/livro muda
+  // Continuar leitura automaticamente quando capítulo/livro muda (só se for avanço automático)
   useEffect(() => {
-    if (isSpeakingRef.current && selectedBook && verses.length > 0) {
-      console.log("[TTS] Capítulo/livro mudou, continuando leitura")
+    if (autoAdvanceRef.current && isSpeakingRef.current && selectedBook && verses.length > 0) {
+      console.log("[TTS] Capítulo/livro mudou automaticamente, continuando leitura")
+      autoAdvanceRef.current = false // Reset após usar
       speakChapter()
     }
   }, [selectedChapter, selectedBook])
@@ -371,6 +373,7 @@ export default function BibliaPageClient() {
       const totalChapters = selectedBook.chapters
       if (selectedChapter < totalChapters) {
         console.log("[TTS] Avançando para o próximo capítulo")
+        autoAdvanceRef.current = true // Marcar como avanço automático
         setSelectedChapter(prev => prev + 1)
       } else {
         // Próximo livro
@@ -378,6 +381,7 @@ export default function BibliaPageClient() {
         const nextBook = books[currentBookIndex + 1]
         if (nextBook) {
           console.log("[TTS] Avançando para o próximo livro:", nextBook.name)
+          autoAdvanceRef.current = true // Marcar como avanço automático
           setSelectedBook(nextBook)
           setSelectedChapter(1)
         } else {

@@ -59,6 +59,7 @@ interface ChatSidebarProps {
   onToggle: () => void
   isOpen: boolean
   loadingConversations: boolean
+  theme?: any
 }
 
 export function ChatSidebar({
@@ -72,6 +73,7 @@ export function ChatSidebar({
   onToggle,
   isOpen,
   loadingConversations,
+  theme,
 }: ChatSidebarProps) {
   const { limits } = useQuestionLimits()
   const isAdmin = limits?.is_admin ?? false
@@ -152,42 +154,50 @@ export function ChatSidebar({
   return (
     <div
       className={cn(
-        "h-screen flex flex-col bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-r border-border/40 transition-all duration-300 ease-in-out shadow-sm overflow-hidden",
+        "h-screen flex flex-col border-r transition-all duration-300 ease-in-out shadow-sm overflow-hidden",
+        theme?.bg || "bg-background/95",
+        theme?.border || "border-border/40",
+        theme?.header || "backdrop-blur supports-[backdrop-filter]:bg-background/60",
         isOpen ? "w-80" : "w-16",
       )}
     >
       {/* Header */}
-      <div className="flex items-center justify-between h-16 px-4 border-b border-border/40 bg-card/50">
+      <div className={cn("flex items-center justify-between h-16 px-4 border-b", theme?.header, theme?.border)}>
         {isOpen ? (
           <>
             <div className="flex items-center gap-3 overflow-hidden">
-              <div className="relative">
-                <img
-                  src={appConfig.logo || "/placeholder.svg"}
-                  alt="Logo"
-                  className="h-8 w-8 rounded-lg flex-shrink-0 ring-2 ring-primary/10"
-                />
-              </div>
+              <Avatar className="h-8 w-8">
+                <AvatarImage src={appConfig.prophetAvatar || "/placeholder.svg"} alt={appConfig.prophetName} />
+                <AvatarFallback className="text-xs">{appConfig.prophetName?.charAt(0).toUpperCase() || "P"}</AvatarFallback>
+              </Avatar>
               <div className="flex flex-col overflow-hidden">
-                <span className="font-semibold text-sm truncate">{appConfig.appName}</span>
+                <span className={cn("font-semibold text-sm truncate", theme?.text)}>{appConfig.appName}</span>
               </div>
             </div>
             <Button
               variant="ghost"
               size="icon"
               onClick={onToggle}
-              className="h-8 w-8 flex-shrink-0 hover:bg-accent"
+              className={cn("h-8 w-8 flex-shrink-0", theme?.button)}
               title="Recolher sidebar"
             >
               <ChevronLeft className="h-4 w-4" />
             </Button>
           </>
         ) : (
+          <div className="flex items-center justify-center w-full">
+            <Avatar className="h-8 w-8">
+              <AvatarImage src={appConfig.prophetAvatar || "/placeholder.svg"} alt={appConfig.prophetName} />
+              <AvatarFallback className="text-xs">{appConfig.prophetName?.charAt(0).toUpperCase() || "P"}</AvatarFallback>
+            </Avatar>
+          </div>
+        )}
+        {!isOpen && (
           <Button
             variant="ghost"
             size="icon"
             onClick={onToggle}
-            className="h-8 w-8 mx-auto hover:bg-accent"
+            className={cn("h-8 w-8 mx-auto", theme?.button)}
             title="Expandir sidebar"
           >
             <Menu className="h-4 w-4" />
@@ -216,7 +226,7 @@ export function ChatSidebar({
       {/* User Info */}
       {user && isOpen && (
         <div className="px-3 pb-3">
-          <Card className="bg-card/50 border-border/40">
+          <Card className={cn(theme?.card, theme?.border)}>
             <CardContent className="p-3">
               <div className="flex items-center gap-3">
                 <Avatar className="h-8 w-8">
@@ -226,8 +236,8 @@ export function ChatSidebar({
                   </AvatarFallback>
                 </Avatar>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium truncate">{user.name || user.email.split("@")[0]}</p>
-                  <p className="text-xs text-muted-foreground truncate">{user.email}</p>
+                  <p className={cn("text-sm font-medium truncate", theme?.text)}>{user.name || user.email.split("@")[0]}</p>
+                  <p className={cn("text-xs truncate", theme?.muted)}>{user.email}</p>
                 </div>
                 {limits?.is_admin && (
                   <Badge variant="secondary" className="text-xs">
@@ -246,7 +256,7 @@ export function ChatSidebar({
           {loadingConversations ? (
             <div className="space-y-2 p-2">
               {[...Array(5)].map((_, i) => (
-                <div key={i} className="h-16 bg-muted/50 rounded-lg animate-pulse" />
+                <div key={i} className={cn("h-16 rounded-lg animate-pulse", theme?.card)} />
               ))}
             </div>
           ) : user ? (
@@ -256,10 +266,10 @@ export function ChatSidebar({
                   key={conversation.id}
                   className={cn(
                     "cursor-pointer transition-all duration-200 hover:shadow-md group active:scale-98",
-                    "border-border/40 hover:border-border/60",
+                    theme?.border,
                     currentConversation?.id === conversation.id
-                      ? "bg-accent/50 border-primary/50 shadow-md"
-                      : "bg-card/30 hover:bg-accent/40",
+                      ? cn("border-primary/50 shadow-md", theme?.card)
+                      : cn(theme?.card),
                     !isOpen && "p-0 h-12 flex items-center justify-center mx-1",
                   )}
                   onClick={() => onSelectConversation(conversation)}
@@ -274,7 +284,7 @@ export function ChatSidebar({
                           "flex-shrink-0 p-2 rounded-lg transition-colors",
                           currentConversation?.id === conversation.id
                             ? "bg-primary/10 text-primary"
-                            : "bg-muted/50 text-muted-foreground group-hover:bg-muted",
+                            : cn(theme?.card, theme?.muted),
                           !isOpen && "p-0 bg-transparent",
                         )}
                       >
@@ -284,8 +294,8 @@ export function ChatSidebar({
                       {isOpen && (
                         <>
                           <div className="flex-1 min-w-0">
-                            <p className="text-sm font-medium truncate leading-tight mb-1">{conversation.title}</p>
-                            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                            <p className={cn("text-sm font-medium truncate leading-tight mb-1", theme?.text)}>{conversation.title}</p>
+                            <div className={cn("flex items-center gap-2 text-xs", theme?.muted)}>
                               <Clock className="h-3 w-3" />
                               <span>{formatDate(conversation.updated_at || conversation.created_at)}</span>
                               {conversation.message_count && conversation.message_count > 0 && (
@@ -327,13 +337,13 @@ export function ChatSidebar({
               ))
             ) : (
               <div className="text-center py-12 px-4">
-                <div className="bg-muted/30 rounded-full p-4 w-16 h-16 mx-auto mb-4 flex items-center justify-center">
-                  <MessageSquare className="h-8 w-8 text-muted-foreground" />
+                <div className={cn("rounded-full p-4 w-16 h-16 mx-auto mb-4 flex items-center justify-center", theme?.card)}>
+                  <MessageSquare className={cn("h-8 w-8", theme?.muted)} />
                 </div>
                 {isOpen && (
                   <>
-                    <h3 className="text-sm font-medium mb-1">Nenhuma conversa</h3>
-                    <p className="text-xs text-muted-foreground">
+                    <h3 className={cn("text-sm font-medium mb-1", theme?.text)}>Nenhuma conversa</h3>
+                    <p className={cn("text-xs", theme?.muted)}>
                       Inicie uma nova conversa para começar a falar com o {appConfig.prophetName}
                     </p>
                   </>
@@ -342,13 +352,13 @@ export function ChatSidebar({
             )
           ) : (
             <div className="text-center py-12 px-4">
-              <div className="bg-muted/30 rounded-full p-4 w-16 h-16 mx-auto mb-4 flex items-center justify-center">
-                <User className="h-8 w-8 text-muted-foreground" />
+              <div className={cn("rounded-full p-4 w-16 h-16 mx-auto mb-4 flex items-center justify-center", theme?.card)}>
+                <User className={cn("h-8 w-8", theme?.muted)} />
               </div>
               {isOpen && (
                 <>
-                  <h3 className="text-sm font-medium mb-1">Faça login</h3>
-                  <p className="text-xs text-muted-foreground">Entre na sua conta para ver suas conversas</p>
+                  <h3 className={cn("text-sm font-medium mb-1", theme?.text)}>Faça login</h3>
+                  <p className={cn("text-xs", theme?.muted)}>Entre na sua conta para ver suas conversas</p>
                 </>
               )}
             </div>
@@ -357,7 +367,7 @@ export function ChatSidebar({
       </ScrollArea>
 
       {/* Action Buttons */}
-      <div className="p-3 space-y-2 border-t border-border/40 bg-card/30">
+      <div className={cn("p-3 space-y-2 border-t", theme?.border, theme?.card)}>
         {/* Admin Panel Button */}
         {limits?.is_admin && (
           <Button
@@ -365,7 +375,8 @@ export function ChatSidebar({
             variant="outline"
             className={cn(
               "w-full justify-start gap-3 h-10 font-medium transition-all",
-              "border-border/40 hover:border-border/60 hover:bg-accent/50",
+              theme?.border,
+              theme?.button,
               !isOpen && "px-0 justify-center",
             )}
             title={isOpen ? "Acessar painel administrativo" : "Painel Admin"}
@@ -382,7 +393,7 @@ export function ChatSidebar({
             onClick={() => router.push("/settings")}
             className={cn(
               "w-full justify-start gap-3 h-10 font-medium transition-all",
-              "hover:bg-accent/50",
+              theme?.button,
               !isOpen && "px-0 justify-center",
             )}
             title={isOpen ? "Configurações" : "Configurações"}
@@ -412,28 +423,31 @@ export function ChatSidebar({
 
       {/* Footer */}
       {isOpen && (
-        <div className="p-4 border-t border-border/40 bg-card/20">
+        <div className={cn("p-4 border-t", theme?.border, theme?.card)}>
           <div className="text-center space-y-1">
             <div className="flex items-center justify-center gap-2 mb-2">
               {appConfig.prophetAvatar ? (
                 <img
                   src={appConfig.prophetAvatar}
                   alt={appConfig.prophetName}
-                  className="h-6 w-6 rounded-full"
+                  className="h-8 w-8 rounded-full object-cover border-2 border-primary/20"
+                  onError={(e) => {
+                    (e.target as HTMLImageElement).style.display = 'none';
+                    (e.target as HTMLImageElement).nextElementSibling?.classList.remove('hidden');
+                  }}
                 />
-              ) : (
-                <div className="h-6 w-6 rounded-full bg-primary/20 flex items-center justify-center">
-                  <span className="text-xs text-primary font-bold">
-                    {appConfig.prophetName?.charAt(0) || "P"}
-                  </span>
-                </div>
-              )}
-              <p className="text-xs text-muted-foreground">Baseado nas mensagens de</p>
+              ) : null}
+              <div className={cn("h-8 w-8 rounded-full bg-primary/20 flex items-center justify-center", appConfig.prophetAvatar && "hidden")}>
+                <span className="text-xs text-primary font-bold">
+                  {appConfig.prophetName?.charAt(0) || "P"}
+                </span>
+              </div>
+              <p className={cn("text-xs", theme?.muted)}>Baseado nas mensagens de</p>
             </div>
             <p className="text-sm font-medium bg-gradient-to-r from-primary to-primary/70 bg-clip-text text-transparent">
               {appConfig.prophetName}
             </p>
-            <p className="text-xs text-muted-foreground/70">Inteligência Artificial Cristã</p>
+            <p className={cn("text-xs", theme?.muted)}>Inteligência Artificial Cristã</p>
           </div>
         </div>
       )}

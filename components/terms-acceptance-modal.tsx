@@ -15,13 +15,15 @@ import { ScrollArea } from '@/components/ui/scroll-area'
 import { FileText, Shield, Check, ExternalLink, AlertTriangle } from 'lucide-react'
 import { useTerms } from '@/hooks/use-terms'
 import Link from 'next/link'
+import { cn } from '@/lib/utils'
 
 interface TermsAcceptanceModalProps {
   externalOpen?: boolean
   onExternalOpenChange?: (open: boolean) => void
+  theme?: any
 }
 
-export function TermsAcceptanceModal({ externalOpen, onExternalOpenChange }: TermsAcceptanceModalProps) {
+export function TermsAcceptanceModal({ externalOpen, onExternalOpenChange, theme }: TermsAcceptanceModalProps) {
   const { showModal, acceptTerms, declineTerms, isLoading, TERMS_VERSION, setShowModal } = useTerms()
   const [acceptedTerms, setAcceptedTerms] = useState(false)
   const [acceptedPrivacy, setAcceptedPrivacy] = useState(false)
@@ -46,29 +48,29 @@ export function TermsAcceptanceModal({ externalOpen, onExternalOpenChange }: Ter
 
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen} modal={true}>
-      <DialogContent className="max-w-md max-h-[85vh] overflow-hidden [&>button]:hidden p-4">
+      <DialogContent className={cn("max-w-md max-h-[85vh] overflow-hidden [&>button]:hidden p-4", theme?.card)}>
         <DialogHeader>
           <div className="flex items-center justify-center gap-2 mb-2">
-            <div className="p-2 bg-orange-100 dark:bg-orange-900/30 rounded-full">
-              <FileText className="h-6 w-6 text-orange-600 dark:text-orange-400" />
+            <div className={cn("p-2 rounded-full", theme?.card)}>
+              <FileText className={cn("h-6 w-6", theme?.muted)} />
             </div>
           </div>
-          <DialogTitle className="text-xl text-center">
+          <DialogTitle className={cn("text-xl text-center", theme?.text)}>
             Termos de Uso e Privacidade
           </DialogTitle>
-          <DialogDescription className="text-center text-sm">
+          <DialogDescription className={cn("text-center text-sm", theme?.muted)}>
             Aceite para continuar usando a plataforma.
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4 py-3">
           {/* Resumo dos Termos */}
-          <div className="bg-gray-50 dark:bg-gray-800/50 rounded-lg p-3 space-y-2">
-            <h4 className="font-medium text-sm flex items-center gap-2">
-              <Shield className="h-4 w-4 text-orange-600" />
+          <div className={cn("rounded-lg p-3 space-y-2", theme?.card)}>
+            <h4 className={cn("font-medium text-sm flex items-center gap-2", theme?.text)}>
+              <Shield className={cn("h-4 w-4", theme?.muted)} />
               Você concorda em:
             </h4>
-            <ul className="text-xs text-gray-600 dark:text-gray-400 space-y-1 ml-5">
+            <ul className={cn("text-xs space-y-1 ml-5", theme?.muted)}>
               <li>• Usar a plataforma de forma ética</li>
               <li>• Respeitar as Regras de Conduta</li>
               <li>• Permitir o uso de dados (LGPD)</li>
@@ -78,7 +80,7 @@ export function TermsAcceptanceModal({ externalOpen, onExternalOpenChange }: Ter
 
           {/* Documentos */}
           <div className="space-y-3">
-            <div className="flex items-start gap-2 p-2 border rounded-lg">
+            <div className={cn("flex items-start gap-2 p-2 border rounded-lg", theme?.border)}>
               <Checkbox
                 id="terms"
                 checked={acceptedTerms}
@@ -86,12 +88,12 @@ export function TermsAcceptanceModal({ externalOpen, onExternalOpenChange }: Ter
                 className="mt-0.5"
               />
               <div className="flex-1">
-                <label htmlFor="terms" className="text-xs font-medium cursor-pointer">
+                <label htmlFor="terms" className={cn("text-xs font-medium cursor-pointer", theme?.text)}>
                   Aceito os{' '}
                   <Link 
                     href="/termos-de-uso" 
                     target="_blank"
-                    className="text-orange-600 hover:underline inline-flex items-center gap-1"
+                    className={cn("hover:underline inline-flex items-center gap-1", theme?.text)}
                   >
                     Termos de Uso
                     <ExternalLink className="h-3 w-3" />
@@ -100,7 +102,7 @@ export function TermsAcceptanceModal({ externalOpen, onExternalOpenChange }: Ter
               </div>
             </div>
 
-            <div className="flex items-start gap-2 p-2 border rounded-lg">
+            <div className={cn("flex items-start gap-2 p-2 border rounded-lg", theme?.border)}>
               <Checkbox
                 id="privacy"
                 checked={acceptedPrivacy}
@@ -108,12 +110,12 @@ export function TermsAcceptanceModal({ externalOpen, onExternalOpenChange }: Ter
                 className="mt-0.5"
               />
               <div className="flex-1">
-                <label htmlFor="privacy" className="text-xs font-medium cursor-pointer">
+                <label htmlFor="privacy" className={cn("text-xs font-medium cursor-pointer", theme?.text)}>
                   Aceito a{' '}
                   <Link 
                     href="/politica-privacidade" 
                     target="_blank"
-                    className="text-orange-600 hover:underline inline-flex items-center gap-1"
+                    className={cn("hover:underline inline-flex items-center gap-1", theme?.text)}
                   >
                     Política de Privacidade
                     <ExternalLink className="h-3 w-3" />
@@ -122,10 +124,10 @@ export function TermsAcceptanceModal({ externalOpen, onExternalOpenChange }: Ter
               </div>
             </div>
 
-            <div className="border-t pt-3 mt-3">
-              <p className="text-xs font-medium mb-2">Cookies opcionais:</p>
+            <div className={cn("border-t pt-3 mt-3", theme?.border)}>
+              <p className={cn("text-xs font-medium mb-2", theme?.text)}>Cookies opcionais:</p>
               
-              <div className="flex items-start gap-2 p-2 border rounded-lg mb-2">
+              <div className={cn("flex items-start gap-2 p-2 border rounded-lg mb-2", theme?.border)}>
                 <Checkbox
                   id="analytics"
                   checked={analyticsCookies}
@@ -133,13 +135,13 @@ export function TermsAcceptanceModal({ externalOpen, onExternalOpenChange }: Ter
                   className="mt-0.5"
                 />
                 <div className="flex-1">
-                  <label htmlFor="analytics" className="text-xs cursor-pointer">
+                  <label htmlFor="analytics" className={cn("text-xs cursor-pointer", theme?.text)}>
                     Cookies de Analytics (Google Analytics)
                   </label>
                 </div>
               </div>
 
-              <div className="flex items-start gap-2 p-2 border rounded-lg">
+              <div className={cn("flex items-start gap-2 p-2 border rounded-lg", theme?.border)}>
                 <Checkbox
                   id="marketing"
                   checked={marketingCookies}
@@ -147,7 +149,7 @@ export function TermsAcceptanceModal({ externalOpen, onExternalOpenChange }: Ter
                   className="mt-0.5"
                 />
                 <div className="flex-1">
-                  <label htmlFor="marketing" className="text-xs cursor-pointer">
+                  <label htmlFor="marketing" className={cn("text-xs cursor-pointer", theme?.text)}>
                     Cookies de Marketing (Propagandas)
                   </label>
                 </div>
@@ -156,11 +158,11 @@ export function TermsAcceptanceModal({ externalOpen, onExternalOpenChange }: Ter
           </div>
 
           {/* Botões */}
-          <div className="space-y-2 pt-3 border-t">
+          <div className={cn("space-y-2 pt-3 border-t", theme?.border)}>
             <Button
               onClick={handleAccept}
               disabled={!canAccept}
-              className="w-full bg-orange-600 hover:bg-orange-700 gap-2"
+              className={cn("w-full gap-2", theme?.button)}
               size="sm"
             >
               <Check className="h-4 w-4" />
@@ -170,7 +172,7 @@ export function TermsAcceptanceModal({ externalOpen, onExternalOpenChange }: Ter
             <Button
               variant="ghost"
               onClick={() => setShowConfirmDecline(true)}
-              className="w-full text-gray-500 hover:text-red-600 text-sm"
+              className={cn("w-full text-sm", theme?.button)}
               size="sm"
             >
               Recusar e Sair
@@ -180,7 +182,7 @@ export function TermsAcceptanceModal({ externalOpen, onExternalOpenChange }: Ter
 
         {/* Diálogo de Confirmação de Recusa */}
         <Dialog open={showConfirmDecline} onOpenChange={setShowConfirmDecline}>
-          <DialogContent className="max-w-md">
+          <DialogContent className={cn("max-w-md", theme?.card)}>
             <DialogHeader>
               <div className="flex items-center justify-center gap-3 mb-4">
                 <div className="p-3 bg-red-100 dark:bg-red-900/30 rounded-full">
@@ -190,17 +192,17 @@ export function TermsAcceptanceModal({ externalOpen, onExternalOpenChange }: Ter
               <DialogTitle className="text-center text-red-600">
                 Atenção!
               </DialogTitle>
-              <DialogDescription className="text-center">
+              <DialogDescription className={cn("text-center", theme?.muted)}>
                 Você está prestes a sair da plataforma.
               </DialogDescription>
             </DialogHeader>
 
             <div className="space-y-4 py-4">
-              <p className="text-sm text-gray-600 dark:text-gray-400">
+              <p className={cn("text-sm", theme?.muted)}>
                 Sem aceitar os Termos de Uso e a Política de Privacidade, você não 
                 poderá usar o Flando Como Profeta. Isso é necessário para:
               </p>
-              <ul className="text-sm text-gray-600 dark:text-gray-400 list-disc list-inside space-y-1 ml-2">
+              <ul className={cn("text-sm list-disc list-inside space-y-1 ml-2", theme?.muted)}>
                 <li>Proteger sua privacidade e dados</li>
                 <li>Garantir um ambiente seguro para todos</li>
                 <li>Cumprir as leis de proteção de dados (LGPD)</li>
@@ -211,6 +213,7 @@ export function TermsAcceptanceModal({ externalOpen, onExternalOpenChange }: Ter
               <Button
                 variant="outline"
                 onClick={() => setShowConfirmDecline(false)}
+                className={cn(theme?.button)}
               >
                 Voltar e Aceitar
               </Button>
