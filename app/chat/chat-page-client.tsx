@@ -342,7 +342,7 @@ export default function ChatPageClient() {
                   <AvatarImage src={prophetAvatar || "/placeholder.svg"} alt={prophetName} />
                   <AvatarFallback className="text-xs">{prophetName.charAt(0).toUpperCase()}</AvatarFallback>
                 </Avatar>
-                <h1 className={cn("text-xl font-bold truncate", currentTheme.text)}>{appName}</h1>
+                <h1 className={cn("text-xl font-bold truncate hidden lg:block", currentTheme.text)}>{appName}</h1>
               </div>
             </div>
 
