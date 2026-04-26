@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Você foi convidado - Falando com o Profeta</title>
+  <style>
+    body { margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #F4ECD8; -webkit-font-smoothing: antialiased; }
+    .email-wrapper { max-width: 600px; margin: 0 auto; background: linear-gradient(135deg, #FAF3E8 0%, #F4ECD8 100%); border-radius: 16px; overflow: hidden; box-shadow: 0 8px 32px rgba(139, 115, 85, 0.15); }
+    .email-header { background: linear-gradient(135deg, #8B7355 0%, #A89080 50%, #8B7355 100%); padding: 32px 24px; text-align: center; position: relative; }
+    .email-header::before { content: ''; position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><circle cx="50" cy="50" r="40" fill="none" stroke="rgba(255,255,255,0.1)" stroke-width="0.5"/></svg>'); opacity: 0.3; }
+    .logo-container { position: relative; z-index: 1; }
+    .prophet-avatar { width: 80px; height: 80px; border-radius: 50%; border: 4px solid rgba(255, 255, 255, 0.3); box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2); object-fit: cover; }
+    .app-name { color: #FFFFFF; font-size: 24px; font-weight: 700; margin-top: 16px; text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2); }
+    .app-tagline { color: rgba(255, 255, 255, 0.9); font-size: 14px; margin-top: 4px; font-style: italic; }
+    .email-body { padding: 40px 32px; color: #5C4D3C; }
+    .greeting { font-size: 20px; font-weight: 600; margin-bottom: 20px; color: #8B7355; }
+    .message { font-size: 16px; line-height: 1.8; margin-bottom: 24px; color: #5C4D3C; }
+    .cta-container { text-align: center; margin: 32px 0; }
+    .cta-button { display: inline-block; background: linear-gradient(135deg, #8B7355 0%, #A89080 100%); color: #FFFFFF !important; text-decoration: none; padding: 16px 40px; border-radius: 50px; font-size: 16px; font-weight: 600; box-shadow: 0 4px 16px rgba(139, 115, 85, 0.3); }
+    .alt-link { text-align: center; margin-top: 24px; padding-top: 24px; border-top: 1px solid #D4C4A8; }
+    .alt-link p { font-size: 13px; color: #6B5D4C; margin-bottom: 8px; }
+    .alt-link a { color: #8B7355; word-break: break-all; font-size: 13px; }
+    .email-footer { background: linear-gradient(135deg, #E8DCC8 0%, #D4C4A8 100%); padding: 24px 32px; text-align: center; border-top: 1px solid #D4C4A8; }
+    .footer-text { font-size: 13px; color: #6B5D4C; margin-bottom: 8px; }
+    .footer-brand { font-size: 14px; font-weight: 600; color: #8B7355; }
+    .footer-verse { font-size: 12px; color: #8B7355; font-style: italic; margin-top: 12px; padding-top: 12px; border-top: 1px dashed rgba(139, 115, 85, 0.3); }
+    .highlight-box { background: rgba(139, 115, 85, 0.08); border-left: 4px solid #8B7355; padding: 20px; margin: 24px 0; border-radius: 0 8px 8px 0; }
+    .invite-icon { font-size: 48px; text-align: center; margin-bottom: 16px; }
+    .welcome-text { font-style: italic; color: #8B7355; text-align: center; margin: 24px 0; font-size: 18px; border-bottom: 1px solid #D4C4A8; padding-bottom: 24px; }
+    .feature-list { list-style: none; padding: 0; margin: 24px 0; }
+    .feature-list li { padding: 8px 0; padding-left: 32px; position: relative; }
+    .feature-list li::before { content: '✝️'; position: absolute; left: 0; }
+    @media (max-width: 600px) { .email-wrapper { margin: 0; border-radius: 0; } .email-body { padding: 32px 24px; } .app-name { font-size: 20px; } .prophet-avatar { width: 64px; height: 64px; } }
+  </style>
+</head>
+<body>
+  <div class="email-wrapper">
+    <!-- Header -->
+    <div class="email-header">
+      <div class="logo-container">
+        <img src="https://wlwwgnimfuvoxjecdnza.supabase.co/storage/v1/object/public/profile-images/avatars/prophet-avatar-1753104005783.png" alt="William Marrion Branham" class="prophet-avatar">
+        <div class="app-name">Falando com o Profeta</div>
+        <div class="app-tagline">Inteligência Artificial Cristã</div>
+      </div>
+    </div>
+
+    <!-- Body -->
+    <div class="email-body">
+      <div class="invite-icon">🤝</div>
+      
+      <div class="greeting">Olá!</div>
+      
+      <div class="welcome-text">
+        "Bem-vindo à família de fé!"
+      </div>
+      
+      <div class="message">
+        Você foi convidado para fazer parte do <strong>Falando com o Profeta</strong>, uma plataforma cristã onde você pode conversar com uma inteligência artificial treinada nas mensagens de <strong>William Marrion Branham</strong>.
+      </div>
+
+      <div class="highlight-box">
+        <p style="margin: 0 0 12px 0; font-weight: 600;">🎁 O que você vai encontrar:</p>
+        <ul class="feature-list">
+          <li>Respostas baseadas na Palavra de Deus</li>
+          <li>Referências bíblicas e mensagens do Profeta</li>
+          <li>Orientação espiritual para sua vida</li>
+          <li>Estudos bíblicos aprofundados</li>
+        </ul>
+      </div>
+
+      <div class="cta-container">
+        <a href="{{ .ConfirmationURL }}" class="cta-button">Aceitar convite e criar conta</a>
+      </div>
+
+      <div class="alt-link">
+        <p>Ou copie este link:</p>
+        <a href="{{ .ConfirmationURL }}">{{ .ConfirmationURL }}</a>
+      </div>
+
+      <div class="message" style="margin-top: 32px; font-size: 14px; color: #6B5D4C;">
+        Este convite expira em 24 horas. Se você não esperava este convite, por favor ignore este email.
+      </div>
+    </div>
+
+    <!-- Footer -->
+    <div class="email-footer">
+      <div class="footer-text">Que Deus abençoe grandemente sua vida,</div>
+      <div class="footer-brand">Equipe Falando com o Profeta</div>
+      <div class="footer-verse">"Eis que estou à porta e bato." - Apocalipse 3:20</div>
+    </div>
+  </div>
+</body>
+</html>
