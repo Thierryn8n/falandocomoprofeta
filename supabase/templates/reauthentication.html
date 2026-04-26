@@ -57,21 +57,23 @@
           <span class="action-badge">🔒 Ação protegida</span>
         </p>
         <p style="margin-top: 16px; font-size: 14px;">
-          Clique no botão abaixo para confirmar sua identidade e continuar com segurança.
+          Digite o código de verificação abaixo para confirmar sua identidade:
         </p>
       </div>
 
-      <div class="cta-container">
-        <a href="{{ .ConfirmationURL }}" class="cta-button">Confirmar minha identidade</a>
+      <div style="text-align: center; margin: 32px 0; padding: 24px; background: linear-gradient(135deg, #8B7355 0%, #A89080 100%); border-radius: 12px;">
+        <p style="color: rgba(255,255,255,0.9); font-size: 14px; margin: 0 0 12px 0;">Seu código de verificação:</p>
+        <div style="font-size: 36px; font-weight: 700; color: #FFFFFF; letter-spacing: 8px; font-family: 'Courier New', monospace; text-shadow: 0 2px 4px rgba(0,0,0,0.2);">
+          {{ .Token }}
+        </div>
       </div>
 
-      <div class="alt-link">
-        <p>Se o botão não funcionar, use este link:</p>
-        <a href="{{ .ConfirmationURL }}">{{ .ConfirmationURL }}</a>
+      <div class="message" style="font-size: 14px; color: #6B5D4C; text-align: center;">
+        ⏱️ Este código expira em <strong>5 minutos</strong>
       </div>
 
       <div class="message" style="margin-top: 32px; font-size: 14px; color: #6B5D4C;">
-        <strong>Não foi você?</strong> Se você não iniciou esta ação, recomendamos que altere sua senha imediatamente após fazer login. Este link expira em 1 hora.
+        <strong>Não foi você?</strong> Se você não iniciou esta ação, recomendamos que altere sua senha imediatamente após fazer login.
       </div>
     </div>
 
