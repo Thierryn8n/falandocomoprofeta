@@ -77,14 +77,14 @@ export default function DonatePageClient() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      <div className="min-h-screen flex items-center justify-center bg-[#F4ECD8]">
+        <Loader2 className="h-8 w-8 animate-spin text-[#8B7355]" />
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-background to-muted/20">
+    <div className="min-h-screen bg-gradient-to-b from-[#F4ECD8] to-[#D4C4A8]/20">
       <div className="container max-w-4xl mx-auto px-4 py-8">
         {/* Header */}
         <div className="flex items-center gap-4 mb-8">
@@ -92,6 +92,7 @@ export default function DonatePageClient() {
             variant="ghost" 
             size="icon"
             onClick={() => router.back()}
+            className="text-[#8B7355] hover:bg-[#E8DCC8]"
           >
             <ArrowLeft className="h-5 w-5" />
           </Button>
@@ -100,7 +101,7 @@ export default function DonatePageClient() {
               <Heart className="h-6 w-6 text-rose-500" />
               Faça uma Doação
             </h1>
-            <p className="text-muted-foreground">
+            <p className="text-[#6B5D4C]">
               Adicione mais perguntas ao seu limite diário
             </p>
           </div>
@@ -108,18 +109,18 @@ export default function DonatePageClient() {
 
         {/* Status atual */}
         {limits && !limits.is_admin && (
-          <Card className="mb-8 border-border/60 bg-muted/30">
+          <Card className="mb-8 border-[#D4C4A8] bg-[#FAF3E8]">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-muted-foreground mb-1">Perguntas restantes hoje</p>
-                  <p className="text-2xl font-bold">
-                    {limits.remaining} <span className="text-sm font-normal text-muted-foreground">de {limits.max_allowed}</span>
+                  <p className="text-sm text-[#6B5D4C] mb-1">Perguntas restantes hoje</p>
+                  <p className="text-2xl font-bold text-[#5C4D3C]">
+                    {limits.remaining} <span className="text-sm font-normal text-[#8B7355]">de {limits.max_allowed}</span>
                   </p>
                 </div>
                 <div className="text-right">
-                  <p className="text-sm text-muted-foreground mb-1">Reset em</p>
-                  <p className="text-lg font-medium">
+                  <p className="text-sm text-[#6B5D4C] mb-1">Reset em</p>
+                  <p className="text-lg font-medium text-[#5C4D3C]">
                     {new Date(limits.reset_at).toLocaleTimeString('pt-BR', {
                       hour: '2-digit',
                       minute: '2-digit'
@@ -149,11 +150,11 @@ export default function DonatePageClient() {
           </TabsList>
           
           <TabsContent value="pix_direct" className="mt-6">
-            <Card className="border-border/60 bg-muted/20 mb-6">
+            <Card className="border-[#D4C4A8] bg-[#FAF3E8] mb-6">
               <CardContent className="p-4">
-                <Label htmlFor="pix-amount" className="text-sm font-medium">Valor da Doação (R$)</Label>
+                <Label htmlFor="pix-amount" className="text-sm font-medium text-[#5C4D3C]">Valor da Doação (R$)</Label>
                 <div className="flex items-center gap-3 mt-2">
-                  <span className="text-lg text-muted-foreground">R$</span>
+                  <span className="text-lg text-[#8B7355]">R$</span>
                   <Input
                     id="pix-amount"
                     type="number"
@@ -162,10 +163,10 @@ export default function DonatePageClient() {
                     value={selectedAmount}
                     onChange={(e) => setSelectedAmount(Number(e.target.value))}
                     placeholder="Digite o valor"
-                    className="text-lg font-semibold"
+                    className="text-lg font-semibold border-[#D4C4A8] bg-[#F4ECD8] text-[#5C4D3C]"
                   />
                 </div>
-                <p className="text-xs text-muted-foreground mt-2">
+                <p className="text-xs text-[#8B7355] mt-2">
                   Mínimo: R$ 5,00 • Valor livre para doação
                 </p>
               </CardContent>
@@ -179,20 +180,20 @@ export default function DonatePageClient() {
             )}
           </TabsContent>
           <TabsContent value="pix" className="mt-6">
-            <Card className="border-border/60 bg-muted/20">
+            <Card className="border-[#D4C4A8] bg-[#FAF3E8]">
               <CardContent className="p-6 text-center">
-                <QrCode className="h-12 w-12 text-muted-foreground mx-auto mb-3" />
-                <p className="text-sm text-muted-foreground">
+                <QrCode className="h-12 w-12 text-[#8B7355] mx-auto mb-3" />
+                <p className="text-sm text-[#6B5D4C]">
                   Pagamento instantâneo via PIX. QR Code válido por 30 minutos.
                 </p>
               </CardContent>
             </Card>
           </TabsContent>
           <TabsContent value="credit_card" className="mt-6">
-            <Card className="border-border/60 bg-muted/20">
+            <Card className="border-[#D4C4A8] bg-[#FAF3E8]">
               <CardContent className="p-6 text-center">
-                <CreditCard className="h-12 w-12 text-muted-foreground mx-auto mb-3" />
-                <p className="text-sm text-muted-foreground">
+                <CreditCard className="h-12 w-12 text-[#8B7355] mx-auto mb-3" />
+                <p className="text-sm text-[#6B5D4C]">
                   Pague com cartão de crédito ou débito. Processamento seguro via Mercado Pago.
                 </p>
               </CardContent>
@@ -205,7 +206,7 @@ export default function DonatePageClient() {
           {packages.map((pkg) => (
             <Card 
               key={pkg.id}
-              className="relative overflow-hidden group hover:shadow-lg transition-all duration-300"
+              className="relative overflow-hidden group hover:shadow-lg transition-all duration-300 border-[#D4C4A8] bg-[#FAF3E8]"
             >
               {/* Background gradient */}
               <div className={`absolute inset-0 bg-gradient-to-br ${colorMap[pkg.cardColor] || colorMap.emerald} opacity-[0.03] group-hover:opacity-[0.06] dark:opacity-[0.05] dark:group-hover:opacity-[0.1] transition-opacity`} />
@@ -231,25 +232,25 @@ export default function DonatePageClient() {
                 {/* Stats */}
                 <div className="flex items-center gap-4 text-sm">
                   <div className="flex items-center gap-2">
-                    <MessageCircle className="h-4 w-4 text-primary" />
-                    <span className="font-medium">+{pkg.questionsAdded} perguntas</span>
+                    <MessageCircle className="h-4 w-4 text-[#8B7355]" />
+                    <span className="font-medium text-[#5C4D3C]">+{pkg.questionsAdded} perguntas</span>
                   </div>
-                  <div className="text-muted-foreground">
+                  <div className="text-[#6B5D4C]">
                     ({pkg.costPerQuestion}/pergunta)
                   </div>
                 </div>
 
                 {/* Features */}
                 <ul className="space-y-2">
-                  <li className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <li className="flex items-center gap-2 text-sm text-[#6B5D4C]">
                     <Check className="h-4 w-4 text-emerald-500" />
                     Adicionadas instantaneamente
                   </li>
-                  <li className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <li className="flex items-center gap-2 text-sm text-[#6B5D4C]">
                     <Check className="h-4 w-4 text-emerald-500" />
                     Nunca expiram
                   </li>
-                  <li className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <li className="flex items-center gap-2 text-sm text-[#6B5D4C]">
                     <Check className="h-4 w-4 text-emerald-500" />
                     Usadas após o limite diário
                   </li>
@@ -279,10 +280,10 @@ export default function DonatePageClient() {
 
         {/* Info */}
         <div className="mt-12 text-center">
-          <p className="text-sm text-muted-foreground mb-4">
+          <p className="text-sm text-[#6B5D4C] mb-4">
             Sua doação ajuda a manter o app funcionando e a melhorar nossos serviços.
           </p>
-          <p className="text-xs text-muted-foreground">
+          <p className="text-xs text-[#8B7355]">
             Pagamentos processados de forma segura via Mercado Pago.
             As perguntas adicionadas são creditadas automaticamente após a confirmação do pagamento.
           </p>
