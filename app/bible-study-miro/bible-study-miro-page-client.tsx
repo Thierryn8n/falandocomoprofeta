@@ -1045,26 +1045,26 @@ export default function BibleStudyMiroPageClient() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background to-muted/20 p-8">
+    <div className="min-h-screen bg-gradient-to-br from-[#F4ECD8] to-[#D4C4A8]/20 p-8">
       <div className="max-w-4xl mx-auto">
         <div className="text-center mb-12">
-          <div className="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-br from-primary to-primary/80 rounded-3xl mb-6">
-            <span className="text-primary-foreground text-3xl">📖</span>
+          <div className="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-br from-[#8B7355] to-[#A89080] rounded-3xl mb-6">
+            <span className="text-white text-3xl">📖</span>
           </div>
-          <h1 className="text-5xl font-bold bg-gradient-to-r from-foreground to-muted-foreground bg-clip-text text-transparent mb-4">
+          <h1 className="text-5xl font-bold bg-gradient-to-r from-[#5C4D3C] to-[#6B5D4C] bg-clip-text text-transparent mb-4">
             Estudos Bíblicos — Modo Miro
           </h1>
-          <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
+          <p className="text-xl text-[#6B5D4C] max-w-2xl mx-auto">
             Canvas interativo com IA, tema do painel e auxílio do Profeta
           </p>
         </div>
 
         <div className="relative">
-          <div className="absolute inset-0 bg-gradient-to-r from-primary/10 via-primary/5 to-transparent rounded-3xl blur-3xl" />
-          <div className="relative bg-card/80 backdrop-blur-sm border border-border/50 rounded-3xl shadow-2xl p-10 mb-10">
+          <div className="absolute inset-0 bg-gradient-to-r from-[#8B7355]/10 via-[#8B7355]/5 to-transparent rounded-3xl blur-3xl" />
+          <div className="relative bg-[#FAF3E8]/80 backdrop-blur-sm border border-[#D4C4A8]/50 rounded-3xl shadow-2xl p-10 mb-10">
             <div className="text-center mb-10">
-              <h2 className="text-3xl font-bold mb-2">Criar painel ou abrir existente</h2>
-              <p className="text-muted-foreground">
+              <h2 className="text-3xl font-bold mb-2 text-[#5C4D3C]">Criar painel ou abrir existente</h2>
+              <p className="text-[#6B5D4C]">
                 Mesmo fluxo do estudo bíblico: duas etapas para configurar versão e Profeta
               </p>
             </div>
@@ -1124,7 +1124,7 @@ export default function BibleStudyMiroPageClient() {
                     onChange={(e) =>
                       setPanelConfig({ ...panelConfig, bible_version: e.target.value })
                     }
-                    className="w-full h-12 px-4 border border-border rounded-xl bg-background"
+                    className="w-full h-12 px-4 border border-[#D4C4A8] rounded-xl bg-[#F4ECD8] text-[#5C4D3C]"
                   >
                     {bibleVersions.map((v) => (
                       <option key={v} value={v}>
@@ -1133,7 +1133,7 @@ export default function BibleStudyMiroPageClient() {
                     ))}
                   </select>
                 </div>
-                <div className="bg-gradient-to-r from-primary/5 to-primary/10 border border-primary/20 p-6 rounded-2xl">
+                <div className="bg-gradient-to-r from-[#8B7355]/5 to-[#8B7355]/10 border border-[#8B7355]/20 p-6 rounded-2xl">
                   <div className="flex items-start gap-4">
                     <Checkbox
                       id="prophet_assistance"
@@ -1143,20 +1143,20 @@ export default function BibleStudyMiroPageClient() {
                       }
                     />
                     <div>
-                      <Label htmlFor="prophet_assistance" className="text-base font-semibold cursor-pointer">
+                      <Label htmlFor="prophet_assistance" className="text-base font-semibold cursor-pointer text-[#5C4D3C]">
                         Auxílio do Profeta Branham
                       </Label>
-                      <p className="text-sm text-muted-foreground mt-1">
+                      <p className="text-sm text-[#6B5D4C] mt-1">
                         Incluir ensinamentos do Profeta William Branham nas respostas da IA
                       </p>
                     </div>
                   </div>
                 </div>
                 <div className="flex gap-4">
-                  <Button type="button" variant="outline" className="flex-1 h-14 rounded-xl" onClick={() => setStep(1)}>
+                  <Button type="button" variant="outline" className="flex-1 h-14 rounded-xl border-[#D4C4A8] text-[#8B7355] hover:bg-[#E8DCC8]" onClick={() => setStep(1)}>
                     Voltar
                   </Button>
-                  <Button type="button" className="flex-1 h-14 rounded-xl font-medium" onClick={createPanel}>
+                  <Button type="button" className="flex-1 h-14 rounded-xl font-medium bg-gradient-to-r from-[#8B7355] to-[#A89080] hover:from-[#7A6545] hover:to-[#978070] text-white" onClick={createPanel}>
                     Criar painel (Modo Miro)
                   </Button>
                 </div>
@@ -1166,31 +1166,31 @@ export default function BibleStudyMiroPageClient() {
         </div>
 
         <div className="max-w-2xl mx-auto">
-          <div className="bg-card rounded-3xl p-8 shadow-2xl border border-border">
-            <h2 className="text-2xl font-bold mb-6 flex items-center gap-3">
-              <BookOpen className="h-6 w-6 text-primary" />
+          <div className="bg-[#FAF3E8] rounded-3xl p-8 shadow-2xl border border-[#D4C4A8]">
+            <h2 className="text-2xl font-bold mb-6 flex items-center gap-3 text-[#5C4D3C]">
+              <BookOpen className="h-6 w-6 text-[#8B7355]" />
               Seus painéis
             </h2>
             <div className="space-y-3 max-h-96 overflow-y-auto">
               {panels.length === 0 ? (
-                <p className="text-muted-foreground text-center py-8">Nenhum painel ainda</p>
+                <p className="text-[#6B5D4C] text-center py-8">Nenhum painel ainda</p>
               ) : (
                 panels.map((panel) => (
                   <button
                     key={panel.id}
                     type="button"
                     onClick={() => loadPanel(panel.id)}
-                    className="w-full text-left p-4 bg-gradient-to-r from-background/50 to-muted/30 border border-border rounded-2xl hover:border-primary/50 hover:shadow-lg transition-all"
+                    className="w-full text-left p-4 bg-gradient-to-r from-[#F4ECD8]/50 to-[#D4C4A8]/30 border border-[#D4C4A8] rounded-2xl hover:border-[#8B7355]/50 hover:shadow-lg transition-all"
                   >
                     <div className="flex items-start justify-between mb-2">
-                      <span className="font-semibold">{panel.title}</span>
-                      <span className="text-xs text-muted-foreground bg-muted/50 px-2 py-1 rounded-full">
+                      <span className="font-semibold text-[#5C4D3C]">{panel.title}</span>
+                      <span className="text-xs text-[#8B7355] bg-[#E8DCC8] px-2 py-1 rounded-full">
                         {panel.status}
                       </span>
                     </div>
-                    <div className="text-sm text-muted-foreground">{panel.bible_version}</div>
+                    <div className="text-sm text-[#6B5D4C]">{panel.bible_version}</div>
                     {panel.prophet_assistance && (
-                      <div className="mt-2 text-xs text-primary">Com auxílio do Profeta</div>
+                      <div className="mt-2 text-xs text-[#8B7355]">Com auxílio do Profeta</div>
                     )}
                   </button>
                 ))
