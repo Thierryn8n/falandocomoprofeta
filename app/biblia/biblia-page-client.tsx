@@ -994,7 +994,7 @@ export default function BibliaPageClient() {
                         className={cn(
                           "p-3 rounded-xl text-left transition-all border-2",
                           theme === key 
-                            ? "ring-2 ring-offset-2 ring-primary border-primary" 
+                            ? "ring-2 ring-offset-2 ring-[#8B7355] border-[#8B7355]" 
                             : "border-transparent hover:scale-[1.02]"
                         )}
                         style={{
@@ -1037,17 +1037,17 @@ export default function BibliaPageClient() {
                     <button
                       onClick={() => setFontFamily("serif")}
                       className={cn(
-                        "flex-1 p-4 rounded-xl text-left transition-all border-2",
-                        fontFamily === "serif" 
-                          ? "ring-2 ring-offset-2 ring-primary border-primary bg-muted" 
-                          : cn(currentTheme.card, "hover:opacity-80")
+                        "p-3 rounded-xl text-left transition-all border-2",
+                        fontFamily === "serif"
+                          ? "ring-2 ring-offset-2 ring-[#8B7355] border-[#8B7355] bg-[#E8DCC8]" 
+                          : "border-transparent hover:scale-[1.02]"
                       )}
                     >
                       <div className="font-serif text-2xl mb-1" style={{ color: currentTheme.previewAccent }}>Aa</div>
                       <div className={cn("font-medium font-serif", currentTheme.text)}>Serifada</div>
                       <div className={cn("text-xs", currentTheme.muted)}>Estilo tradicional de Bíblia</div>
                       {fontFamily === "serif" && (
-                        <div className="mt-2 text-xs font-medium px-2 py-0.5 rounded-full inline-block bg-primary text-primary-foreground">
+                        <div className="mt-2 text-xs font-medium px-2 py-0.5 rounded-full inline-block bg-[#8B7355] text-white">
                           ✓ Ativo
                         </div>
                       )}
@@ -1055,17 +1055,17 @@ export default function BibliaPageClient() {
                     <button
                       onClick={() => setFontFamily("sans")}
                       className={cn(
-                        "flex-1 p-4 rounded-xl text-left transition-all border-2",
-                        fontFamily === "sans" 
-                          ? "ring-2 ring-offset-2 ring-primary border-primary bg-muted" 
-                          : cn(currentTheme.card, "hover:opacity-80")
+                        "p-3 rounded-xl text-left transition-all border-2",
+                        fontFamily === "sans"
+                          ? "ring-2 ring-offset-2 ring-[#8B7355] border-[#8B7355] bg-[#E8DCC8]" 
+                          : "border-transparent hover:scale-[1.02]"
                       )}
                     >
                       <div className="font-sans text-2xl mb-1" style={{ color: currentTheme.previewAccent }}>Aa</div>
                       <div className={cn("font-medium font-sans", currentTheme.text)}>Sem serifa</div>
                       <div className={cn("text-xs", currentTheme.muted)}>Estilo moderno e limpo</div>
                       {fontFamily === "sans" && (
-                        <div className="mt-2 text-xs font-medium px-2 py-0.5 rounded-full inline-block bg-primary text-primary-foreground">
+                        <div className="mt-2 text-xs font-medium px-2 py-0.5 rounded-full inline-block bg-[#8B7355] text-white">
                           ✓ Ativo
                         </div>
                       )}
@@ -1124,7 +1124,7 @@ export default function BibliaPageClient() {
                         "group flex gap-2 sm:gap-3 p-2 sm:p-3 rounded-lg transition-all",
                         bookmarkedVerses.includes(verse.verse) && "bg-primary/20",
                         currentSpeakingVerse === verse.verse && cn(
-                          "ring-2 ring-primary scale-105 shadow-lg",
+                          "ring-2 ring-[#8B7355] scale-105 shadow-lg",
                           currentTheme.card
                         )
                       )}
@@ -1149,7 +1149,7 @@ export default function BibliaPageClient() {
                             className={cn(
                               "h-3.5 w-3.5 sm:h-4 sm:w-4",
                               bookmarkedVerses.includes(verse.verse) 
-                                ? "fill-primary text-primary" 
+                                ? "fill-[#8B7355] text-[#8B7355]" 
                                 : currentTheme.text
                             )} 
                           />
@@ -1280,7 +1280,7 @@ export default function BibliaPageClient() {
             <div className={cn("text-xs p-3 rounded-lg", currentTheme.card, currentTheme.muted)}>
               ☁️ Usando Google Cloud Text-to-Speech
               <br />
-              <span className="text-primary">Vozes naturais Neural2 & WaveNet</span>
+              <span className="text-[#8B7355]">Vozes naturais Neural2 & WaveNet</span>
             </div>
 
             {/* Seletor de Voz */}
@@ -1294,7 +1294,7 @@ export default function BibliaPageClient() {
                     currentTheme.card,
                     currentTheme.border,
                     currentTheme.text,
-                    "focus:outline-none focus:ring-2 focus:ring-primary"
+                    "focus:outline-none focus:ring-2 focus:ring-[#8B7355]"
                   )}
                 >
                   <option value="pt-BR-Neural2-B">👨 Masculina - Neural2 (Natural)</option>
