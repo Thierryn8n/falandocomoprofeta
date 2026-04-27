@@ -2,86 +2,20 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
+import { Card, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { 
-  Gift, 
-  Heart, 
-  MessageCircle, 
-  Sparkles, 
-  Crown, 
-  ArrowLeft, 
-  CreditCard, 
-  QrCode,
-  Check,
-  Loader2,
-  Upload
-} from 'lucide-react'
-import { useDonationPackages } from '@/hooks/use-donation-packages'
+import { Button } from '@/components/ui/button'
+import { Heart, ArrowLeft } from 'lucide-react'
 import { useQuestionLimits } from '@/hooks/use-question-limits'
 import { useSupabaseAuth } from '@/hooks/use-supabase-auth'
 import { PixDirectTab } from './pix-direct-tab'
-import { toast } from 'sonner'
-
-const iconMap: Record<string, React.ReactNode> = {
-  'message-circle': <MessageCircle className="h-6 w-6" />,
-  'message-square': <MessageCircle className="h-6 w-6" />,
-  'sparkles': <Sparkles className="h-6 w-6" />,
-  'crown': <Crown className="h-6 w-6" />,
-  'gift': <Gift className="h-6 w-6" />,
-  'heart': <Heart className="h-6 w-6" />
-}
-
-const colorMap: Record<string, string> = {
-  'amber': 'from-amber-500 to-orange-500',
-  'slate': 'from-slate-500 to-gray-500',
-  'yellow': 'from-yellow-400 to-yellow-600',
-  'emerald': 'from-emerald-500 to-teal-500',
-  'blue': 'from-blue-500 to-cyan-500',
-  'purple': 'from-purple-500 to-pink-500'
-}
 
 export default function DonatePageClient() {
   const router = useRouter()
-  const { packages, loading, createDonation, processingPackage } = useDonationPackages()
   const { limits, refresh } = useQuestionLimits()
   const { user } = useSupabaseAuth()
-  const [selectedPackage, setSelectedPackage] = useState<string | null>(null)
-  const [paymentMethod, setPaymentMethod] = useState<'pix' | 'credit_card' | 'pix_direct'>('pix')
   const [selectedAmount, setSelectedAmount] = useState<number>(10)
-
-  const handleDonate = async (pkg: any) => {
-    setSelectedPackage(pkg.id)
-    
-    const result = await createDonation(pkg.id, paymentMethod)
-    
-    if (result) {
-      toast.success('Redirecionando para o pagamento...')
-      // Abrir checkout do Mercado Pago
-      window.open(result.initPoint, '_blank')
-      
-      // Atualizar limites após um tempo
-      setTimeout(() => {
-        refresh()
-      }, 5000)
-    } else {
-      toast.error('Erro ao criar doação. Tente novamente.')
-    }
-    
-    setSelectedPackage(null)
-  }
-
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-[#F4ECD8]">
-        <Loader2 className="h-8 w-8 animate-spin text-[#8B7355]" />
-      </div>
-    )
-  }
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-[#F4ECD8] to-[#D4C4A8]/20">
@@ -132,151 +66,35 @@ export default function DonatePageClient() {
           </Card>
         )}
 
-        {/* Método de pagamento */}
-        <Tabs value={paymentMethod} onValueChange={(v) => setPaymentMethod(v as 'pix' | 'credit_card' | 'pix_direct')} className="mb-8">
-          <TabsList className="grid w-full max-w-md mx-auto grid-cols-3">
-            <TabsTrigger value="pix_direct" className="gap-2">
-              <Upload className="h-4 w-4" />
-              PIX Direto
-            </TabsTrigger>
-            <TabsTrigger value="pix" className="gap-2">
-              <QrCode className="h-4 w-4" />
-              PIX MP
-            </TabsTrigger>
-            <TabsTrigger value="credit_card" className="gap-2">
-              <CreditCard className="h-4 w-4" />
-              Cartão
-            </TabsTrigger>
-          </TabsList>
-          
-          <TabsContent value="pix_direct" className="mt-6">
-            <Card className="border-[#D4C4A8] bg-[#FAF3E8] mb-6">
-              <CardContent className="p-4">
-                <Label htmlFor="pix-amount" className="text-sm font-medium text-[#5C4D3C]">Valor da Doação (R$)</Label>
-                <div className="flex items-center gap-3 mt-2">
-                  <span className="text-lg text-[#8B7355]">R$</span>
-                  <Input
-                    id="pix-amount"
-                    type="number"
-                    min="5"
-                    step="1"
-                    value={selectedAmount}
-                    onChange={(e) => setSelectedAmount(Number(e.target.value))}
-                    placeholder="Digite o valor"
-                    className="text-lg font-semibold border-[#D4C4A8] bg-[#F4ECD8] text-[#5C4D3C]"
-                  />
-                </div>
-                <p className="text-xs text-[#8B7355] mt-2">
-                  Mínimo: R$ 5,00 • Valor livre para doação
-                </p>
-              </CardContent>
-            </Card>
-            {paymentMethod === 'pix_direct' && user && (
-              <PixDirectTab 
-                amount={selectedAmount} 
-                userEmail={user.email || ''} 
-                userName={user.user_metadata?.full_name || user.email?.split('@')[0] || ''} 
+        {/* Valor da Doação - PIX Direto */}
+        <Card className="border-[#D4C4A8] bg-[#FAF3E8] mb-6">
+          <CardContent className="p-4">
+            <Label htmlFor="pix-amount" className="text-sm font-medium text-[#5C4D3C]">Valor da Doação (R$)</Label>
+            <div className="flex items-center gap-3 mt-2">
+              <span className="text-lg text-[#8B7355]">R$</span>
+              <Input
+                id="pix-amount"
+                type="number"
+                min="5"
+                step="1"
+                value={selectedAmount}
+                onChange={(e) => setSelectedAmount(Number(e.target.value))}
+                placeholder="Digite o valor"
+                className="text-lg font-semibold border-[#D4C4A8] bg-[#F4ECD8] text-[#5C4D3C]"
               />
-            )}
-          </TabsContent>
-          <TabsContent value="pix" className="mt-6">
-            <Card className="border-[#D4C4A8] bg-[#FAF3E8]">
-              <CardContent className="p-6 text-center">
-                <QrCode className="h-12 w-12 text-[#8B7355] mx-auto mb-3" />
-                <p className="text-sm text-[#6B5D4C]">
-                  Pagamento instantâneo via PIX. QR Code válido por 30 minutos.
-                </p>
-              </CardContent>
-            </Card>
-          </TabsContent>
-          <TabsContent value="credit_card" className="mt-6">
-            <Card className="border-[#D4C4A8] bg-[#FAF3E8]">
-              <CardContent className="p-6 text-center">
-                <CreditCard className="h-12 w-12 text-[#8B7355] mx-auto mb-3" />
-                <p className="text-sm text-[#6B5D4C]">
-                  Pague com cartão de crédito ou débito. Processamento seguro via Mercado Pago.
-                </p>
-              </CardContent>
-            </Card>
-          </TabsContent>
-        </Tabs>
-
-        {/* Pacotes */}
-        <div className="grid gap-6 md:grid-cols-2">
-          {packages.map((pkg) => (
-            <Card 
-              key={pkg.id}
-              className="relative overflow-hidden group hover:shadow-lg transition-all duration-300 border-[#D4C4A8] bg-[#FAF3E8]"
-            >
-              {/* Background gradient */}
-              <div className={`absolute inset-0 bg-gradient-to-br ${colorMap[pkg.cardColor] || colorMap.emerald} opacity-[0.03] group-hover:opacity-[0.06] dark:opacity-[0.05] dark:group-hover:opacity-[0.1] transition-opacity`} />
-              
-              <CardHeader className="relative">
-                <div className="flex items-start justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className={`p-3 rounded-xl bg-gradient-to-br ${colorMap[pkg.cardColor] || colorMap.emerald} text-white`}>
-                      {iconMap[pkg.icon] || <Gift className="h-6 w-6" />}
-                    </div>
-                    <div>
-                      <CardTitle className="text-lg">{pkg.name}</CardTitle>
-                      <CardDescription>{pkg.description}</CardDescription>
-                    </div>
-                  </div>
-                  <Badge variant="secondary" className="text-lg font-bold">
-                    R$ {pkg.price.toFixed(2)}
-                  </Badge>
-                </div>
-              </CardHeader>
-              
-              <CardContent className="relative space-y-4">
-                {/* Stats */}
-                <div className="flex items-center gap-4 text-sm">
-                  <div className="flex items-center gap-2">
-                    <MessageCircle className="h-4 w-4 text-[#8B7355]" />
-                    <span className="font-medium text-[#5C4D3C]">+{pkg.questionsAdded} perguntas</span>
-                  </div>
-                  <div className="text-[#6B5D4C]">
-                    ({pkg.costPerQuestion}/pergunta)
-                  </div>
-                </div>
-
-                {/* Features */}
-                <ul className="space-y-2">
-                  <li className="flex items-center gap-2 text-sm text-[#6B5D4C]">
-                    <Check className="h-4 w-4 text-emerald-500" />
-                    Adicionadas instantaneamente
-                  </li>
-                  <li className="flex items-center gap-2 text-sm text-[#6B5D4C]">
-                    <Check className="h-4 w-4 text-emerald-500" />
-                    Nunca expiram
-                  </li>
-                  <li className="flex items-center gap-2 text-sm text-[#6B5D4C]">
-                    <Check className="h-4 w-4 text-emerald-500" />
-                    Usadas após o limite diário
-                  </li>
-                </ul>
-
-                <Button 
-                  className={`w-full gap-2 bg-gradient-to-r ${colorMap[pkg.cardColor] || colorMap.emerald} hover:opacity-90`}
-                  onClick={() => handleDonate(pkg)}
-                  disabled={processingPackage === pkg.id}
-                >
-                  {processingPackage === pkg.id ? (
-                    <>
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                      Processando...
-                    </>
-                  ) : (
-                    <>
-                      <Heart className="h-4 w-4" />
-                      Doar R$ {pkg.price.toFixed(2)}
-                    </>
-                  )}
-                </Button>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
+            </div>
+            <p className="text-xs text-[#8B7355] mt-2">
+              Mínimo: R$ 5,00 • Valor livre para doação via PIX
+            </p>
+          </CardContent>
+        </Card>
+        {user && (
+          <PixDirectTab 
+            amount={selectedAmount} 
+            userEmail={user.email || ''} 
+            userName={user.user_metadata?.full_name || user.email?.split('@')[0] || ''} 
+          />
+        )}
 
         {/* Info */}
         <div className="mt-12 text-center">
@@ -284,8 +102,7 @@ export default function DonatePageClient() {
             Sua doação ajuda a manter o app funcionando e a melhorar nossos serviços.
           </p>
           <p className="text-xs text-[#8B7355]">
-            Pagamentos processados de forma segura via Mercado Pago.
-            As perguntas adicionadas são creditadas automaticamente após a confirmação do pagamento.
+            Pagamentos processados via PIX direto. As perguntas adicionadas são creditadas automaticamente após a confirmação do pagamento.
           </p>
         </div>
       </div>
