@@ -230,8 +230,8 @@ export function PixDirectTab({ amount, userEmail, userName }: PixDirectTabProps)
   if (loading) {
     return (
       <div className="flex flex-col items-center justify-center py-16 gap-4">
-        <Loader2 className="h-10 w-10 animate-spin text-primary" />
-        <p className="text-sm text-muted-foreground">Carregando configurações PIX...</p>
+        <Loader2 className="h-10 w-10 animate-spin text-[#8B7355]" />
+        <p className="text-sm text-[#6B5D4C]">Carregando configurações PIX...</p>
       </div>
     )
   }
@@ -252,25 +252,25 @@ export function PixDirectTab({ amount, userEmail, userName }: PixDirectTabProps)
     <div className="space-y-6 max-w-2xl mx-auto">
       {/* Header com valor */}
       <div className="text-center space-y-2">
-        <Badge variant="secondary" className="text-lg px-4 py-1.5">
+        <Badge variant="secondary" className="text-lg px-4 py-1.5 bg-[#E8DCC8] text-[#5C4D3C] border-[#D4C4A8]">
           <Banknote className="h-4 w-4 mr-2" />
           Valor: R$ {amount.toFixed(2)}
         </Badge>
-        <p className="text-sm text-muted-foreground">
+        <p className="text-sm text-[#6B5D4C]">
           Sua doação será processada após confirmação do comprovante
         </p>
       </div>
 
       {/* QR Code e Chave PIX */}
-      <Card className="border-border/60 shadow-sm">
+      <Card className="border-[#D4C4A8] shadow-sm bg-[#FAF3E8]">
         <CardHeader className="pb-4">
           <div className="flex items-center gap-3">
-            <div className="p-2 rounded-lg bg-primary/10">
-              <ScanLine className="h-5 w-5 text-primary" />
+            <div className="p-2 rounded-lg bg-[#8B7355]/10">
+              <ScanLine className="h-5 w-5 text-[#8B7355]" />
             </div>
             <div>
-              <CardTitle className="text-lg">Pague com PIX</CardTitle>
-              <CardDescription className="text-xs">
+              <CardTitle className="text-lg text-[#5C4D3C]">Pague com PIX</CardTitle>
+              <CardDescription className="text-xs text-[#6B5D4C]">
                 Escaneie o QR Code ou use a chave PIX
               </CardDescription>
             </div>
@@ -279,22 +279,22 @@ export function PixDirectTab({ amount, userEmail, userName }: PixDirectTabProps)
         <CardContent className="space-y-6">
           {/* QR Code Placeholder melhorado */}
           <div className="flex justify-center">
-            <div className="relative bg-background p-5 rounded-xl border border-border/80 shadow-sm">
+            <div className="relative bg-[#F4ECD8] p-5 rounded-xl border border-[#D4C4A8] shadow-sm">
               {/* Borda decorativa */}
-              <div className="absolute inset-0 rounded-xl border-2 border-dashed border-primary/20 m-1" />
+              <div className="absolute inset-0 rounded-xl border-2 border-dashed border-[#8B7355]/20 m-1" />
               
-              <div className="relative w-44 h-44 bg-muted rounded-lg flex flex-col items-center justify-center gap-3">
-                <div className="p-4 rounded-full bg-primary/10">
-                  <QrCode className="h-12 w-12 text-primary" />
+              <div className="relative w-44 h-44 bg-[#E8DCC8] rounded-lg flex flex-col items-center justify-center gap-3">
+                <div className="p-4 rounded-full bg-[#8B7355]/10">
+                  <QrCode className="h-12 w-12 text-[#8B7355]" />
                 </div>
-                <p className="text-xs text-muted-foreground font-medium text-center px-4">
+                <p className="text-xs text-[#6B5D4C] font-medium text-center px-4">
                   QR Code será gerado aqui
                 </p>
               </div>
               
               {/* Badge de valor */}
               <div className="absolute -bottom-3 left-1/2 -translate-x-1/2">
-                <Badge variant="outline" className="bg-background shadow-sm">
+                <Badge variant="outline" className="bg-[#FAF3E8] shadow-sm border-[#D4C4A8] text-[#5C4D3C]">
                   R$ {amount.toFixed(2)}
                 </Badge>
               </div>
@@ -305,9 +305,9 @@ export function PixDirectTab({ amount, userEmail, userName }: PixDirectTabProps)
 
           {/* Chave PIX */}
           <div className="space-y-3">
-            <Label className="text-sm font-medium flex items-center gap-2">
+            <Label className="text-sm font-medium flex items-center gap-2 text-[#5C4D3C]">
               <span>Chave PIX</span>
-              <Badge variant="secondary" className="text-[10px] font-normal">
+              <Badge variant="secondary" className="text-[10px] font-normal bg-[#E8DCC8] text-[#5C4D3C] border-[#D4C4A8]">
                 {settings.pix_key_type}
               </Badge>
             </Label>
@@ -315,18 +315,18 @@ export function PixDirectTab({ amount, userEmail, userName }: PixDirectTabProps)
               <Input
                 value={settings.pix_key}
                 readOnly
-                className="font-mono text-sm bg-muted/50 border-border/60"
+                className="font-mono text-sm bg-[#E8DCC8] border-[#D4C4A8] text-[#5C4D3C]"
               />
               <Button
                 variant="outline"
                 size="icon"
                 onClick={copyPixKey}
-                className={copied ? 'bg-primary/10 border-primary/30 text-primary' : 'hover:bg-muted'}
+                className={copied ? 'bg-[#8B7355]/10 border-[#8B7355]/30 text-[#8B7355]' : 'hover:bg-[#E8DCC8] border-[#D4C4A8] text-[#8B7355]'}
               >
                 {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
               </Button>
             </div>
-            <p className="text-xs text-muted-foreground">
+            <p className="text-xs text-[#6B5D4C]">
               Beneficiário: <span className="font-medium text-foreground">{settings.beneficiary_name}</span>
             </p>
           </div>
@@ -358,9 +358,9 @@ export function PixDirectTab({ amount, userEmail, userName }: PixDirectTabProps)
           </div>
 
           {/* Instruções */}
-          <Alert className="bg-muted/50 border-border/60">
-            <MessageSquare className="h-4 w-4 text-muted-foreground" />
-            <AlertDescription className="text-sm text-muted-foreground">
+          <Alert className="bg-[#E8DCC8] border-[#D4C4A8]/60">
+            <MessageSquare className="h-4 w-4 text-[#8B7355]" />
+            <AlertDescription className="text-sm text-[#6B5D4C]">
               {settings.instructions}
             </AlertDescription>
           </Alert>
@@ -368,15 +368,15 @@ export function PixDirectTab({ amount, userEmail, userName }: PixDirectTabProps)
       </Card>
 
       {/* Upload de Comprovante */}
-      <Card className="border-border/60 shadow-sm">
+      <Card className="border-[#D4C4A8] shadow-sm bg-[#FAF3E8]">
         <CardHeader className="pb-4">
           <div className="flex items-center gap-3">
-            <div className="p-2 rounded-lg bg-primary/10">
-              <ShieldCheck className="h-5 w-5 text-primary" />
+            <div className="p-2 rounded-lg bg-[#8B7355]/10">
+              <ShieldCheck className="h-5 w-5 text-[#8B7355]" />
             </div>
             <div>
-              <CardTitle className="text-lg">Validação por IA</CardTitle>
-              <CardDescription className="text-xs">
+              <CardTitle className="text-lg text-[#5C4D3C]">Validação por IA</CardTitle>
+              <CardDescription className="text-xs text-[#6B5D4C]">
                 Envie o comprovante para liberação automática
               </CardDescription>
             </div>
@@ -388,8 +388,8 @@ export function PixDirectTab({ amount, userEmail, userName }: PixDirectTabProps)
               <div 
                 className={`border-2 border-dashed rounded-xl p-8 text-center transition-all duration-200 ${
                   receiptFile 
-                    ? 'border-primary/30 bg-primary/5' 
-                    : 'border-border/60 hover:border-primary/40 hover:bg-muted/30'
+                    ? 'border-[#8B7355]/30 bg-[#8B7355]/5' 
+                    : 'border-[#D4C4A8]/60 hover:border-[#8B7355]/40 hover:bg-[#E8DCC8]/30'
                 }`}
               >
                 <input
@@ -403,32 +403,32 @@ export function PixDirectTab({ amount, userEmail, userName }: PixDirectTabProps)
                   <div className="flex flex-col items-center gap-3">
                     {receiptFile ? (
                       <>
-                        <div className="p-3 rounded-full bg-primary/10">
+                        <div className="p-3 rounded-full bg-[#8B7355]/10">
                           {receiptFile.type.includes('pdf') ? (
-                            <FileText className="h-8 w-8 text-primary" />
+                            <FileText className="h-8 w-8 text-[#8B7355]" />
                           ) : (
-                            <ImageIcon className="h-8 w-8 text-primary" />
+                            <ImageIcon className="h-8 w-8 text-[#8B7355]" />
                           )}
                         </div>
                         <div className="space-y-1">
-                          <p className="text-sm font-medium text-foreground">{receiptFile.name}</p>
-                          <p className="text-xs text-muted-foreground">
+                          <p className="text-sm font-medium text-[#5C4D3C]">{receiptFile.name}</p>
+                          <p className="text-xs text-[#6B5D4C]">
                             {(receiptFile.size / 1024 / 1024).toFixed(2)} MB
                           </p>
                         </div>
-                      </>
+                      </> 
                     ) : (
                       <>
-                        <div className="p-3 rounded-full bg-muted">
-                          <Upload className="h-8 w-8 text-muted-foreground" />
+                        <div className="p-3 rounded-full bg-[#E8DCC8]">
+                          <Upload className="h-8 w-8 text-[#8B7355]" />
                         </div>
                         <div className="space-y-1">
-                          <p className="text-sm font-medium">Clique para anexar comprovante</p>
-                          <p className="text-xs text-muted-foreground">
+                          <p className="text-sm font-medium text-[#5C4D3C]">Clique para anexar comprovante</p>
+                          <p className="text-xs text-[#6B5D4C]">
                             Formatos: JPG, PNG ou PDF • Máx. 10MB
                           </p>
                         </div>
-                      </>
+                      </> 
                     )}
                   </div>
                 </label>
