@@ -148,26 +148,26 @@ export default function SettingsPage() {
   const bgColor = getAvatarColor(profile.name || profile.email || "?")
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-[#F4ECD8]">
       {/* Header */}
-      <header className="border-b border-border/40 bg-card/50 sticky top-0 z-10">
+      <header className="border-b border-[#D4C4A8] bg-[#FAF3E8]/50 sticky top-0 z-10">
         <div className="max-w-3xl mx-auto px-4 h-14 flex items-center gap-4">
-          <Button variant="ghost" size="icon" onClick={() => router.push("/")}>
+          <Button variant="ghost" size="icon" onClick={() => router.push("/")} className="text-[#8B7355] hover:bg-[#E8DCC8]">
             <ArrowLeft className="w-5 h-5" />
           </Button>
-          <h1 className="font-semibold">Configurações</h1>
+          <h1 className="font-semibold text-[#5C4D3C]">Configurações</h1>
         </div>
       </header>
 
       <main className="max-w-3xl mx-auto px-4 py-8 space-y-6">
         {/* Profile Card */}
-        <Card>
+        <Card className="border-[#D4C4A8] bg-[#FAF3E8]">
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
+            <CardTitle className="flex items-center gap-2 text-[#5C4D3C]">
               <User className="w-5 h-5" />
               Perfil
             </CardTitle>
-            <CardDescription>
+            <CardDescription className="text-[#6B5D4C]">
               Gerencie suas informações pessoais
             </CardDescription>
           </CardHeader>
@@ -200,9 +200,9 @@ export default function SettingsPage() {
                 </label>
               </div>
               <div>
-                <p className="font-medium">{profile.name || "Sem nome"}</p>
-                <p className="text-sm text-muted-foreground">{profile.email}</p>
-                <p className="text-xs text-muted-foreground mt-1 capitalize">{profile.role}</p>
+                <p className="font-medium text-[#5C4D3C]">{profile.name || "Sem nome"}</p>
+                <p className="text-sm text-[#6B5D4C]">{profile.email}</p>
+                <p className="text-xs text-[#8B7355] mt-1 capitalize">{profile.role}</p>
               </div>
             </div>
 
@@ -210,7 +210,7 @@ export default function SettingsPage() {
 
             {/* Name Field */}
             <div className="space-y-2">
-              <Label htmlFor="name" className="flex items-center gap-2">
+              <Label htmlFor="name" className="flex items-center gap-2 text-[#5C4D3C]">
                 <User className="w-4 h-4" />
                 Nome
               </Label>
@@ -219,12 +219,13 @@ export default function SettingsPage() {
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 placeholder="Seu nome"
+                className="border-[#D4C4A8] bg-[#F4ECD8] text-[#5C4D3C] focus-visible:border-[#8B7355]"
               />
             </div>
 
             {/* Email Field (read-only) */}
             <div className="space-y-2">
-              <Label htmlFor="email" className="flex items-center gap-2">
+              <Label htmlFor="email" className="flex items-center gap-2 text-[#5C4D3C]">
                 <Mail className="w-4 h-4" />
                 Email
               </Label>
@@ -232,14 +233,14 @@ export default function SettingsPage() {
                 id="email"
                 value={profile.email}
                 disabled
-                className="bg-muted"
+                className="bg-[#D4C4A8] text-[#6B5D4C] border-[#D4C4A8]"
               />
             </div>
 
             <Button 
               onClick={handleSave} 
               disabled={saving}
-              className="w-full"
+              className="w-full bg-gradient-to-r from-[#8B7355] to-[#A89080] hover:from-[#7A6545] hover:to-[#978070] text-white"
             >
               {saving ? (
                 <>
@@ -254,13 +255,13 @@ export default function SettingsPage() {
         </Card>
 
         {/* Security Card */}
-        <Card>
+        <Card className="border-[#D4C4A8] bg-[#FAF3E8]">
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
+            <CardTitle className="flex items-center gap-2 text-[#5C4D3C]">
               <Key className="w-5 h-5" />
               Segurança
             </CardTitle>
-            <CardDescription>
+            <CardDescription className="text-[#6B5D4C]">
               Gerencie sua senha e segurança da conta
             </CardDescription>
           </CardHeader>
@@ -268,7 +269,7 @@ export default function SettingsPage() {
             <Button 
               variant="outline" 
               onClick={() => toast.info("Funcionalidade em desenvolvimento")}
-              className="w-full"
+              className="w-full border-[#D4C4A8] text-[#8B7355] hover:bg-[#E8DCC8]"
             >
               Alterar senha
             </Button>

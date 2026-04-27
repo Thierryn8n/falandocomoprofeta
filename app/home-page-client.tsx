@@ -450,9 +450,9 @@ export default function HomePageClient() {
                 variant="outline"
                 size="sm"
                 onClick={() => router.push('/bible-study-miro')}
-                className="gap-2 border-primary/20 hover:bg-primary/10 hover:border-primary/40"
+                className="gap-2 border-[#8B7355]/20 hover:bg-[#8B7355]/10 hover:border-[#8B7355]/40 text-[#8B7355]"
               >
-                <BookOpen className="h-4 w-4 text-primary" />
+                <BookOpen className="h-4 w-4 text-[#8B7355]" />
                 <span className="hidden sm:inline">Estudos Bíblicos</span>
               </Button>
               
@@ -475,8 +475,8 @@ export default function HomePageClient() {
                           className={cn(
                             "p-4 rounded-xl border-2 transition-all",
                             theme === key 
-                              ? "ring-2 ring-offset-2 ring-primary border-primary" 
-                              : "border-border hover:border-primary/50"
+                              ? "ring-2 ring-offset-2 ring-[#8B7355] border-[#8B7355]" 
+                              : "border-border hover:border-[#8B7355]/50"
                           )}
                           style={{ 
                             backgroundColor: style.previewBg,
@@ -524,7 +524,7 @@ export default function HomePageClient() {
                     </Avatar>
                     <div className="flex flex-col space-y-1">
                       <p className="text-sm font-medium leading-none">{profile?.name || user.email?.split("@")[0]}</p>
-                      <p className="text-xs leading-none text-muted-foreground">{user.email}</p>
+                      <p className="text-xs leading-none text-[#8B7355]">{user.email}</p>
                     </div>
                   </div>
                   <DropdownMenuSeparator />

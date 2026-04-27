@@ -39,11 +39,11 @@ export default function LoginPageClient() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/30 flex items-center justify-center p-4 relative overflow-hidden">
+    <div className="min-h-screen bg-gradient-to-br from-[#F4ECD8] via-[#F4ECD8] to-[#D4C4A8]/30 flex items-center justify-center p-4 relative overflow-hidden">
       {/* Animated Background */}
       <div className="fixed inset-0 z-0 overflow-hidden pointer-events-none">
-        <div className="absolute -top-1/2 -left-1/2 w-full h-full bg-gradient-to-br from-primary/5 via-transparent to-transparent rounded-full blur-3xl animate-pulse" />
-        <div className="absolute -bottom-1/2 -right-1/2 w-full h-full bg-gradient-to-tl from-primary/5 via-transparent to-transparent rounded-full blur-3xl animate-pulse delay-1000" />
+        <div className="absolute -top-1/2 -left-1/2 w-full h-full bg-gradient-to-br from-[#8B7355]/5 via-transparent to-transparent rounded-full blur-3xl animate-pulse" />
+        <div className="absolute -bottom-1/2 -right-1/2 w-full h-full bg-gradient-to-tl from-[#8B7355]/5 via-transparent to-transparent rounded-full blur-3xl animate-pulse delay-1000" />
       </div>
 
       <motion.div 
@@ -62,7 +62,7 @@ export default function LoginPageClient() {
           <Link href="/">
             <Button 
               variant="ghost" 
-              className="text-muted-foreground hover:text-foreground -ml-4"
+              className="text-[#8B7355] hover:text-[#5C4D3C] hover:bg-[#E8DCC8] -ml-4"
             >
               <ArrowLeft className="h-4 w-4 mr-2" />
               Voltar para o início
@@ -86,7 +86,7 @@ export default function LoginPageClient() {
           animate={{ opacity: 1 }}
           transition={{ delay: 0.4 }}
         >
-          <p className="text-xs text-muted-foreground">
+          <p className="text-xs text-[#8B7355]">
             © 2024 Falando com o Profeta. Todos os direitos reservados.
           </p>
         </motion.div>

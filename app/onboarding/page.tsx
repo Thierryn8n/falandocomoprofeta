@@ -14,9 +14,9 @@ const slides = [
     title: "Bem-vindo ao Falando com o Profeta",
     subtitle: "Uma experiência espiritual única",
     description: "Converse com o Profeta William Branham através de Inteligência Artificial treinada em suas mensagens.",
-    icon: null, // Será substituído pela imagem do profeta
-    color: "from-amber-500 to-orange-600",
-    bgColor: "bg-amber-50 dark:bg-amber-950/20",
+    icon: null,
+    color: "from-[#8B7355] to-[#A89080]",
+    bgColor: "bg-[#FAF3E8]",
   },
   {
     id: 2,
@@ -24,8 +24,8 @@ const slides = [
     subtitle: "Tire suas dúvidas",
     description: "Faça perguntas sobre a Palavra de Deus e receba respostas baseadas nos sermões do Profeta William Branham.",
     icon: MessageCircle,
-    color: "from-amber-500 to-orange-600",
-    bgColor: "bg-amber-50 dark:bg-amber-950/20",
+    color: "from-[#8B7355] to-[#A89080]",
+    bgColor: "bg-[#FAF3E8]",
   },
   {
     id: 3,
@@ -33,8 +33,8 @@ const slides = [
     subtitle: "Aprofunde seu conhecimento",
     description: "Explore mapas mentais interativos para estudar a Bíblia de forma organizada e completa.",
     icon: BookOpen,
-    color: "from-amber-500 to-orange-600",
-    bgColor: "bg-amber-50 dark:bg-amber-950/20",
+    color: "from-[#8B7355] to-[#A89080]",
+    bgColor: "bg-[#FAF3E8]",
   },
   {
     id: 4,
@@ -42,8 +42,8 @@ const slides = [
     subtitle: "King James 1611",
     description: "Acesse a Bíblia Almeida Revelada, versão King James 1611, diretamente no aplicativo.",
     icon: BookMarked,
-    color: "from-amber-500 to-orange-600",
-    bgColor: "bg-amber-50 dark:bg-amber-950/20",
+    color: "from-[#8B7355] to-[#A89080]",
+    bgColor: "bg-[#FAF3E8]",
   },
 ]
 
@@ -101,11 +101,11 @@ export default function OnboardingPage() {
   }
 
   return (
-    <div className="min-h-screen bg-background flex flex-col items-center justify-center p-4">
+    <div className="min-h-screen bg-[#F4ECD8] flex flex-col items-center justify-center p-4">
       {/* Skip button */}
       <button
         onClick={handleSkip}
-        className="absolute top-6 right-6 text-sm text-muted-foreground hover:text-foreground transition-colors"
+        className="absolute top-6 right-6 text-sm text-[#8B7355] hover:text-[#5C4D3C] transition-colors"
       >
         Pular
       </button>
@@ -117,10 +117,10 @@ export default function OnboardingPage() {
             key={index}
             className={`h-1.5 rounded-full transition-all duration-300 ${
               index === currentSlide
-                ? "w-8 bg-primary"
+                ? "w-8 bg-[#8B7355]"
                 : index < currentSlide
-                ? "w-1.5 bg-primary/60"
-                : "w-1.5 bg-muted"
+                ? "w-1.5 bg-[#8B7355]/60"
+                : "w-1.5 bg-[#D4C4A8]"
             }`}
           />
         ))}
@@ -141,7 +141,7 @@ export default function OnboardingPage() {
           >
             {/* Icon / Imagem do Profeta */}
             {currentSlide === 0 ? (
-              <div className="mx-auto w-28 h-28 rounded-2xl bg-primary flex items-center justify-center mb-8 shadow-lg overflow-hidden">
+              <div className="mx-auto w-28 h-28 rounded-2xl bg-[#8B7355] flex items-center justify-center mb-8 shadow-lg overflow-hidden">
                 <img 
                   src={prophetAvatar} 
                   alt={prophetName}
@@ -155,7 +155,7 @@ export default function OnboardingPage() {
             )}
 
             {/* Title */}
-            <h1 className="text-2xl font-bold mb-2 text-foreground">
+            <h1 className="text-2xl font-bold mb-2 text-[#5C4D3C]">
               {slide.title === "Bem-vindo ao Falando com o Profeta" 
                 ? `Bem-vindo ao ${appName}` 
                 : slide.title}
@@ -167,7 +167,7 @@ export default function OnboardingPage() {
             </p>
 
             {/* Description */}
-            <p className="text-muted-foreground leading-relaxed px-4">
+            <p className="text-[#6B5D4C] leading-relaxed px-4">
               {slide.description.includes("Profeta William Branham")
                 ? slide.description.replace("Profeta William Branham", prophetName)
                 : slide.description}
@@ -191,7 +191,7 @@ export default function OnboardingPage() {
 
           <Button
             onClick={nextSlide}
-            className="rounded-full px-8 py-6 text-base font-medium bg-primary text-primary-foreground hover:bg-primary/90 transition-all"
+            className="rounded-full px-8 py-6 text-base font-medium bg-gradient-to-r from-[#8B7355] to-[#A89080] hover:from-[#7A6545] hover:to-[#978070] text-white transition-all"
           >
             {currentSlide === slides.length - 1 ? (
               "Começar"
@@ -206,13 +206,13 @@ export default function OnboardingPage() {
       </div>
 
       {/* Cookie consent note */}
-      <p className="absolute bottom-4 text-xs text-muted-foreground text-center px-4">
+      <p className="absolute bottom-4 text-xs text-[#8B7355] text-center px-4">
         Ao continuar, você aceita nossa{" "}
-        <a href="/politica-privacidade" className="underline hover:text-foreground">
+        <a href="/politica-privacidade" className="underline hover:text-[#5C4D3C]">
           Política de Privacidade
         </a>{" "}
         e{" "}
-        <a href="/termos-de-uso" className="underline hover:text-foreground">
+        <a href="/termos-de-uso" className="underline hover:text-[#5C4D3C]">
           Termos de Uso
         </a>
       </p>

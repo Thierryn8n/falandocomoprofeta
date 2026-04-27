@@ -166,10 +166,10 @@ export default function AdminPageClient() {
 
   if (authLoading || configLoading) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-background">
+      <div className="flex items-center justify-center min-h-screen bg-[#F4ECD8]">
         <div className="text-center">
-          <Loader2 className="h-10 w-10 animate-spin text-primary mx-auto mb-4" />
-          <p className="text-muted-foreground">Carregando painel administrativo...</p>
+          <Loader2 className="h-10 w-10 animate-spin text-[#8B7355] mx-auto mb-4" />
+          <p className="text-[#6B5D4C]">Carregando painel administrativo...</p>
         </div>
       </div>
     )
@@ -177,9 +177,9 @@ export default function AdminPageClient() {
 
   if (!user) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-background">
+      <div className="flex items-center justify-center min-h-screen bg-[#F4ECD8]">
         <div className="text-center">
-          <p className="text-muted-foreground">Usuário não encontrado. Redirecionando...</p>
+          <p className="text-[#6B5D4C]">Usuário não encontrado. Redirecionando...</p>
         </div>
       </div>
     )
@@ -187,10 +187,10 @@ export default function AdminPageClient() {
 
   if (!isAdmin) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-background">
+      <div className="flex items-center justify-center min-h-screen bg-[#F4ECD8]">
         <div className="text-center">
-          <p className="text-muted-foreground">Acesso negado. Você não tem permissões de administrador.</p>
-          <p className="text-sm text-muted-foreground mt-2">Role atual: {profile?.role || "não definido"}</p>
+          <p className="text-[#6B5D4C]">Acesso negado. Você não tem permissões de administrador.</p>
+          <p className="text-sm text-[#8B7355] mt-2">Role atual: {profile?.role || "não definido"}</p>
         </div>
       </div>
     )

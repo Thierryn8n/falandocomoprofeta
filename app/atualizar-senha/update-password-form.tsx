@@ -127,16 +127,16 @@ export function UpdatePasswordForm() {
         animate={{ opacity: 1, scale: 1 }}
         className="w-full max-w-md"
       >
-        <Card className="border-2 shadow-2xl">
+        <Card className="border-2 border-[#D4C4A8] shadow-2xl bg-[#FAF3E8]">
           <CardContent className="p-8">
             <div className="flex flex-col items-center justify-center space-y-4">
               <motion.div
                 animate={{ rotate: 360 }}
                 transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
               >
-                <div className="w-10 h-10 border-4 border-primary/30 border-t-primary rounded-full" />
+                <div className="w-10 h-10 border-4 border-[#8B7355]/30 border-t-[#8B7355] rounded-full" />
               </motion.div>
-              <p className="text-muted-foreground font-medium">Verificando link...</p>
+              <p className="text-[#6B5D4C] font-medium">Verificando link...</p>
             </div>
           </CardContent>
         </Card>
@@ -151,20 +151,20 @@ export function UpdatePasswordForm() {
         animate={{ opacity: 1, y: 0 }}
         className="w-full max-w-md"
       >
-        <Card className="border-2 shadow-2xl overflow-hidden">
-          <div className="bg-gradient-to-br from-red-500/10 via-red-500/5 to-transparent border-b p-6">
+        <Card className="border-2 border-[#D4C4A8] shadow-2xl overflow-hidden bg-[#FAF3E8]">
+          <div className="bg-gradient-to-br from-red-500/10 via-red-500/5 to-transparent border-b border-[#D4C4A8] p-6">
             <CardHeader className="text-center space-y-4 pb-2">
               <motion.div
                 initial={{ scale: 0 }}
                 animate={{ scale: 1 }}
                 transition={{ type: "spring" }}
-                className="mx-auto w-16 h-16 bg-red-100 dark:bg-red-900/30 rounded-full flex items-center justify-center ring-4 ring-red-500/20"
+                className="mx-auto w-16 h-16 bg-red-100 rounded-full flex items-center justify-center ring-4 ring-red-500/20"
               >
                 <XCircle className="h-8 w-8 text-red-600" />
               </motion.div>
               <div>
                 <CardTitle className="text-2xl font-bold text-red-600">Link Inválido</CardTitle>
-                <CardDescription className="text-sm">
+                <CardDescription className="text-sm text-[#6B5D4C]">
                   {error}
                 </CardDescription>
               </div>
@@ -172,12 +172,12 @@ export function UpdatePasswordForm() {
           </div>
           <CardContent className="p-6">
             <div className="space-y-4">
-              <p className="text-sm text-muted-foreground text-center">
+              <p className="text-sm text-[#6B5D4C] text-center">
                 O link de recuperação pode ter expirado ou já foi usado.
               </p>
               <Link href="/recuperar-senha">
                 <Button
-                  className="w-full h-12 rounded-xl font-semibold bg-gradient-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary shadow-lg shadow-primary/25"
+                  className="w-full h-12 rounded-xl font-semibold bg-gradient-to-r from-[#8B7355] to-[#A89080] hover:from-[#7A6545] hover:to-[#978070] text-white shadow-lg shadow-[#8B7355]/30"
                 >
                   <Sparkles className="h-5 w-5 mr-2" />
                   Solicitar Novo Link
@@ -198,20 +198,20 @@ export function UpdatePasswordForm() {
         animate={{ opacity: 1, scale: 1 }}
         className="w-full max-w-md"
       >
-        <Card className="border-2 shadow-2xl overflow-hidden">
-          <div className="bg-gradient-to-br from-green-500/10 via-green-500/5 to-transparent border-b p-6">
+        <Card className="border-2 border-[#D4C4A8] shadow-2xl overflow-hidden bg-[#FAF3E8]">
+          <div className="bg-gradient-to-br from-green-500/10 via-green-500/5 to-transparent border-b border-[#D4C4A8] p-6">
             <CardHeader className="text-center space-y-4 pb-2">
               <motion.div
                 initial={{ scale: 0 }}
                 animate={{ scale: 1 }}
                 transition={{ type: "spring" }}
-                className="mx-auto w-16 h-16 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center ring-4 ring-green-500/20"
+                className="mx-auto w-16 h-16 bg-green-100 rounded-full flex items-center justify-center ring-4 ring-green-500/20"
               >
                 <CheckCircle2 className="h-8 w-8 text-green-600" />
               </motion.div>
               <div>
                 <CardTitle className="text-2xl font-bold text-green-600">Senha Atualizada!</CardTitle>
-                <CardDescription className="text-sm">
+                <CardDescription className="text-sm text-[#6B5D4C]">
                   Sua senha foi alterada com sucesso
                 </CardDescription>
               </div>
@@ -219,11 +219,11 @@ export function UpdatePasswordForm() {
           </div>
           <CardContent className="p-6">
             <div className="text-center space-y-4">
-              <p className="text-sm text-muted-foreground">
+              <p className="text-sm text-[#6B5D4C]">
                 Você será redirecionado para a página de login em alguns segundos...
               </p>
               <motion.div 
-                className="w-full bg-muted rounded-full h-2 overflow-hidden"
+                className="w-full bg-[#D4C4A8] rounded-full h-2 overflow-hidden"
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
               >
@@ -235,7 +235,7 @@ export function UpdatePasswordForm() {
                 />
               </motion.div>
               <Link href="/">
-                <Button variant="outline" className="w-full h-12 rounded-xl">
+                <Button variant="outline" className="w-full h-12 rounded-xl border-[#D4C4A8] text-[#8B7355] hover:bg-[#E8DCC8]">
                   <ArrowRight className="h-5 w-5 mr-2" />
                   Ir para Login Agora
                 </Button>
@@ -253,29 +253,29 @@ export function UpdatePasswordForm() {
       animate={{ opacity: 1, y: 0 }}
       className="w-full max-w-md"
     >
-      <Card className="border-2 shadow-2xl overflow-hidden">
+      <Card className="border-2 border-[#D4C4A8] shadow-2xl overflow-hidden bg-[#FAF3E8]">
         {/* Header with Gradient */}
-        <div className="relative bg-gradient-to-br from-primary/10 via-primary/5 to-transparent border-b p-6">
+        <div className="relative bg-gradient-to-br from-[#8B7355]/15 via-[#A89080]/10 to-transparent border-b border-[#D4C4A8] p-6">
           <CardHeader className="text-center space-y-4 pb-2">
             <motion.div
               initial={{ scale: 0.8, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               transition={{ delay: 0.1 }}
             >
-              <Avatar className="h-16 w-16 mx-auto ring-4 ring-primary/20 ring-offset-4 ring-offset-background">
-                <AvatarImage src="/prophet-avatar.png" alt="Profeta William Branham" />
-                <AvatarFallback className="bg-gradient-to-br from-primary/40 to-primary/20">
-                  <Crown className="h-8 w-8 text-primary" />
+              <Avatar className="h-16 w-16 mx-auto ring-4 ring-[#8B7355]/30 ring-offset-4 ring-offset-[#FAF3E8]">
+                <AvatarImage src="https://wlwwgnimfuvoxjecdnza.supabase.co/storage/v1/object/public/profile-images/avatars/prophet-avatar-1753104005783.png" alt="Profeta William Branham" />
+                <AvatarFallback className="bg-gradient-to-br from-[#8B7355]/40 to-[#A89080]/20">
+                  <Crown className="h-8 w-8 text-[#8B7355]" />
                 </AvatarFallback>
               </Avatar>
             </motion.div>
             
             <div className="space-y-2">
-              <CardTitle className="text-2xl font-bold flex items-center justify-center gap-2">
-                <KeyRound className="h-6 w-6 text-primary" />
+              <CardTitle className="text-2xl font-bold flex items-center justify-center gap-2 text-[#5C4D3C]">
+                <KeyRound className="h-6 w-6 text-[#8B7355]" />
                 Nova Senha
               </CardTitle>
-              <CardDescription className="text-sm">
+              <CardDescription className="text-sm text-[#6B5D4C]">
                 Defina uma nova senha segura para sua conta
               </CardDescription>
             </div>
@@ -286,8 +286,8 @@ export function UpdatePasswordForm() {
           <form onSubmit={handleSubmit} className="space-y-5">
             {/* Security Badge */}
             <div className="flex justify-center">
-              <Badge variant="secondary" className="flex items-center gap-2 px-4 py-2">
-                <Shield className="h-4 w-4 text-primary" />
+              <Badge variant="secondary" className="flex items-center gap-2 px-4 py-2 bg-[#E8DCC8] text-[#5C4D3C] border-[#D4C4A8]">
+                <Shield className="h-4 w-4 text-[#8B7355]" />
                 <span className="text-xs font-medium">Criptografia de ponta a ponta</span>
               </Badge>
             </div>
@@ -317,14 +317,14 @@ export function UpdatePasswordForm() {
                   placeholder="Digite uma senha forte"
                   required
                   minLength={6}
-                  className="h-12 rounded-xl border-2 focus-visible:ring-primary/20 pr-12"
+                  className="h-12 rounded-xl border-2 border-[#D4C4A8] bg-[#F4ECD8] text-[#5C4D3C] placeholder:text-[#8B7355]/60 focus-visible:ring-[#8B7355]/20 focus-visible:border-[#8B7355] pr-12"
                 />
                 <Button
                   type="button"
                   variant="ghost"
                   size="icon"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 h-8 w-8 rounded-lg hover:bg-primary/10"
+                  className="absolute right-2 top-1/2 -translate-y-1/2 h-8 w-8 rounded-lg hover:bg-[#8B7355]/10 text-[#8B7355]"
                 >
                   {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </Button>
@@ -345,7 +345,7 @@ export function UpdatePasswordForm() {
                           "flex-1 rounded-full transition-all duration-300",
                           index < passwordStrength 
                             ? strengthColors[passwordStrength - 1] 
-                            : "bg-muted"
+                            : "bg-[#D4C4A8]"
                         )}
                       />
                     ))}
@@ -359,15 +359,15 @@ export function UpdatePasswordForm() {
                 </motion.div>
               )}
               
-              <p className="text-xs text-muted-foreground">
+              <p className="text-xs text-[#8B7355]">
                 Mínimo de 6 caracteres. Use letras, números e símbolos para mais segurança.
               </p>
             </div>
 
             {/* Confirmar Senha */}
             <div className="space-y-2">
-              <label className="text-sm font-medium flex items-center gap-2">
-                <CheckCircle2 className="h-4 w-4 text-primary" />
+              <label className="text-sm font-medium flex items-center gap-2 text-[#5C4D3C]">
+                <CheckCircle2 className="h-4 w-4 text-[#8B7355]" />
                 Confirmar Senha
               </label>
               <Input
@@ -378,7 +378,7 @@ export function UpdatePasswordForm() {
                 required
                 minLength={6}
                 className={cn(
-                  "h-12 rounded-xl border-2 focus-visible:ring-primary/20",
+                  "h-12 rounded-xl border-2 border-[#D4C4A8] bg-[#F4ECD8] text-[#5C4D3C] placeholder:text-[#8B7355]/60 focus-visible:ring-[#8B7355]/20 focus-visible:border-[#8B7355]",
                   confirmPassword && newPassword !== confirmPassword && "border-red-300 focus-visible:ring-red-200"
                 )}
               />
@@ -416,9 +416,9 @@ export function UpdatePasswordForm() {
               type="submit"
               disabled={isLoading || !newPassword || !confirmPassword || newPassword !== confirmPassword || newPassword.length < 6}
               className={cn(
-                "w-full h-12 rounded-xl font-semibold text-base",
-                "bg-gradient-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary",
-                "shadow-lg shadow-primary/25 transition-all hover:shadow-xl hover:shadow-primary/30",
+                "w-full h-12 rounded-xl font-semibold text-base text-white",
+                "bg-gradient-to-r from-[#8B7355] to-[#A89080] hover:from-[#7A6545] hover:to-[#978070]",
+                "shadow-lg shadow-[#8B7355]/30 transition-all hover:shadow-xl hover:shadow-[#8B7355]/40",
                 "disabled:opacity-50"
               )}
             >
@@ -445,10 +445,10 @@ export function UpdatePasswordForm() {
           </form>
 
           {/* Back Link */}
-          <div className="mt-6 pt-4 border-t text-center">
-            <p className="text-sm text-muted-foreground">
+          <div className="mt-6 pt-4 border-t border-[#D4C4A8] text-center">
+            <p className="text-sm text-[#6B5D4C]">
               Lembrou sua senha antiga?{" "}
-              <Link href="/" className="text-primary font-semibold hover:underline">
+              <Link href="/" className="text-[#8B7355] font-semibold hover:underline">
                 Faça login
               </Link>
             </p>

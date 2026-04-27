@@ -140,8 +140,8 @@ export default function UpdatePageClient() {
       <div className="container mx-auto px-4 py-8">
         <div className="flex items-center justify-center min-h-[400px]">
           <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
-            <p className="text-muted-foreground">Carregando planos...</p>
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#8B7355] mx-auto mb-4"></div>
+            <p className="text-[#6B5D4C]">Carregando planos...</p>
           </div>
         </div>
       </div>
@@ -152,8 +152,10 @@ export default function UpdatePageClient() {
     return (
       <div className="container mx-auto px-4 py-8">
         <div className="text-center">
-          <p className="text-red-500 mb-4">{error}</p>
-          <Button onClick={loadPlansAndConfig}>Tentar novamente</Button>
+          <p className="text-[#6B5D4C] mb-4">{error}</p>
+          <Button onClick={loadPlansAndConfig} className="bg-gradient-to-r from-[#8B7355] to-[#A89080] hover:from-[#7A6545] hover:to-[#978070] text-white">
+            Tentar novamente
+          </Button>
         </div>
       </div>
     )
@@ -164,8 +166,8 @@ export default function UpdatePageClient() {
       <div className="max-w-6xl mx-auto">
         {/* Header */}
         <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold mb-2">Planos de Assinatura</h1>
-          <p className="text-muted-foreground">
+          <h1 className="text-3xl font-bold mb-2 text-[#5C4D3C]">Planos de Assinatura</h1>
+          <p className="text-[#6B5D4C]">
             {paymentConfig?.activeSystem === 'abacate_pay' && paymentConfig?.systemConfig?.useExternalSystem
               ? 'Escolha um plano através do sistema externo Abacate Pay'
               : paymentConfig?.activeSystem === 'mercado_pago'
@@ -186,13 +188,13 @@ export default function UpdatePageClient() {
             </CardHeader>
             <CardContent>
               <div className="flex items-center gap-2">
-                <Badge variant={paymentConfig?.activeSystem === 'abacate_pay' ? "default" : "secondary"}>
+                <Badge variant="default" className="text-[#6B5D4C]">
                   {paymentConfig?.activeSystem === 'abacate_pay' 
                     ? (paymentConfig?.systemConfig?.useExternalSystem ? 'Abacate Pay Externo' : 'Abacate Pay Interno')
                     : 'Mercado Pago'
                   }
                 </Badge>
-                <span className="text-sm text-muted-foreground">
+                <span className="text-sm text-[#6B5D4C]">
                   {paymentConfig?.activeSystem === 'abacate_pay' 
                     ? (paymentConfig?.systemConfig?.useExternalSystem 
                         ? 'Pagamentos processados via Abacate Pay'
@@ -210,7 +212,7 @@ export default function UpdatePageClient() {
         {((paymentConfig?.activeSystem === 'abacate_pay' && paymentConfig?.systemConfig?.useExternalSystem) || 
           paymentConfig?.activeSystem === 'mercado_pago') && externalPlans.length > 0 ? (
           <div>
-            <h2 className="text-2xl font-semibold mb-6">Planos Externos Disponíveis</h2>
+            <h2 className="text-2xl font-semibold mb-6 text-[#5C4D3C]">Planos Externos Disponíveis</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {externalPlans.map((plan) => {
                 const IconComponent = getIconComponent(plan.metadata?.icon || 'package')
@@ -221,8 +223,8 @@ export default function UpdatePageClient() {
                     key={plan.id} 
                     className={`relative transition-all hover:shadow-lg ${
                       isHighlighted 
-                        ? 'border-2 border-primary shadow-lg' 
-                        : 'hover:scale-105'
+                        ? 'border-2 border-[#8B7355] shadow-lg bg-[#FAF3E8]' 
+                        : 'hover:scale-105 border-[#D4C4A8] bg-[#FAF3E8]'
                     }`}
                     style={{
                       backgroundColor: plan.metadata?.backgroundColor || undefined,
@@ -231,7 +233,7 @@ export default function UpdatePageClient() {
                   >
                     {isHighlighted && (
                       <div className="absolute -top-3 left-1/2 transform -translate-x-1/2">
-                        <Badge className="bg-primary text-primary-foreground px-3 py-1">
+                        <Badge className="bg-[#8B7355] text-white px-3 py-1">
                           Destaque
                         </Badge>
                       </div>
@@ -252,12 +254,12 @@ export default function UpdatePageClient() {
                       
                       <div className="flex items-center justify-center gap-2 mb-2">
                         <CardTitle className="text-xl">{plan.name}</CardTitle>
-                        <Badge variant="outline" className="text-xs">
+                        <Badge variant="outline" className="text-xs text-[#6B5D4C]">
                           {plan.status === 'active' ? 'Ativo' : 'Inativo'}
                         </Badge>
                       </div>
                       
-                      <CardDescription className="text-sm mb-3">
+                      <CardDescription className="text-sm mb-3 text-[#6B5D4C]">
                         {plan.description}
                       </CardDescription>
                     </CardHeader>
@@ -265,11 +267,11 @@ export default function UpdatePageClient() {
                     <CardContent className="space-y-4">
                       {/* Preço */}
                       <div className="text-center">
-                        <div className="text-3xl font-bold text-primary mb-1">
+                        <div className="text-3xl font-bold text-[#8B7355] mb-1">
                           {formatPrice(plan.price, plan.currency)}
                         </div>
                         {plan.interval && (
-                          <p className="text-sm text-muted-foreground">
+                          <p className="text-sm text-[#6B5D4C]">
                             Por {plan.interval}
                           </p>
                         )}
@@ -280,11 +282,11 @@ export default function UpdatePageClient() {
                         <>
                           <Separator />
                           <div>
-                            <h4 className="font-medium text-sm mb-2">Recursos:</h4>
+                            <h4 className="font-medium text-sm mb-2 text-[#5C4D3C]">Recursos:</h4>
                             <ul className="space-y-1">
                               {plan.features.map((feature, index) => (
                                 <li key={index} className="flex items-center text-sm">
-                                  <div className="w-1.5 h-1.5 bg-primary rounded-full mr-2 flex-shrink-0" />
+                                  <div className="w-1.5 h-1.5 bg-[#8B7355] rounded-full mr-2 flex-shrink-0" />
                                   {feature}
                                 </li>
                               ))}
@@ -300,6 +302,7 @@ export default function UpdatePageClient() {
                         <Button 
                           className="flex-1 min-w-[120px]" 
                           onClick={() => handleExternalPlanClick(plan.external_link)}
+                          className="bg-gradient-to-r from-[#8B7355] to-[#A89080] hover:from-[#7A6545] hover:to-[#978070] text-white"
                         >
                           <ExternalLink className="h-4 w-4 mr-2" />
                           Assinar
@@ -309,7 +312,7 @@ export default function UpdatePageClient() {
                           <Button
                             variant="outline"
                             size="sm"
-                            className="px-2"
+                            className="px-2 border-[#D4C4A8] text-[#8B7355] hover:bg-[#E8DCC8]"
                             onClick={() => copyToClipboard(plan.external_link)}
                           >
                             <Copy className="h-4 w-4" />
@@ -318,7 +321,7 @@ export default function UpdatePageClient() {
                           <Button
                             variant="outline"
                             size="sm"
-                            className="px-2"
+                            className="px-2 border-[#D4C4A8] text-[#8B7355] hover:bg-[#E8DCC8]"
                             onClick={() => handleExternalPlanClick(plan.external_link)}
                           >
                             <ExternalLink className="h-4 w-4" />
@@ -333,21 +336,21 @@ export default function UpdatePageClient() {
           </div>
         ) : paymentConfig?.activeSystem === 'abacate_pay' && !paymentConfig?.systemConfig?.useExternalSystem ? (
           <div className="text-center py-12">
-            <h2 className="text-xl font-semibold mb-4">Sistema Interno Ativo</h2>
-            <p className="text-muted-foreground mb-6">
+            <h2 className="text-xl font-semibold mb-4 text-[#5C4D3C]">Sistema Interno Ativo</h2>
+            <p className="text-[#6B5D4C] mb-6">
               O sistema de pagamento interno está ativo. Acesse a página de upgrade para ver os planos disponíveis.
             </p>
-            <Button onClick={() => router.push('/upgrade')}>
+            <Button onClick={() => router.push('/upgrade')} className="bg-gradient-to-r from-[#8B7355] to-[#A89080] hover:from-[#7A6545] hover:to-[#978070] text-white">
               Ver Planos Internos
             </Button>
           </div>
         ) : (
           <div className="text-center py-12">
-            <h2 className="text-xl font-semibold mb-4">Nenhum Plano Configurado</h2>
-            <p className="text-muted-foreground mb-6">
+            <h2 className="text-xl font-semibold mb-4 text-[#5C4D3C]">Nenhum Plano Configurado</h2>
+            <p className="text-[#6B5D4C] mb-6">
               Não há planos configurados no momento. Entre em contato com o administrador.
             </p>
-            <Button variant="outline" onClick={() => router.push('/')}>
+            <Button variant="outline" onClick={() => router.push('/')} className="border-[#D4C4A8] text-[#8B7355] hover:bg-[#E8DCC8]">
               Voltar ao Início
             </Button>
           </div>
@@ -357,8 +360,8 @@ export default function UpdatePageClient() {
         <div className="mt-12 text-center">
           <Card>
             <CardContent className="pt-6">
-              <h3 className="font-semibold mb-2">Precisa de Ajuda?</h3>
-              <p className="text-sm text-muted-foreground">
+              <h3 className="font-semibold mb-2 text-[#5C4D3C]">Precisa de Ajuda?</h3>
+              <p className="text-sm text-[#6B5D4C]">
                 Entre em contato conosco se tiver dúvidas sobre os planos ou pagamentos.
               </p>
             </CardContent>
